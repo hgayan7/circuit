@@ -16,3 +16,4 @@ coverage.out
 # Local data & temp
 *.log
 tmp/
+.freebuff/
