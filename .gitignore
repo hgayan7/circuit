@@ -1,7 +1,7 @@
 # Binaries
 bin/
 dist/
-si-shield
+/si-shield
 
 # Test artifacts
 coverage.out
