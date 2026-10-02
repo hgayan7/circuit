@@ -1,0 +1,17 @@
+# Binaries
+bin/
+dist/
+si-shield
+
+# Test artifacts
+coverage.out
+*.test
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
+
+# Local data & temp
+*.log
+tmp/
