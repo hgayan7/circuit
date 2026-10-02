@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test & Race Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: Verify Dependencies
+        run: go mod verify
+
+      - name: Go Vet
+        run: go vet ./...
+
+      - name: Run Tests with Race Detector
+        run: go test -v -race ./...
+
+  build-matrix:
+    name: Cross-Platform Build
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        goos: [linux, darwin]
+        goarch: [amd64, arm64]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: Build Binary (${{ matrix.goos }}/${{ matrix.goarch }})
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -v -o bin/circuit-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/circuit
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: circuit-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: bin/circuit-${{ matrix.goos }}-${{ matrix.goarch }}

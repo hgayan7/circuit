@@ -3,6 +3,7 @@
 > **The Circuit Breaker & Safety Proxy for Autonomous AI Agents and MCP Tooling.**  
 > *Trip the breaker before an agent burns down production.*
 
+[![CI](https://github.com/hgayan7/circuit/actions/workflows/ci.yml/badge.svg)](https://github.com/hgayan7/circuit/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/hgayan7/circuit)](https://goreportcard.com/report/github.com/hgayan7/circuit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Latency](https://img.shields.io/badge/Evaluation%20Overhead-%3C%2085%C2%B5s-brightgreen.svg)](#benchmarks)
