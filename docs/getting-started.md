@@ -1,6 +1,6 @@
-# Getting Started with Circuit
+# Getting Started with Circuit Proxy
 
-Circuit enforces policies, budgets, and approvals on every outbound call
+Circuit Proxy enforces policies, budgets, and approvals on every outbound call
 your AI agent makes — with **zero changes to your agent code**.
 
 ## Install

@@ -1,4 +1,4 @@
-# How the Policy YAML Works
+# Circuit Proxy — How the Policy YAML Works
 
 A `circuit.yaml` file is your **rulebook**. Circuit reads it at startup,
 compiles every rule, and evaluates each intercepted request against them

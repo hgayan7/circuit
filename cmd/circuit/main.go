@@ -39,8 +39,8 @@ func main() {
 
 var rootCmd = &cobra.Command{
 	Use:   "circuit",
-	Short: "The Governance & Safety Proxy for AI Agents",
-	Long: `Circuit enforces policies, budgets, and approvals on every
+	Short: "Circuit Proxy — The Governance & Safety Proxy for AI Agents",
+	Long: `Circuit Proxy enforces policies, budgets, and approvals on every
 outbound call your AI agent makes — with zero changes to your agent code.
 
 Examples:

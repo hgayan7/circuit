@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/logo.jpg" alt="Circuit Logo" width="120" />
+  <img src="assets/logo.jpg" alt="Circuit Proxy Logo" width="120" />
 </p>
 
-<h1 align="center">Circuit</h1>
+<h1 align="center">Circuit Proxy</h1>
 
 <p align="center">
   <strong>The Governance &amp; Safety Proxy for AI Agents</strong><br/>
