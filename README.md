@@ -61,7 +61,7 @@ It intercepts tool calls, evaluates semantic arguments using Google Common Expre
 
 **Via Homebrew (macOS & Linux):**
 ```bash
-brew install hgayan7/tap/circuit
+brew install hgayan7/circuit/circuit
 ```
 
 **Via Pre-Built Binary:**

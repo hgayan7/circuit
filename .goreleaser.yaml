@@ -54,7 +54,7 @@ homebrew_casks:
   - name: circuit
     repository:
       owner: hgayan7
-      name: homebrew-tap
+      name: homebrew-circuit
       branch: main
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: "https://circuitproxy.com"
