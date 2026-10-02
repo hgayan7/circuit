@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/himshikhargayan/si-shield/pkg/approval"
-	"github.com/himshikhargayan/si-shield/pkg/audit"
-	"github.com/himshikhargayan/si-shield/pkg/config"
-	"github.com/himshikhargayan/si-shield/pkg/policy"
+	"github.com/himshikhargayan/circuit/pkg/approval"
+	"github.com/himshikhargayan/circuit/pkg/audit"
+	"github.com/himshikhargayan/circuit/pkg/config"
+	"github.com/himshikhargayan/circuit/pkg/policy"
 )
 
 // JSONRPCMessage is a standard JSON-RPC 2.0 message frame.

@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/himshikhargayan/si-shield/pkg/approval"
-	"github.com/himshikhargayan/si-shield/pkg/audit"
-	"github.com/himshikhargayan/si-shield/pkg/config"
-	"github.com/himshikhargayan/si-shield/pkg/interceptor/mcp"
-	"github.com/himshikhargayan/si-shield/pkg/policy"
+	"github.com/himshikhargayan/circuit/pkg/approval"
+	"github.com/himshikhargayan/circuit/pkg/audit"
+	"github.com/himshikhargayan/circuit/pkg/config"
+	"github.com/himshikhargayan/circuit/pkg/interceptor/mcp"
+	"github.com/himshikhargayan/circuit/pkg/policy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

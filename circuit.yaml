@@ -1,0 +1,36 @@
+version: "v1alpha1"
+name: "default-safety-circuit"
+description: "Universal blast-radius containment and action budget circuit breaker"
+default_action: ALLOW
+
+rules:
+  # 1. MCP Database Guard: Prevent destructive DDL statements
+  - id: "block-database-ddl"
+    description: "Prevent DROP, TRUNCATE, and ALTER TABLE statements"
+    match:
+      tool: "postgres.query"
+    condition: "args.sql.matches(r'(?i)(DROP\\s+TABLE|TRUNCATE|ALTER\\s+TABLE)')"
+    action: DENY
+    reason: "Destructive DDL operations are blocked by Circuit policy"
+
+  # 2. Cumulative Action Budget: Max 5 Pull Requests per hour
+  - id: "github-pr-rate-budget"
+    description: "Cap hourly pull request creation to prevent infinite agent retry loops"
+    match:
+      tool: "github.create_pull_request"
+    budget:
+      window: "1h"
+      max_calls: 5
+    action: ALLOW
+
+  # 3. High-Risk Action Escalation: Require human sign-off on transactions > $100
+  - id: "escalate-high-value-mutations"
+    description: "Require human sign-off on financial refunds over $100"
+    match:
+      endpoint: "POST /v1/refunds"
+    condition: "args.amount > 10000"
+    action: REQUIRE_APPROVAL
+    reason: "Transaction amount exceeds $100 autonomy threshold"
+    escalation:
+      channel: "terminal"
+      target: "operator"

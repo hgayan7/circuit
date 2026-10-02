@@ -17,10 +17,11 @@ func TestRootCommand(t *testing.T) {
 
 	err := rootCmd.Execute()
 	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "si-shield")
-	assert.Contains(t, buf.String(), "wrap")
+	assert.Contains(t, buf.String(), "Circuit")
+	assert.Contains(t, buf.String(), "run")
+	assert.Contains(t, buf.String(), "mcp")
 	assert.Contains(t, buf.String(), "serve")
-	assert.Contains(t, buf.String(), "validate")
+	assert.Contains(t, buf.String(), "check")
 }
 
 func TestVersionCommand(t *testing.T) {
@@ -30,16 +31,16 @@ func TestVersionCommand(t *testing.T) {
 
 	err := rootCmd.Execute()
 	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "si-shield v0.1.0")
+	assert.Contains(t, buf.String(), "circuit v0.1.0")
 }
 
-func TestValidateCommand_ValidFile(t *testing.T) {
-	tmpFile, err := os.CreateTemp("", "policy-*.yaml")
+func TestCheckCommand_ValidFile(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "circuit-*.yaml")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
 	content := `
-name: "valid-cli-policy"
+name: "valid-circuit-policy"
 rules:
   - id: "r1"
     match:
@@ -54,25 +55,25 @@ rules:
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"validate", "--policy", tmpFile.Name()})
+	rootCmd.SetArgs([]string{"check", tmpFile.Name()})
 
 	err = rootCmd.Execute()
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "compiled successfully")
 }
 
-func TestValidateCommand_InvalidFile(t *testing.T) {
-	tmpFile, err := os.CreateTemp("", "bad-policy-*.yaml")
+func TestCheckCommand_InvalidFile(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "bad-circuit-*.yaml")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
 	content := `
-name: "bad-cli-policy"
+name: "bad-circuit-policy"
 rules:
   - id: "r1"
     match:
       tool: "git.push"
-    condition: "args.syntax error ==="
+    condition: "args.bad syntax ==="
     action: DENY
 `
 	_, err = tmpFile.WriteString(content)
@@ -81,8 +82,7 @@ rules:
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
-	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"validate", "--policy", tmpFile.Name()})
+	rootCmd.SetArgs([]string{"check", tmpFile.Name()})
 
 	err = rootCmd.Execute()
 	require.Error(t, err)

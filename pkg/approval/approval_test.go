@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/himshikhargayan/si-shield/pkg/approval"
+	"github.com/himshikhargayan/circuit/pkg/approval"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

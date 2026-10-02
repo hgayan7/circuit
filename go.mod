@@ -1,4 +1,4 @@
-module github.com/himshikhargayan/si-shield
+module github.com/himshikhargayan/circuit
 
 go 1.26.1
 

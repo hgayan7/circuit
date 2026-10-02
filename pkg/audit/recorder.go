@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/himshikhargayan/si-shield/pkg/config"
+	"github.com/himshikhargayan/circuit/pkg/config"
 )
 
 // Entry represents a single audited transaction event.

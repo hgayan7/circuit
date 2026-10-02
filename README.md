@@ -1,43 +1,49 @@
-# 🛡️ si-shield
+# ⚡ Circuit
 
-> **The Zero-Trust Security Sidecar & Blast-Radius Gateway for AI Agents and MCP Tooling.**
+> **The Circuit Breaker & Safety Proxy for Autonomous AI Agents and MCP Tooling.**  
+> *Trip the breaker before an agent burns down production.*
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/himshikhargayan/si-shield)](https://goreportcard.com/report/github.com/himshikhargayan/si-shield)
+[![Go Report Card](https://goreportcard.com/badge/github.com/himshikhargayan/circuit)](https://goreportcard.com/report/github.com/himshikhargayan/circuit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Latency](https://img.shields.io/badge/Policy%20Latency-%3C%2085%C2%B5s-brightgreen.svg)](#benchmarks)
+[![Latency](https://img.shields.io/badge/Evaluation%20Overhead-%3C%2085%C2%B5s-brightgreen.svg)](#benchmarks)
+[![Web](https://img.shields.io/badge/Web-circuitproxy.com-purple.svg)](https://circuitproxy.com)
 
 ---
 
-## The Problem
+## Why Circuit?
 
-Traditional security solutions fail when facing autonomous LLMs:
-1. **API Gateways (Kong, AWS API Gateway)** inspect the *Token*, not the *Intent*. An agent with write permissions deleting 10,000 records looks identical to a senior engineer performing a routine migration.
-2. **Traditional Rate-Limiting** counts *requests per minute*. A runaway agent only needs **1 request** to wipe a production database or issue 50 unmonitored refunds.
-3. **LLM Guardrails (NeMo, Guardrails AI)** scan text strings for toxicity and prompt injection, but are blind to real-world side effects once an action enters the execution domain.
-4. **All-or-Nothing Bearer Tokens:** Giving an agent direct API keys or database credentials creates a catastrophic blast radius if the agent hallucinates or is manipulated.
+Autonomous agents are probabilistic, non-deterministic reasoning engines. Giving them direct access to production APIs, databases, and MCP servers creates critical vulnerabilities:
+
+1. **The Blast-Radius Dilemma:** An agent compromised via indirect prompt injection or hallucination makes calls with legitimate tokens. To an API gateway like Kong or AWS, wiping 5,000 customers looks like a normal migration.
+2. **Traditional Rate Limits Fail Agents:** Gateways rate-limit on *requests per second*. A runaway agent only needs **1 bad request** to execute `DELETE /users` or cycle 10 x $500 refunds over 30 minutes.
+3. **LLM Guardrails Miss Mutations:** Text guardrails (NeMo, Guardrails AI) scan prompts for strings, but cannot calculate real-world side effects once an action enters the execution domain.
+4. **All-or-Nothing Bearer Tokens:** If you hand an agent a live GitHub or Stripe credential, its blast radius is whatever that key allows.
+
+**Circuit acts as an electrical circuit breaker on the network and stdio wire:**  
+It intercepts tool calls, evaluates semantic arguments using Google Common Expression Language (CEL), enforces cumulative financial and action budgets, virtualizes credentials, and parks high-risk transactions for human sign-off without dropping agent state.
 
 ---
 
-## The Solution: `si-shield`
-
-`si-shield` is an ultra-fast, language-agnostic, zero-trust security sidecar that sits between autonomous agent runtimes and downstream execution environments (MCP servers, databases, and REST APIs).
+## Architecture
 
 ```
                       [ AGENT RUNTIME ]
-             (Claude, Cursor, Python/LangGraph, Node.js)
+         (Cursor, Claude Desktop, Python, LangGraph, Node.js)
                           │
             ┌─────────────┴─────────────┐
             │                           │
-     [ MCP stdio / SSE ]         [ HTTP / REST ]
+    [ MCP stdio / SSE ]          [ HTTP / REST ]
+    (circuit mcp wrap)          (circuit run / serve)
             │                           │
             ▼                           ▼
   ┌────────────────────────────────────────────────────────┐
-  │                   SI-SHIELD GATEWAY                    │
-  │  • CEL Policy Evaluator (Google Common Expression)     │
-  │  • Cumulative Session Budgets (Financial / Action)     │
-  │  • Ephemeral Token Virtualization (Zero-Trust Vault)   │
-  │  • Stateful Asynchronous HITL (Micro-Approvals)        │
-  │  • Tamper-Evident NDJSON Audit Log                     │
+  │                    CIRCUIT GATEWAY                     │
+  │                                                        │
+  │  • CEL Policy Engine (Google Common Expression)        │
+  │  • Cumulative Action & Spend Budgets (Rolling Window)  │
+  │  • Zero-Trust Token Virtualization (Ephemeral Vault)   │
+  │  • Stateful Transaction Parking (Asynchronous HITL)    │
+  │  • Tamper-Evident NDJSON Audit Ledger                  │
   └───────────────────────────┬────────────────────────────┘
                               │ (Only when ALLOWED or APPROVED)
             ┌─────────────────┴─────────────────┐
@@ -48,48 +54,46 @@ Traditional security solutions fail when facing autonomous LLMs:
 
 ---
 
-## Key Features & USPs
-
-1. **Semantic Blast-Radius & Action Budgets:** Rate-limit by *cumulative dollars, deletion counts, or mutation frequency* over sliding time windows (e.g. `max_amount: 500.00` per hour).
-2. **Zero Code Refactoring:** Operates at the network and stdio wire level. Drop it in front of existing tools using standard `HTTP_PROXY` or wrap MCP servers directly.
-3. **Google CEL Policy Engine:** Declarative, non-Turing complete, memory-safe rules compiled down to bytecode, evaluating in under **85 microseconds**.
-4. **Human-in-the-Loop (HITL) Micro-Approvals:** Suspends high-risk transactions, renders a visual diff/payload to the human operator (CLI prompt or Slack), and seamlessly resumes execution without dropping agent context.
-5. **Zero-Trust Token Virtualization:** The agent interacts only with mock tokens. The gateway mints and injects ephemeral, real downstream credentials only *after* policy authorization.
-
----
-
-## ⚡ Quick Start
+## 🚀 Quickstart
 
 ### 1. Installation
 
 ```bash
-git clone https://github.com/himshikhargayan/si-shield.git
-cd si-shield
-go build -o /usr/local/bin/si-shield ./cmd/si-shield
+git clone https://github.com/himshikhargayan/circuit.git
+cd circuit
+go build -o /usr/local/bin/circuit ./cmd/circuit
 ```
 
-### 2. Wrapping an MCP Server (Cursor / Claude Desktop)
+### 2. Automatic Proxy Injection (`circuit run`)
 
-Protect your production database from accidental `DROP TABLE` or mass `DELETE`:
+Run any agent script without changing code or configuring ports. Circuit spins up an ephemeral proxy, injects `HTTP_PROXY` into the child environment, enforces policy, and tears down cleanly when done:
 
 ```bash
-si-shield wrap \
-  --policy ./examples/policies/postgres_guard.yaml \
+circuit run --policy ./circuit.yaml -- python agent.py
+```
+
+### 3. Wrap an MCP Server (`circuit mcp wrap`)
+
+Protect local developer tools (Cursor, Claude Desktop, Antigravity) from accidental `DROP TABLE` or destructive commands:
+
+```bash
+circuit mcp wrap \
+  --policy ./circuit.yaml \
   --prefix postgres \
   --audit ./mcp-audit.log \
   -- npx -y @modelcontextprotocol/server-postgres "postgresql://user:pass@localhost:5432/mydb"
 ```
 
-Add to your `claude_desktop_config.json`:
+In your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "postgres": {
-      "command": "si-shield",
+      "command": "circuit",
       "args": [
-        "wrap",
-        "--policy", "/path/to/postgres_guard.yaml",
+        "mcp", "wrap",
+        "--policy", "/path/to/circuit.yaml",
         "--prefix", "postgres",
         "--",
         "npx", "-y", "@modelcontextprotocol/server-postgres", "postgresql://..."
@@ -99,75 +103,66 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
-### 3. Outbound HTTP Reverse Proxy (Stripe, GitHub, SaaS)
+### 4. Standalone Reverse Proxy Daemon (`circuit serve`)
 
-Run `si-shield` in front of production APIs:
+Run Circuit in production or Kubernetes in front of critical APIs:
 
 ```bash
-si-shield serve \
-  --policy ./examples/policies/stripe_billing.yaml \
+circuit serve \
+  --policy ./circuit.yaml \
   --target "https://api.stripe.com" \
   --port 8080 \
-  --inject-token "$STRIPE_SECRET_KEY" \
+  --inject-token "$STRIPE_LIVE_KEY" \
   --audit ./stripe-audit.log
 ```
 
-Now direct your agent to `http://localhost:8080/v1/refunds` instead of hitting Stripe directly. The agent only holds mock credentials; `si-shield` validates budget caps, requests operator approval on high amounts, and injects the live secret key downstream.
-
 ---
 
-## Policy Examples
+## Declarative Policy (`circuit.yaml`)
 
-### Guarding MCP Postgres
+Policies use simple YAML with Google CEL expressions:
 
 ```yaml
 version: "v1alpha1"
-name: "postgres-guard"
+name: "prod-safety-circuit"
 default_action: ALLOW
 
 rules:
-  # Block destructive DDL
-  - id: "block-ddl"
+  # 1. MCP Database Guard: Block destructive DDL statements
+  - id: "block-database-ddl"
+    description: "Prevent DROP, TRUNCATE, and ALTER TABLE"
     match:
       tool: "postgres.query"
     condition: "args.sql.matches(r'(?i)(DROP\\s+TABLE|TRUNCATE|ALTER\\s+TABLE)')"
     action: DENY
-    reason: "Destructive DDL operations are blocked by security policy"
+    reason: "Destructive DDL operations are forbidden by Circuit policy"
 
-  # Require human sign-off on user updates
-  - id: "require-signoff-mutations"
-    match:
-      tool: "postgres.query"
-    condition: "args.sql.matches(r'(?i)UPDATE\\s+users')"
-    action: REQUIRE_APPROVAL
-    reason: "Direct updates to users table require operator approval"
-```
-
-### Cumulative Action & Spending Budget
-
-```yaml
-version: "v1alpha1"
-name: "stripe-budget"
-default_action: ALLOW
-
-rules:
-  # Max $500 total spend across any 1-hour rolling window
-  - id: "refund-budget-cap"
+  # 2. Cumulative Spend Budget: Cap refunds across a rolling 1-hour window
+  - id: "hourly-spend-cap"
     match:
       endpoint: "POST /v1/refunds"
     budget:
       window: "1h"
       max_amount: 500.00
-      amount_field: "args.amount / 100.0"
+      amount_field: "args.amount / 100.0" # Stripe amount in cents
     action: ALLOW
 
-  # Require approval for single refunds > $100
-  - id: "large-refund-signoff"
+  # 3. Micro-Approval Escalation: Park transactions > $100 for human review
+  - id: "escalate-high-refund"
     match:
       endpoint: "POST /v1/refunds"
     condition: "args.amount > 10000"
     action: REQUIRE_APPROVAL
     reason: "Single refund exceeds $100 threshold"
+    escalation:
+      channel: "terminal"
+      target: "operator"
+```
+
+Validate your rules at any time:
+```bash
+circuit check circuit.yaml
+# ✅ Policy 'prod-safety-circuit' (version v1alpha1) compiled successfully with 3 rule(s).
 ```
 
 ---
@@ -180,7 +175,7 @@ Benchmarked on Apple M2 Pro (`darwin/arm64`):
 BenchmarkEngine_Evaluate-12    14791    80604 ns/op (0.08ms per evaluation)
 ```
 
-Policy validation and CEL AST evaluation incur less than **0.1ms overhead**, making `si-shield` virtually invisible in the execution critical path.
+Policy validation and CEL AST evaluation incur less than **0.1ms overhead**, making Circuit practically invisible in the critical path.
 
 ---
 
