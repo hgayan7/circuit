@@ -12,6 +12,7 @@ import (
 	"github.com/hgayan7/circuit/pkg/approval"
 	"github.com/hgayan7/circuit/pkg/audit"
 	"github.com/hgayan7/circuit/pkg/config"
+	"github.com/hgayan7/circuit/pkg/initwizard"
 	"github.com/hgayan7/circuit/pkg/interceptor/mcp"
 	"github.com/hgayan7/circuit/pkg/interceptor/proxy"
 	"github.com/hgayan7/circuit/pkg/policy"
@@ -38,12 +39,33 @@ func main() {
 
 var rootCmd = &cobra.Command{
 	Use:   "circuit",
-	Short: "Circuit: The Circuit Breaker & Safety Proxy for AI Agents",
-	Long: `Circuit is an ultra-fast, zero-trust security sidecar and gateway 
-designed for AI agents and Model Context Protocol (MCP) tooling. 
-It intercepts outbound tool calls and APIs, enforcing argument-level policies, 
-cumulative blast-radius budgets, and human-in-the-loop approvals.`,
+	Short: "The Governance & Safety Proxy for AI Agents",
+	Long: `Circuit enforces policies, budgets, and approvals on every
+outbound call your AI agent makes — with zero changes to your agent code.
+
+Examples:
+  circuit init                                       generate circuit.yaml interactively
+  circuit run -- python agent.py                     wrap an HTTP-based agent
+  circuit mcp wrap -- npx -y @my/mcp-server          wrap an MCP stdio server
+  circuit serve --target https://api.openai.com      run as a persistent proxy daemon`,
 }
+
+var initCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Generate a circuit.yaml policy file interactively",
+	Long: `Asks a few questions about your agent stack and generates
+a tailored circuit.yaml with sensible default rules, budgets, and audit settings.
+
+  circuit init`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		return initwizard.Run(os.Stdin, cmd.OutOrStdout(), cwd)
+	},
+}
+
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
@@ -56,7 +78,12 @@ var versionCmd = &cobra.Command{
 var checkCmd = &cobra.Command{
 	Use:     "check [policy.yaml]",
 	Aliases: []string{"validate"},
-	Short:   "Lint and validate policy syntax and compile CEL rules",
+	Short:   "Validate circuit.yaml and compile all CEL rules",
+	Long: `Parses your circuit.yaml, compiles every CEL rule expression,
+and reports any errors before you run your agent.
+
+  circuit check                  # validates ./circuit.yaml
+  circuit check path/to/policy.yaml`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targetFile := policyPath
 		if targetFile == "" && len(args) > 0 {
@@ -83,9 +110,16 @@ var checkCmd = &cobra.Command{
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run --policy <file> -- <command> [args...]",
-	Short: "Run an agent command with automatic proxy injection",
-	Args:  cobra.MinimumNArgs(1),
+	Use:   "run -- <command> [args...]",
+	Short: "Wrap an agent process — intercept every outbound HTTP call",
+	Long: `Starts an ephemeral proxy, injects HTTP_PROXY into your agent's environment,
+and enforces your circuit.yaml policies on every outbound request.
+No changes to your agent code required.
+
+  circuit run -- python agent.py
+  circuit run --audit agent.ndjson -- node agent.js
+  circuit run --policy strict.yaml -- go run ./agent`,
+	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targetFile := policyPath
 		if targetFile == "" {
@@ -136,13 +170,24 @@ var runCmd = &cobra.Command{
 
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
-	Short: "Manage and wrap Model Context Protocol (MCP) servers",
+	Short: "Wrap and govern MCP stdio servers",
+	Long: `Commands for intercepting Model Context Protocol (MCP) tool calls.
+
+  circuit mcp wrap -- npx -y @modelcontextprotocol/server-postgres
+  circuit mcp wrap -- uvx mcp-server-git`,
 }
 
 var mcpWrapCmd = &cobra.Command{
-	Use:   "wrap --policy <file> -- <command> [args...]",
-	Short: "Wrap an MCP server stdio process with wire-level policy enforcement",
-	Args:  cobra.MinimumNArgs(1),
+	Use:   "wrap -- <command> [args...]",
+	Short: "Sit between your LLM and an MCP server — enforce policies on every tool call",
+	Long: `Spawns the MCP server as a subprocess and acts as a stdio man-in-the-middle.
+Every tools/call JSON-RPC message is evaluated against your circuit.yaml before
+being forwarded. Works with Claude Desktop, Cursor, and any MCP-compatible host.
+
+  circuit mcp wrap -- npx -y @modelcontextprotocol/server-postgres
+  circuit mcp wrap --audit mcp.ndjson -- uvx mcp-server-git
+  circuit mcp wrap --policy strict.yaml -- python my_mcp_server.py`,
+	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targetFile := policyPath
 		if targetFile == "" {
@@ -185,8 +230,14 @@ var mcpWrapCmd = &cobra.Command{
 }
 
 var serveCmd = &cobra.Command{
-	Use:   "serve",
-	Short: "Start HTTP reverse proxy daemon for outbound agent API calls",
+	Use:   "serve --target <url>",
+	Short: "Run as a persistent proxy daemon — ideal for Docker/k8s sidecars",
+	Long: `Starts a long-running HTTP reverse proxy that enforces your circuit.yaml
+on every request forwarded to the upstream target. Useful when you can't
+wrap the agent process directly (containers, remote agents, shared proxies).
+
+  circuit serve --target https://api.openai.com
+  circuit serve --target https://api.openai.com --port 9090 --audit audit.ndjson`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if targetURL == "" {
 			return fmt.Errorf("--target URL is required")
@@ -243,6 +294,7 @@ var serveCmd = &cobra.Command{
 }
 
 func init() {
+	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(runCmd)
