@@ -1,0 +1,35 @@
+version: "v1alpha1"
+name: "postgres-production-guard"
+description: "Zero-trust guardrails for database MCP servers in developer environments"
+default_action: ALLOW
+
+rules:
+  # 1. Block all destructive schema changes (DDL)
+  - id: "block-destructive-ddl"
+    description: "Prevent DROP, TRUNCATE, and ALTER TABLE statements"
+    match:
+      tool: "postgres.query"
+    condition: "args.sql.matches(r'(?i)(DROP\\s+TABLE|TRUNCATE|ALTER\\s+TABLE)')"
+    action: DENY
+    reason: "Destructive DDL operations are blocked by security policy"
+
+  # 2. Block unconstrained DELETE queries without WHERE clause
+  - id: "block-unconstrained-delete"
+    description: "Prevent mass table wipes"
+    match:
+      tool: "postgres.query"
+    condition: "args.sql.matches(r'(?i)DELETE\\s+FROM\\s+\\w+') && !args.sql.matches(r'(?i)WHERE')"
+    action: DENY
+    reason: "DELETE statement without WHERE clause is forbidden"
+
+  # 3. Require human approval for any table modifications
+  - id: "require-approval-mutations"
+    description: "Ask operator before executing UPDATE or INSERT on critical tables"
+    match:
+      tool: "postgres.query"
+    condition: "args.sql.matches(r'(?i)(UPDATE|INSERT\\s+INTO)\\s+(users|billing|accounts)')"
+    action: REQUIRE_APPROVAL
+    reason: "Mutation on critical user/billing tables requires human sign-off"
+    escalation:
+      channel: "terminal"
+      target: "operator"

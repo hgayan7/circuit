@@ -1,0 +1,37 @@
+version: "v1alpha1"
+name: "stripe-billing-guard"
+description: "Financial spending limits and human approval thresholds for automated refund agents"
+default_action: ALLOW
+
+rules:
+  # 1. Enforce cumulative spending budget: max $500 total refunds per hour
+  - id: "hourly-refund-spend-cap"
+    description: "Cap total refunds across a rolling 1-hour window"
+    match:
+      endpoint: "POST /v1/refunds"
+    budget:
+      window: "1h"
+      max_amount: 500.00
+      amount_field: "args.amount / 100.0" # Stripe amount is in cents
+    action: ALLOW
+
+  # 2. Block any single refund exceeding $250 outright
+  - id: "block-excessive-refund"
+    description: "Hard stop on single transactions > $250"
+    match:
+      endpoint: "POST /v1/refunds"
+    condition: "args.amount > 25000"
+    action: DENY
+    reason: "Refund exceeds single-transaction ceiling of $250.00"
+
+  # 3. Require human approval for refunds between $50 and $250
+  - id: "require-signoff-medium-refunds"
+    description: "Escalate medium refunds for operator review"
+    match:
+      endpoint: "POST /v1/refunds"
+    condition: "args.amount > 5000 && args.amount <= 25000"
+    action: REQUIRE_APPROVAL
+    reason: "Refund between $50 and $250 requires human verification"
+    escalation:
+      channel: "slack"
+      target: "#finance-approvals"
