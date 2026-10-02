@@ -59,10 +59,17 @@ It intercepts tool calls, evaluates semantic arguments using Google Common Expre
 
 ### 1. Installation
 
+**Via Homebrew (macOS & Linux):**
 ```bash
-git clone https://github.com/hgayan7/circuit.git
-cd circuit
-go build -o /usr/local/bin/circuit ./cmd/circuit
+brew install hgayan7/tap/circuit
+```
+
+**Via Pre-Built Binary:**
+Download the latest pre-compiled binary for macOS, Linux, or Windows from [GitHub Releases](https://github.com/hgayan7/circuit/releases).
+
+**From Source:**
+```bash
+go install github.com/hgayan7/circuit/cmd/circuit@latest
 ```
 
 ### 2. Automatic Proxy Injection (`circuit run`)
