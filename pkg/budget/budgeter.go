@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/himshikhargayan/circuit/pkg/config"
+	"github.com/hgayan7/circuit/pkg/config"
 )
 
 // BudgetResult contains the status and current usage metrics of a budget evaluation.

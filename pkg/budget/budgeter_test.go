@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/himshikhargayan/circuit/pkg/budget"
-	"github.com/himshikhargayan/circuit/pkg/config"
+	"github.com/hgayan7/circuit/pkg/budget"
+	"github.com/hgayan7/circuit/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

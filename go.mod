@@ -1,4 +1,4 @@
-module github.com/himshikhargayan/circuit
+module github.com/hgayan7/circuit
 
 go 1.26.1
 

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"cel.dev/cel-go/cel"
-	"github.com/himshikhargayan/circuit/pkg/budget"
-	"github.com/himshikhargayan/circuit/pkg/config"
+	"github.com/hgayan7/circuit/pkg/budget"
+	"github.com/hgayan7/circuit/pkg/config"
 )
 
 // EvaluationContext contains the runtime details of the intercepted request.

@@ -3,7 +3,7 @@
 > **The Circuit Breaker & Safety Proxy for Autonomous AI Agents and MCP Tooling.**  
 > *Trip the breaker before an agent burns down production.*
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/himshikhargayan/circuit)](https://goreportcard.com/report/github.com/himshikhargayan/circuit)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hgayan7/circuit)](https://goreportcard.com/report/github.com/hgayan7/circuit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Latency](https://img.shields.io/badge/Evaluation%20Overhead-%3C%2085%C2%B5s-brightgreen.svg)](#benchmarks)
 [![Web](https://img.shields.io/badge/Web-circuitproxy.com-purple.svg)](https://circuitproxy.com)
@@ -59,7 +59,7 @@ It intercepts tool calls, evaluates semantic arguments using Google Common Expre
 ### 1. Installation
 
 ```bash
-git clone https://github.com/himshikhargayan/circuit.git
+git clone https://github.com/hgayan7/circuit.git
 cd circuit
 go build -o /usr/local/bin/circuit ./cmd/circuit
 ```

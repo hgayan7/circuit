@@ -11,10 +11,10 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/himshikhargayan/circuit/pkg/approval"
-	"github.com/himshikhargayan/circuit/pkg/audit"
-	"github.com/himshikhargayan/circuit/pkg/interceptor/proxy"
-	"github.com/himshikhargayan/circuit/pkg/policy"
+	"github.com/hgayan7/circuit/pkg/approval"
+	"github.com/hgayan7/circuit/pkg/audit"
+	"github.com/hgayan7/circuit/pkg/interceptor/proxy"
+	"github.com/hgayan7/circuit/pkg/policy"
 )
 
 // Option configures runner execution settings.

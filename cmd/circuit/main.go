@@ -9,13 +9,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/himshikhargayan/circuit/pkg/approval"
-	"github.com/himshikhargayan/circuit/pkg/audit"
-	"github.com/himshikhargayan/circuit/pkg/config"
-	"github.com/himshikhargayan/circuit/pkg/interceptor/mcp"
-	"github.com/himshikhargayan/circuit/pkg/interceptor/proxy"
-	"github.com/himshikhargayan/circuit/pkg/policy"
-	"github.com/himshikhargayan/circuit/pkg/runner"
+	"github.com/hgayan7/circuit/pkg/approval"
+	"github.com/hgayan7/circuit/pkg/audit"
+	"github.com/hgayan7/circuit/pkg/config"
+	"github.com/hgayan7/circuit/pkg/interceptor/mcp"
+	"github.com/hgayan7/circuit/pkg/interceptor/proxy"
+	"github.com/hgayan7/circuit/pkg/policy"
+	"github.com/hgayan7/circuit/pkg/runner"
 	"github.com/spf13/cobra"
 )
 
