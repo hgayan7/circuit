@@ -11,7 +11,8 @@
 
 <p align="center">
   <a href="https://github.com/hgayan7/circuit/actions/workflows/ci.yml"><img src="https://github.com/hgayan7/circuit/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
-  <a href="https://goreportcard.com/report/github.com/hgayan7/circuit"><img src="https://goreportcard.com/badge/github.com/hgayan7/circuit" alt="Go Report Card"/></a>
+  <a href="https://github.com/hgayan7/circuit/releases/latest"><img src="https://img.shields.io/github/v/release/hgayan7/circuit?color=F59E0B&label=release" alt="Latest Release"/></a>
+  <a href="https://pkg.go.dev/github.com/hgayan7/circuit"><img src="https://pkg.go.dev/badge/github.com/hgayan7/circuit.svg" alt="Go Reference"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/></a>
   <a href="#benchmarks"><img src="https://img.shields.io/badge/Evaluation%20Overhead-%3C%2085%C2%B5s-brightgreen.svg" alt="Latency"/></a>
   <a href="https://circuitproxy.com"><img src="https://img.shields.io/badge/Web-circuitproxy.com-F59E0B.svg" alt="Web"/></a>
