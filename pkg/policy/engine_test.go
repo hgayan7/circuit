@@ -159,6 +159,78 @@ rules:
 	assert.Contains(t, err.Error(), "failed to compile condition")
 }
 
+func TestEngine_Evaluate_WithBudget(t *testing.T) {
+	yamlPolicy := `
+name: "budget-policy"
+default_action: ALLOW
+rules:
+  - id: "pr-limit"
+    match:
+      tool: "github.create_pr"
+    budget:
+      window: "1h"
+      max_calls: 2
+    action: ALLOW
+    reason: "PR hourly limit reached"
+
+  - id: "refund-budget"
+    match:
+      endpoint: "POST /v1/refunds"
+    budget:
+      window: "1h"
+      max_amount: 100.0
+      amount_field: "args.amount"
+    action: ALLOW
+    reason: "Refund budget reached"
+`
+	pol := newTestPolicy(t, yamlPolicy)
+	engine, err := policy.NewEngine(pol)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Call limit test
+	callCtx := &policy.EvaluationContext{
+		Tool:      "github.create_pr",
+		SessionID: "sess-1",
+	}
+
+	res1, err := engine.Evaluate(ctx, callCtx)
+	require.NoError(t, err)
+	assert.Equal(t, config.ActionAllow, res1.Action)
+
+	res2, err := engine.Evaluate(ctx, callCtx)
+	require.NoError(t, err)
+	assert.Equal(t, config.ActionAllow, res2.Action)
+
+	res3, err := engine.Evaluate(ctx, callCtx)
+	require.NoError(t, err)
+	assert.Equal(t, config.ActionDeny, res3.Action)
+	assert.Equal(t, "pr-limit", res3.RuleID)
+	assert.Contains(t, res3.Reason, "action call limit exceeded")
+
+	// Amount limit test
+	amtCtx1 := &policy.EvaluationContext{
+		Endpoint:  "POST /v1/refunds",
+		SessionID: "sess-2",
+		Args:      map[string]any{"amount": 60.0},
+	}
+	resAmt1, err := engine.Evaluate(ctx, amtCtx1)
+	require.NoError(t, err)
+	assert.Equal(t, config.ActionAllow, resAmt1.Action)
+
+	amtCtx2 := &policy.EvaluationContext{
+		Endpoint:  "POST /v1/refunds",
+		SessionID: "sess-2",
+		Args:      map[string]any{"amount": 50.0},
+	}
+	resAmt2, err := engine.Evaluate(ctx, amtCtx2)
+	require.NoError(t, err)
+	assert.Equal(t, config.ActionDeny, resAmt2.Action)
+	assert.Equal(t, "refund-budget", resAmt2.RuleID)
+	assert.Contains(t, resAmt2.Reason, "amount budget exceeded")
+}
+
 func BenchmarkEngine_Evaluate(b *testing.B) {
 	yamlPolicy := `
 name: "bench-policy"

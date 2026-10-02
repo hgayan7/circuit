@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cel.dev/cel-go/cel"
+	"github.com/himshikhargayan/si-shield/pkg/budget"
 	"github.com/himshikhargayan/si-shield/pkg/config"
 )
 
@@ -32,21 +33,33 @@ type EvaluationResult struct {
 	Rule       *config.Rule             `json:"-"`
 }
 
-// compiledRule holds a pre-compiled CEL program for high-throughput evaluation.
+// compiledRule holds pre-compiled CEL programs for condition and budget calculations.
 type compiledRule struct {
-	rule    config.Rule
-	program cel.Program
+	rule          config.Rule
+	program       cel.Program
+	amountProgram cel.Program
 }
 
-// Engine evaluates intercepted requests against compiled policies.
+// Engine evaluates intercepted requests against compiled policies and cumulative budgets.
 type Engine struct {
 	policy        *config.Policy
 	compiledRules []compiledRule
 	celEnv        *cel.Env
+	budgeter      budget.Budgeter
+}
+
+// Option allows configuring optional Engine settings.
+type Option func(*Engine)
+
+// WithBudgeter configures a custom budget tracker.
+func WithBudgeter(b budget.Budgeter) Option {
+	return func(e *Engine) {
+		e.budgeter = b
+	}
 }
 
 // NewEngine initializes and pre-compiles all CEL rules in the policy.
-func NewEngine(pol *config.Policy) (*Engine, error) {
+func NewEngine(pol *config.Policy, opts ...Option) (*Engine, error) {
 	if pol == nil {
 		return nil, fmt.Errorf("policy cannot be nil")
 	}
@@ -79,14 +92,34 @@ func NewEngine(pol *config.Policy) (*Engine, error) {
 			}
 			cr.program = prg
 		}
+
+		if rule.Budget != nil && rule.Budget.AmountField != "" {
+			ast, issues := env.Compile(rule.Budget.AmountField)
+			if issues != nil && issues.Err() != nil {
+				return nil, fmt.Errorf("failed to compile budget amount_field in rule '%s': %w", rule.ID, issues.Err())
+			}
+			prg, err := env.Program(ast)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create budget amount program for rule '%s': %w", rule.ID, err)
+			}
+			cr.amountProgram = prg
+		}
+
 		compiled = append(compiled, cr)
 	}
 
-	return &Engine{
+	engine := &Engine{
 		policy:        pol,
 		compiledRules: compiled,
 		celEnv:        env,
-	}, nil
+		budgeter:      budget.NewMemoryBudgeter(),
+	}
+
+	for _, opt := range opts {
+		opt(engine)
+	}
+
+	return engine, nil
 }
 
 // matches checks whether an evaluation context matches a rule's match criteria.
@@ -98,7 +131,6 @@ func (e *Engine) matches(rule *config.Rule, ctx *EvaluationContext) bool {
 		if match.Tool == ctx.Tool {
 			return true
 		}
-		// Glob/wildcard matching: e.g. "postgres.*" or "db.*"
 		if ok, _ := filepath.Match(match.Tool, ctx.Tool); ok {
 			return true
 		}
@@ -133,6 +165,27 @@ func (e *Engine) matches(rule *config.Rule, ctx *EvaluationContext) bool {
 	}
 
 	return false
+}
+
+func toFloat64(val any) (float64, error) {
+	switch v := val.(type) {
+	case float64:
+		return v, nil
+	case float32:
+		return float64(v), nil
+	case int:
+		return float64(v), nil
+	case int64:
+		return float64(v), nil
+	case int32:
+		return float64(v), nil
+	case uint:
+		return float64(v), nil
+	case uint64:
+		return float64(v), nil
+	default:
+		return 0, fmt.Errorf("cannot convert %T to float64", val)
+	}
 }
 
 // Evaluate evaluates an incoming request context against the policy rules in order.
@@ -172,6 +225,42 @@ func (e *Engine) Evaluate(ctx context.Context, evalCtx *EvaluationContext) (*Eva
 			if !ok || !boolVal {
 				// Condition was false, continue to next rule
 				continue
+			}
+		}
+
+		// If rule specifies a cumulative budget, evaluate it
+		if cr.rule.Budget != nil && e.budgeter != nil {
+			budgetKey := "global:" + cr.rule.ID
+			if evalCtx.SessionID != "" {
+				budgetKey = "sess:" + evalCtx.SessionID + ":" + cr.rule.ID
+			} else if evalCtx.AgentID != "" {
+				budgetKey = "agent:" + evalCtx.AgentID + ":" + cr.rule.ID
+			}
+
+			var amount float64
+			if cr.amountProgram != nil {
+				val, _, err := cr.amountProgram.Eval(activation)
+				if err != nil {
+					return nil, fmt.Errorf("error extracting budget amount in rule '%s': %w", cr.rule.ID, err)
+				}
+				converted, err := toFloat64(val.Value())
+				if err != nil {
+					return nil, fmt.Errorf("invalid budget amount in rule '%s': %w", cr.rule.ID, err)
+				}
+				amount = converted
+			}
+
+			bRes, err := e.budgeter.RecordAndCheck(ctx, budgetKey, cr.rule.Budget, amount)
+			if err != nil {
+				return nil, fmt.Errorf("budget check error in rule '%s': %w", cr.rule.ID, err)
+			}
+			if !bRes.Allowed {
+				return &EvaluationResult{
+					Action: config.ActionDeny,
+					RuleID: cr.rule.ID,
+					Reason: bRes.Reason,
+					Rule:   &cr.rule,
+				}, nil
 			}
 		}
 
