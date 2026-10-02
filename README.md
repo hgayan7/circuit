@@ -1,13 +1,21 @@
-# ⚡ Circuit
+<p align="center">
+  <img src="assets/logo.jpg" alt="Circuit Logo" width="120" />
+</p>
 
-> **The Circuit Breaker & Safety Proxy for Autonomous AI Agents and MCP Tooling.**  
-> *Trip the breaker before an agent burns down production.*
+<h1 align="center">Circuit</h1>
 
-[![CI](https://github.com/hgayan7/circuit/actions/workflows/ci.yml/badge.svg)](https://github.com/hgayan7/circuit/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/hgayan7/circuit)](https://goreportcard.com/report/github.com/hgayan7/circuit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Latency](https://img.shields.io/badge/Evaluation%20Overhead-%3C%2085%C2%B5s-brightgreen.svg)](#benchmarks)
-[![Web](https://img.shields.io/badge/Web-circuitproxy.com-purple.svg)](https://circuitproxy.com)
+<p align="center">
+  <strong>The Governance &amp; Safety Proxy for AI Agents</strong><br/>
+  <em>Trip the breaker before an agent burns down production.</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/hgayan7/circuit/actions/workflows/ci.yml"><img src="https://github.com/hgayan7/circuit/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+  <a href="https://goreportcard.com/report/github.com/hgayan7/circuit"><img src="https://goreportcard.com/badge/github.com/hgayan7/circuit" alt="Go Report Card"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/></a>
+  <a href="#benchmarks"><img src="https://img.shields.io/badge/Evaluation%20Overhead-%3C%2085%C2%B5s-brightgreen.svg" alt="Latency"/></a>
+  <a href="https://circuitproxy.com"><img src="https://img.shields.io/badge/Web-circuitproxy.com-F59E0B.svg" alt="Web"/></a>
+</p>
 
 ---
 
