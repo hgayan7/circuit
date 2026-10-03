@@ -254,27 +254,33 @@ type toolInput struct {
 	Repository     string         `json:"repository,omitempty" jsonschema:"Allowed owner/repository name (for GitHub actions)"`
 	Workspace      string         `json:"workspace,omitempty" jsonschema:"Allowed workspace ID (for shell/file actions)"`
 	Database       string         `json:"database,omitempty" jsonschema:"Allowed database target ID (for SQL actions)"`
+	Environment    string         `json:"environment,omitempty" jsonschema:"Allowed cloud deployment environment ID (for cloud actions)"`
 	Args           map[string]any `json:"args" jsonschema:"Operation-specific arguments"`
 	IdempotencyKey string         `json:"idempotency_key" jsonschema:"Stable unique key. Reuse this exact key when retrying the same action"`
 }
 
 var descriptions = map[string]string{
-	"read_file":      "Read a repository or workspace file. Args: path, ref (for GitHub).",
-	"get_pr":         "Read a pull request. Args: number.",
-	"create_branch":  "Create an agent branch. Args: branch, sha (full commit SHA).",
-	"put_file":       "Create/update one file on an agent branch. Args: path, branch, content (base64), message, optional sha (existing blob SHA). Workflow/action files are forbidden.",
-	"create_pr":      "Open a PR from an agent branch. Args: title, head, base, optional body and draft.",
-	"merge_pr":       "Request a merge with mandatory operator approval. Args: number, sha (exact full head SHA), optional merge_method. Poll circuit_action_status; do not submit another key while pending or uncertain.",
-	"create_issue":   "Create an issue. Args: title, optional body.",
-	"update_issue":   "Update an issue. Args: number and at least one of title, body, state.",
-	"exec_cmd":       "Execute a shell command within the agent workspace boundary. Destructive commands require operator review. Args: command, optional cwd (relative), optional timeout_sec.",
-	"write_file":     "Create or write a file in the workspace. Overwriting an existing file requires operator review. Args: path, content, optional encoding (base64 or text), optional overwrite (bool).",
-	"delete_file":    "Delete a file or directory in the workspace with mandatory operator review. Args: path, optional recursive (bool).",
-	"list_dir":       "List entries in a workspace directory. Args: path (relative).",
-	"query_sql":      "Run a read-only SQL query (SELECT) against a governed database target. Args: query, optional max_rows, optional timeout_sec.",
-	"exec_sql":       "Execute a SQL mutation (INSERT, UPDATE, DELETE, DDL). Destructive statements require operator approval. Args: query, optional timeout_sec, optional max_affected_rows.",
-	"list_tables":    "List accessible tables in the database target. Args: optional schema.",
-	"describe_table": "Get schema and column metadata for a table. Args: table, optional schema.",
+	"read_file":              "Read a repository or workspace file. Args: path, ref (for GitHub).",
+	"get_pr":                 "Read a pull request. Args: number.",
+	"create_branch":          "Create an agent branch. Args: branch, sha (full commit SHA).",
+	"put_file":               "Create/update one file on an agent branch. Args: path, branch, content (base64), message, optional sha (existing blob SHA). Workflow/action files are forbidden.",
+	"create_pr":              "Open a PR from an agent branch. Args: title, head, base, optional body and draft.",
+	"merge_pr":               "Request a merge with mandatory operator approval. Args: number, sha (exact full head SHA), optional merge_method. Poll circuit_action_status; do not submit another key while pending or uncertain.",
+	"create_issue":           "Create an issue. Args: title, optional body.",
+	"update_issue":           "Update an issue. Args: number and at least one of title, body, state.",
+	"exec_cmd":               "Execute a shell command within the agent workspace boundary. Destructive commands require operator review. Args: command, optional cwd (relative), optional timeout_sec.",
+	"write_file":             "Create or write a file in the workspace. Overwriting an existing file requires operator review. Args: path, content, optional encoding (base64 or text), optional overwrite (bool).",
+	"delete_file":            "Delete a file or directory in the workspace with mandatory operator review. Args: path, optional recursive (bool).",
+	"list_dir":               "List entries in a workspace directory. Args: path (relative).",
+	"query_sql":              "Run a read-only SQL query (SELECT) against a governed database target. Args: query, optional max_rows, optional timeout_sec.",
+	"exec_sql":               "Execute a SQL mutation (INSERT, UPDATE, DELETE, DDL). Destructive statements require operator approval. Args: query, optional timeout_sec, optional max_affected_rows.",
+	"list_tables":            "List accessible tables in the database target. Args: optional schema.",
+	"describe_table":         "Get schema and column metadata for a table. Args: table, optional schema.",
+	"deploy_service":        "Deploy or update a service to an environment. Production changes require operator approval. Args: service, image, optional version.",
+	"rollback_deployment":   "Rollback a service to its prior deployment revision with mandatory operator approval. Args: service.",
+	"restart_service":       "Restart service containers/pods in an environment. Production restarts require operator approval. Args: service.",
+	"get_deployment_status": "Get deployment revision and health status for a service. Args: service.",
+	"scale_service":         "Scale service replica count within permitted min/max bounds. Scaling to 0 requires operator review. Args: service, replicas.",
 }
 
 func toolResult(a *Action) *mcp.CallToolResult {
@@ -303,6 +309,16 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 			names = []string{"db_list_tables"}
 		case "describe_table":
 			names = []string{"db_describe_table"}
+		case "deploy_service":
+			names = []string{"cloud_deploy"}
+		case "rollback_deployment":
+			names = []string{"cloud_rollback"}
+		case "restart_service":
+			names = []string{"cloud_restart"}
+		case "get_deployment_status":
+			names = []string{"cloud_status"}
+		case "scale_service":
+			names = []string{"cloud_scale"}
 		case "read_file":
 			if len(agent.Workspaces) > 0 && len(agent.Repositories) == 0 {
 				names = []string{"file_read"}
@@ -313,12 +329,15 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 		for _, name := range names {
 			tName := name
 			mcp.AddTool(server, &mcp.Tool{Name: tName, Description: descriptions[op]}, func(ctx context.Context, req *mcp.CallToolRequest, in toolInput) (*mcp.CallToolResult, any, error) {
-				reqPayload := Request{Operation: op, Repository: in.Repository, Workspace: in.Workspace, Database: in.Database, Args: in.Args}
+				reqPayload := Request{Operation: op, Repository: in.Repository, Workspace: in.Workspace, Database: in.Database, Environment: in.Environment, Args: in.Args}
 				if tName == "file_read" && reqPayload.Workspace == "" && len(agent.Workspaces) > 0 {
 					reqPayload.Workspace = agent.Workspaces[0]
 				}
 				if isDatabaseOperation(reqPayload) && reqPayload.Database == "" && len(agent.Databases) > 0 {
 					reqPayload.Database = agent.Databases[0]
+				}
+				if isCloudOperation(reqPayload) && reqPayload.Environment == "" && len(agent.Environments) > 0 {
+					reqPayload.Environment = agent.Environments[0]
 				}
 				a, err := h.service.Submit(ctx, agent.ID, in.IdempotencyKey, reqPayload)
 				if err != nil {

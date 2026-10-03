@@ -46,12 +46,28 @@ func (d *DatabaseConfig) Timeout() time.Duration {
 	return d.timeout
 }
 
+type CloudEnvironmentConfig struct {
+	ID              string        `yaml:"id" json:"id"`
+	Name            string        `yaml:"name,omitempty" json:"name,omitempty"`
+	Production      bool          `yaml:"production,omitempty" json:"production,omitempty"`
+	AllowedServices []string      `yaml:"allowed_services,omitempty" json:"allowed_services,omitempty"`
+	MaxReplicas     int           `yaml:"max_replicas,omitempty" json:"max_replicas,omitempty"`
+	MinReplicas     int           `yaml:"min_replicas,omitempty" json:"min_replicas,omitempty"`
+	MaxTimeout      string        `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
+	timeout         time.Duration
+}
+
+func (e *CloudEnvironmentConfig) Timeout() time.Duration {
+	return e.timeout
+}
+
 type Agent struct {
 	ID           string   `yaml:"id" json:"id"`
 	TokenEnv     string   `yaml:"token_env" json:"token_env"`
 	Repositories []string `yaml:"repositories,omitempty" json:"repositories,omitempty"`
 	Workspaces   []string `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
 	Databases    []string `yaml:"databases,omitempty" json:"databases,omitempty"`
+	Environments []string `yaml:"environments,omitempty" json:"environments,omitempty"`
 	Actions      []string `yaml:"actions" json:"actions"`
 	BranchPrefix string   `yaml:"branch_prefix,omitempty" json:"branch_prefix,omitempty"`
 }
@@ -85,18 +101,19 @@ type WebhookConfig struct {
 }
 
 type Config struct {
-	Name           string              `yaml:"name" json:"name"`
-	AdminTokenEnv  string              `yaml:"admin_token_env" json:"admin_token_env"`
-	GitHubTokenEnv string              `yaml:"github_token_env,omitempty" json:"github_token_env,omitempty"`
-	GitHubApp      *GitHubAppConfig    `yaml:"github_app,omitempty" json:"github_app,omitempty"`
-	Webhook        *WebhookConfig      `yaml:"webhook,omitempty" json:"webhook,omitempty"`
-	Workspaces     []WorkspaceConfig   `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
-	Databases      []DatabaseConfig    `yaml:"databases,omitempty" json:"databases,omitempty"`
-	ApprovalTTL    string              `yaml:"approval_ttl" json:"approval_ttl"`
-	Agents         []Agent             `yaml:"agents" json:"agents"`
-	Rules          []Rule              `yaml:"rules,omitempty" json:"rules,omitempty"`
-	Limits         []Limit             `yaml:"limits,omitempty" json:"limits,omitempty"`
-	Safety         config.SafetyConfig `yaml:"safety,omitempty" json:"safety"`
+	Name           string                   `yaml:"name" json:"name"`
+	AdminTokenEnv  string                   `yaml:"admin_token_env" json:"admin_token_env"`
+	GitHubTokenEnv string                   `yaml:"github_token_env,omitempty" json:"github_token_env,omitempty"`
+	GitHubApp      *GitHubAppConfig         `yaml:"github_app,omitempty" json:"github_app,omitempty"`
+	Webhook        *WebhookConfig           `yaml:"webhook,omitempty" json:"webhook,omitempty"`
+	Workspaces     []WorkspaceConfig        `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
+	Databases      []DatabaseConfig         `yaml:"databases,omitempty" json:"databases,omitempty"`
+	Environments   []CloudEnvironmentConfig `yaml:"environments,omitempty" json:"environments,omitempty"`
+	ApprovalTTL    string                   `yaml:"approval_ttl" json:"approval_ttl"`
+	Agents         []Agent                  `yaml:"agents" json:"agents"`
+	Rules          []Rule                   `yaml:"rules,omitempty" json:"rules,omitempty"`
+	Limits         []Limit                  `yaml:"limits,omitempty" json:"limits,omitempty"`
+	Safety         config.SafetyConfig      `yaml:"safety,omitempty" json:"safety"`
 	ttl            time.Duration
 	digest         string
 }
@@ -108,6 +125,7 @@ var operations = map[string]bool{
 	"create_pr": true, "merge_pr": true, "create_issue": true, "update_issue": true,
 	"exec_cmd": true, "write_file": true, "delete_file": true, "list_dir": true,
 	"query_sql": true, "exec_sql": true, "list_tables": true, "describe_table": true,
+	"deploy_service": true, "rollback_deployment": true, "restart_service": true, "get_deployment_status": true, "scale_service": true,
 }
 
 func member(items []string, item string) bool {
@@ -204,6 +222,25 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		db.timeout = to
 	}
+	envIDs := map[string]bool{}
+	for j := range c.Environments {
+		ce := &c.Environments[j]
+		if !identifier.MatchString(ce.ID) || envIDs[ce.ID] {
+			return nil, fmt.Errorf("environments need unique valid IDs")
+		}
+		envIDs[ce.ID] = true
+		if ce.MaxReplicas <= 0 {
+			ce.MaxReplicas = 50
+		}
+		if ce.MaxTimeout == "" {
+			ce.MaxTimeout = "30s"
+		}
+		to, err := time.ParseDuration(ce.MaxTimeout)
+		if err != nil || to <= 0 {
+			return nil, fmt.Errorf("invalid max_timeout for environment %s", ce.ID)
+		}
+		ce.timeout = to
+	}
 	if c.ApprovalTTL == "" {
 		c.ApprovalTTL = "1h"
 	}
@@ -222,8 +259,8 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			return nil, fmt.Errorf("agents need unique valid IDs and token_env")
 		}
 		ids[a.ID] = true
-		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 {
-			return nil, fmt.Errorf("agent %s needs repositories, workspaces, or databases", a.ID)
+		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 && len(a.Environments) == 0 {
+			return nil, fmt.Errorf("agent %s needs repositories, workspaces, databases, or environments", a.ID)
 		}
 		if len(a.Actions) == 0 {
 			return nil, fmt.Errorf("agent %s needs actions", a.ID)
@@ -242,6 +279,11 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		for _, dbID := range a.Databases {
 			if !identifier.MatchString(dbID) {
 				return nil, fmt.Errorf("invalid database %q for agent %s", dbID, a.ID)
+			}
+		}
+		for _, envID := range a.Environments {
+			if !identifier.MatchString(envID) {
+				return nil, fmt.Errorf("invalid environment %q for agent %s", envID, a.ID)
 			}
 		}
 		for _, op := range a.Actions {
@@ -264,6 +306,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		cel.Variable("repository", cel.StringType),
 		cel.Variable("workspace", cel.StringType),
 		cel.Variable("database", cel.StringType),
+		cel.Variable("environment", cel.StringType),
 		cel.Variable("agent_id", cel.StringType),
 	)
 	if err != nil {
@@ -309,7 +352,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		ids[limit.ID] = true
 		switch limit.Scope {
-		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace", "database", "agent_database":
+		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace", "database", "agent_database", "environment", "agent_environment":
 		default:
 			return nil, fmt.Errorf("invalid budget scope %q", limit.Scope)
 		}
@@ -341,7 +384,15 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 	if agent == nil || !member(agent.Actions, req.Operation) {
 		return config.ActionDeny, "Agent is not permitted to use this action", nil
 	}
-	if isDatabaseOperation(req) {
+	if isCloudOperation(req) {
+		envID := req.Environment
+		if envID == "" {
+			envID = "default"
+		}
+		if !member(agent.Environments, envID) {
+			return config.ActionDeny, fmt.Sprintf("Agent is not permitted to access cloud environment %q", envID), nil
+		}
+	} else if isDatabaseOperation(req) {
 		dbID := req.Database
 		if dbID == "" {
 			dbID = "default"
@@ -390,6 +441,36 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 			verdict = config.ActionRequireApproval
 			reason = analysis.Reason
 		}
+	} else if isCloudOperation(req) {
+		envID := req.Environment
+		if envID == "" {
+			envID = "default"
+		}
+		for _, e := range c.Environments {
+			if e.ID == envID && e.Production {
+				verdict = config.ActionRequireApproval
+				reason = fmt.Sprintf("All actions in production environment %q require operator approval", envID)
+				break
+			}
+		}
+		if req.Operation == "rollback_deployment" {
+			verdict = config.ActionRequireApproval
+			reason = "Deployment rollback requires operator approval"
+		} else if req.Operation == "scale_service" {
+			if r, ok := req.Args["replicas"]; ok {
+				var reps int
+				switch v := r.(type) {
+				case float64:
+					reps = int(v)
+				case int:
+					reps = v
+				}
+				if reps == 0 {
+					verdict = config.ActionRequireApproval
+					reason = "Scaling service to 0 replicas halts traffic and requires operator approval"
+				}
+			}
+		}
 	}
 	for _, rule := range c.Rules {
 		if !member(rule.Actions, req.Operation) || (len(rule.Repositories) > 0 && !member(rule.Repositories, req.Repository)) {
@@ -397,12 +478,13 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 		}
 		if rule.program != nil {
 			out, _, err := rule.program.Eval(map[string]any{
-				"args":       req.Args,
-				"action":     req.Operation,
-				"repository": req.Repository,
-				"workspace":  req.Workspace,
-				"database":   req.Database,
-				"agent_id":   agentID,
+				"args":        req.Args,
+				"action":      req.Operation,
+				"repository":  req.Repository,
+				"workspace":   req.Workspace,
+				"database":    req.Database,
+				"environment": req.Environment,
+				"agent_id":    agentID,
 			})
 			if err != nil {
 				return config.ActionDeny, "Policy evaluation failed", err

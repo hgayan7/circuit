@@ -17,11 +17,12 @@ import (
 )
 
 type Request struct {
-	Operation  string         `json:"operation"`
-	Repository string         `json:"repository,omitempty"`
-	Workspace  string         `json:"workspace,omitempty"`
-	Database   string         `json:"database,omitempty"`
-	Args       map[string]any `json:"args"`
+	Operation   string         `json:"operation"`
+	Repository  string         `json:"repository,omitempty"`
+	Workspace   string         `json:"workspace,omitempty"`
+	Database    string         `json:"database,omitempty"`
+	Environment string         `json:"environment,omitempty"`
+	Args        map[string]any `json:"args"`
 }
 type Outcome struct {
 	Status    int             `json:"http_status"`
@@ -141,6 +142,39 @@ func validateRequest(req *Request) error {
 		return nil
 	}
 
+	if isCloudOperation(*req) {
+		if req.Environment == "" {
+			req.Environment = "default"
+		}
+		if !identifier.MatchString(req.Environment) {
+			return fmt.Errorf("invalid environment identifier %q", req.Environment)
+		}
+		cloudFields := map[string][]string{
+			"deploy_service":        {"service", "image", "version"},
+			"rollback_deployment":   {"service"},
+			"restart_service":       {"service"},
+			"get_deployment_status": {"service"},
+			"scale_service":         {"service", "replicas"},
+		}
+		for k := range req.Args {
+			if !member(cloudFields[req.Operation], k) {
+				return fmt.Errorf("unexpected argument %q for %s", k, req.Operation)
+			}
+		}
+		if text(req.Args, "service") == "" {
+			return fmt.Errorf("service is required")
+		}
+		if req.Operation == "deploy_service" && text(req.Args, "image") == "" {
+			return fmt.Errorf("image is required")
+		}
+		if req.Operation == "scale_service" {
+			if _, ok := req.Args["replicas"]; !ok {
+				return fmt.Errorf("replicas is required")
+			}
+		}
+		return nil
+	}
+
 	req.Repository = strings.ToLower(req.Repository)
 	if !repoPattern.MatchString(req.Repository) {
 		return fmt.Errorf("unsupported operation or invalid repository")
@@ -211,6 +245,16 @@ func validateRequest(req *Request) error {
 	return nil
 }
 func validateScope(agent *Agent, req Request) error {
+	if isCloudOperation(req) {
+		envID := req.Environment
+		if envID == "" {
+			envID = "default"
+		}
+		if !member(agent.Environments, envID) {
+			return fmt.Errorf("Access to cloud environment %q is not permitted for this agent", envID)
+		}
+		return nil
+	}
 	if isDatabaseOperation(req) {
 		dbID := req.Database
 		if dbID == "" {

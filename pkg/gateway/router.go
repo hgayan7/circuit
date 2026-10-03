@@ -5,19 +5,30 @@ import (
 	"fmt"
 )
 
-// RouterExecutor routes action requests to the appropriate backend executor (GitHub, Workspace, or Database).
+// RouterExecutor routes action requests to the appropriate backend executor (GitHub, Workspace, Database, or Cloud).
 type RouterExecutor struct {
-	github     Executor
-	workspaces map[string]*ShellExecutor
-	databases  map[string]*DatabaseExecutor
+	github       Executor
+	workspaces   map[string]*ShellExecutor
+	databases    map[string]*DatabaseExecutor
+	environments map[string]*CloudExecutor
 }
 
 // NewRouterExecutor creates a composite router executor.
-func NewRouterExecutor(github Executor, workspaces map[string]*ShellExecutor, databases map[string]*DatabaseExecutor) *RouterExecutor {
+func NewRouterExecutor(github Executor, workspaces map[string]*ShellExecutor, databases map[string]*DatabaseExecutor, environments map[string]*CloudExecutor) *RouterExecutor {
 	return &RouterExecutor{
-		github:     github,
-		workspaces: workspaces,
-		databases:  databases,
+		github:       github,
+		workspaces:   workspaces,
+		databases:    databases,
+		environments: environments,
+	}
+}
+
+func isCloudOperation(r Request) bool {
+	switch r.Operation {
+	case "deploy_service", "rollback_deployment", "restart_service", "get_deployment_status", "scale_service":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -35,13 +46,24 @@ func isWorkspaceOperation(r Request) bool {
 	case "exec_cmd", "write_file", "delete_file", "list_dir":
 		return true
 	case "read_file":
-		return r.Workspace != "" || (r.Repository == "" && r.Database == "")
+		return r.Workspace != "" || (r.Repository == "" && r.Database == "" && r.Environment == "")
 	default:
 		return false
 	}
 }
 
 func (r *RouterExecutor) Execute(ctx context.Context, req Request) Outcome {
+	if isCloudOperation(req) {
+		envKey := req.Environment
+		if envKey == "" {
+			envKey = "default"
+		}
+		executor, ok := r.environments[envKey]
+		if !ok {
+			return Outcome{Error: fmt.Sprintf("cloud environment %q is not configured on this gateway", envKey)}
+		}
+		return executor.Execute(ctx, req)
+	}
 	if isDatabaseOperation(req) {
 		dbKey := req.Database
 		if dbKey == "" {

@@ -278,7 +278,7 @@ limits:
 	target, err := NewDatabaseTarget("analytics", "mock", "", false, 50, 5*time.Second, []string{"users", "orders", "events"}, []string{"secrets"})
 	require.NoError(t, err)
 	dbExec := NewDatabaseExecutor(target)
-	router := NewRouterExecutor(nil, nil, map[string]*DatabaseExecutor{"analytics": dbExec})
+	router := NewRouterExecutor(nil, nil, map[string]*DatabaseExecutor{"analytics": dbExec}, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)
@@ -391,7 +391,7 @@ agents:
 	target, err := NewDatabaseTarget("reporting", "mock", "", false, 50, 5*time.Second, []string{"users", "orders"}, nil)
 	require.NoError(t, err)
 	dbExec := NewDatabaseExecutor(target)
-	router := NewRouterExecutor(nil, nil, map[string]*DatabaseExecutor{"reporting": dbExec})
+	router := NewRouterExecutor(nil, nil, map[string]*DatabaseExecutor{"reporting": dbExec}, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)
