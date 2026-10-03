@@ -16,7 +16,7 @@ Validated locally on 2026-10-03. Circuit is ready for a bounded pilot of the rea
 | Cloud / communication / payments | Simulator policy and MCP registration tests only. No actual provider calls. | Unit tests; explicit `simulation: true` required |
 | Custom HTTP | Local HTTP origins, response loss, failure and timeout tests. Not arbitrary provider certification. | `custom_test.go`, local workflow report |
 
-The complete suite passed with `go test -race ./...` and a real PostgreSQL DSN enabled. `go vet ./...` passed. The new CI job has been configured but has not yet run on GitHub.
+The complete suite passed with `go test -race ./...` and a real PostgreSQL DSN enabled. `go vet ./...` passed. GitHub CI also passed the race suite and dedicated PostgreSQL/MCP job in [the validation run](https://github.com/hgayan7/circuit/actions/runs/37125101934). Cross-platform builds gate on both jobs.
 
 ## Compatibility Changes
 
