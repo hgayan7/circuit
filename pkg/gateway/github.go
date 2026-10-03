@@ -24,6 +24,7 @@ type Request struct {
 	Environment string         `json:"environment,omitempty"`
 	Channel     string         `json:"channel,omitempty"`
 	Account     string         `json:"account,omitempty"`
+	CustomTool  string         `json:"custom_tool,omitempty"`
 	Args        map[string]any `json:"args"`
 }
 type Outcome struct {
@@ -87,7 +88,10 @@ func forbiddenPath(p string) bool {
 	return p == ".github/workflows" || strings.HasPrefix(p, ".github/workflows/") || p == ".github/actions" || strings.HasPrefix(p, ".github/actions/") || p == ".git" || strings.HasPrefix(p, ".git/")
 }
 func validateRequest(req *Request) error {
-	if !operations[req.Operation] {
+	if req.CustomTool == "" && text(req.Args, "tool") != "" {
+		req.CustomTool = text(req.Args, "tool")
+	}
+	if !operations[req.Operation] && !identifier.MatchString(req.Operation) {
 		return fmt.Errorf("unsupported operation %q", req.Operation)
 	}
 	if isWorkspaceOperation(*req) {
@@ -268,6 +272,27 @@ func validateRequest(req *Request) error {
 		return nil
 	}
 
+	if isCustomOperation(*req) {
+		if req.CustomTool == "" && text(req.Args, "tool") != "" {
+			req.CustomTool = text(req.Args, "tool")
+		}
+		if req.CustomTool != "" && !identifier.MatchString(req.CustomTool) {
+			return fmt.Errorf("invalid custom tool identifier %q", req.CustomTool)
+		}
+		if req.Operation == "call_custom_tool" {
+			customFields := []string{"tool", "operation", "payload", "method", "endpoint"}
+			for k := range req.Args {
+				if !member(customFields, k) {
+					return fmt.Errorf("unexpected argument %q for call_custom_tool", k)
+				}
+			}
+			if text(req.Args, "tool") == "" && req.CustomTool == "" {
+				return fmt.Errorf("tool is required for call_custom_tool")
+			}
+		}
+		return nil
+	}
+
 	req.Repository = strings.ToLower(req.Repository)
 	if !repoPattern.MatchString(req.Repository) {
 		return fmt.Errorf("unsupported operation or invalid repository")
@@ -338,6 +363,22 @@ func validateRequest(req *Request) error {
 	return nil
 }
 func validateScope(agent *Agent, req Request) error {
+	if isCustomOperation(req) {
+		toolID := req.CustomTool
+		if toolID == "" {
+			toolID = text(req.Args, "tool")
+		}
+		if toolID == "" && len(agent.CustomTools) == 1 {
+			toolID = agent.CustomTools[0]
+		}
+		if toolID == "" {
+			toolID = "default"
+		}
+		if !member(agent.CustomTools, toolID) {
+			return fmt.Errorf("Access to custom tool %q is not permitted for this agent", toolID)
+		}
+		return nil
+	}
 	if isPaymentOperation(req) {
 		accID := req.Account
 		if accID == "" {

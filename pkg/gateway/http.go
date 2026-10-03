@@ -257,6 +257,7 @@ type toolInput struct {
 	Environment    string         `json:"environment,omitempty" jsonschema:"Allowed cloud deployment environment ID (for cloud actions)"`
 	Channel        string         `json:"channel,omitempty" jsonschema:"Allowed communication target ID (for communication actions)"`
 	Account        string         `json:"account,omitempty" jsonschema:"Allowed payment account ID (for payment actions)"`
+	CustomTool     string         `json:"custom_tool,omitempty" jsonschema:"Allowed custom tool ID"`
 	Args           map[string]any `json:"args" jsonschema:"Operation-specific arguments"`
 	IdempotencyKey string         `json:"idempotency_key" jsonschema:"Stable unique key. Reuse this exact key when retrying the same action"`
 }
@@ -292,6 +293,7 @@ var descriptions = map[string]string{
 	"create_charge":         "Create a customer payment charge. Args: amount, customer_id, optional currency, optional description.",
 	"issue_refund":          "Refund a prior payment transaction or charge with operator review. Args: charge_id, optional amount, optional reason.",
 	"get_balance":           "Query the current financial balance and ledger summary. Args: optional currency.",
+	"call_custom_tool":      "Execute an action or request against an integrated custom tool or internal API. Args: tool, payload, optional operation, optional method, optional endpoint.",
 }
 
 func toolResult(a *Action) *mcp.CallToolResult {
@@ -348,17 +350,27 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 			names = []string{"payment_refund"}
 		case "get_balance":
 			names = []string{"payment_balance"}
+		case "call_custom_tool":
+			names = []string{"custom_call"}
 		case "read_file":
 			if len(agent.Workspaces) > 0 && len(agent.Repositories) == 0 {
 				names = []string{"file_read"}
 			} else if len(agent.Workspaces) > 0 && len(agent.Repositories) > 0 {
 				names = []string{"github_read_file", "file_read"}
 			}
+		default:
+			if h.service.cfg.isCustomOperation(op) {
+				names = []string{"custom_" + op}
+			}
 		}
 		for _, name := range names {
 			tName := name
-			mcp.AddTool(server, &mcp.Tool{Name: tName, Description: descriptions[op]}, func(ctx context.Context, req *mcp.CallToolRequest, in toolInput) (*mcp.CallToolResult, any, error) {
-				reqPayload := Request{Operation: op, Repository: in.Repository, Workspace: in.Workspace, Database: in.Database, Environment: in.Environment, Channel: in.Channel, Account: in.Account, Args: in.Args}
+			desc := descriptions[op]
+			if desc == "" {
+				desc = fmt.Sprintf("Execute custom action %s on configured custom tool target.", op)
+			}
+			mcp.AddTool(server, &mcp.Tool{Name: tName, Description: desc}, func(ctx context.Context, req *mcp.CallToolRequest, in toolInput) (*mcp.CallToolResult, any, error) {
+				reqPayload := Request{Operation: op, Repository: in.Repository, Workspace: in.Workspace, Database: in.Database, Environment: in.Environment, Channel: in.Channel, Account: in.Account, CustomTool: in.CustomTool, Args: in.Args}
 				if tName == "file_read" && reqPayload.Workspace == "" && len(agent.Workspaces) > 0 {
 					reqPayload.Workspace = agent.Workspaces[0]
 				}
@@ -373,6 +385,9 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 				}
 				if isPaymentOperation(reqPayload) && reqPayload.Account == "" && len(agent.Accounts) > 0 {
 					reqPayload.Account = agent.Accounts[0]
+				}
+				if (isCustomOperation(reqPayload) || h.service.cfg.isCustomOperation(reqPayload.Operation)) && reqPayload.CustomTool == "" && len(agent.CustomTools) == 1 {
+					reqPayload.CustomTool = agent.CustomTools[0]
 				}
 				a, err := h.service.Submit(ctx, agent.ID, in.IdempotencyKey, reqPayload)
 				if err != nil {

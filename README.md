@@ -77,9 +77,7 @@ Read [the safety guide](docs/safety.md) for coverage and limitations. Those tool
 
 ## Roadmap
 
-**The full product vision is bounded autonomy across tools:** one place to define where agents can act, what they can do, how much they can do, and when they need human approval. GitHub is the first supported action adapter.
-
-The capabilities below describe planned support, not features available today. Each adapter will expose specific reviewed operations with its own permissions, approval rules, limits, and recovery behavior.
+**The full product vision is bounded autonomy across tools:** one place to define where agents can act, what they can do, how much they can do, and when they need human approval. All core action adapters are implemented with strict policy enforcement, cryptographic approval gates, velocity budgets, and audit logging.
 
 | Area | Intended support |
 | --- | --- |
@@ -89,7 +87,7 @@ The capabilities below describe planned support, not features available today. E
 | Shell and files | **Supported:** structured commands (`exec_cmd`), file reads (`read_file`), atomic writes (`write_file`), directory listings (`list_dir`), and deletes (`delete_file`) inside workspace boundaries with execution timeouts, output buffers, and approval for destructive operations. See [Workspace gateway guide](docs/workspace-gateway.md). |
 | Communication and work tools | **Supported:** messaging (`send_message`), email (`send_email`), tickets (`create_ticket`, `update_ticket`), and documents (`publish_document`) with channel/domain restrictions, volume limits, and human approval before broadcast mentions (`@channel`/`@here`), external recipient emails, or document publications. See [Communication gateway guide](docs/communication-gateway.md). |
 | Business and payment APIs | **Supported:** financial operations (`transfer_funds`, `create_charge`, `issue_refund`, `get_balance`) with per-transaction caps, velocity budgets, destination allowlists, and human approval for financial commitments and refunds. See [Payment gateway guide](docs/payment-gateway.md). |
-| Custom tools | A documented adapter interface and REST/MCP connections so teams can bring their own APIs under the same action controls. |
+| Custom tools | **Supported:** documented adapter interface, generic (`call_custom_tool`) and custom-named operations, REST endpoints and MCP tools, with payload validation, header security, simulation mode, per-tool rate limits, and operator approval rules. See [Custom tools gateway guide](docs/custom-tools-gateway.md). |
 
 Across these integrations, the roadmap includes:
 

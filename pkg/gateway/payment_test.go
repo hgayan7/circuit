@@ -230,7 +230,7 @@ limits:
 
 	router := NewRouterExecutor(nil, nil, nil, nil, nil, map[string]*PaymentExecutor{
 		"corporate-ops": NewPaymentExecutor(acc),
-	})
+	}, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)
@@ -384,7 +384,7 @@ agents:
 
 	router := NewRouterExecutor(nil, nil, nil, nil, nil, map[string]*PaymentExecutor{
 		"default": NewPaymentExecutor(acc),
-	})
+	}, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)

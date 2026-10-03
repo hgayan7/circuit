@@ -133,7 +133,7 @@ limits:
 	require.NoError(t, err)
 	router := NewRouterExecutor(nil, nil, nil, nil, map[string]*CommExecutor{
 		"corporate-comm": NewCommExecutor(target),
-	}, nil)
+	}, nil, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)
@@ -249,7 +249,7 @@ agents:
 	require.NoError(t, err)
 	router := NewRouterExecutor(nil, nil, nil, nil, map[string]*CommExecutor{
 		"slack": NewCommExecutor(target),
-	}, nil)
+	}, nil, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)

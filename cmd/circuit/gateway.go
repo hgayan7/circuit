@@ -143,6 +143,25 @@ func init() {
 			paymentExecutors[payCfg.ID] = gateway.NewPaymentExecutor(acc)
 		}
 
+		// Setup custom tool executors
+		customExecutors := map[string]*gateway.CustomToolExecutor{}
+		for _, ctCfg := range cfg.CustomTools {
+			target, err := gateway.NewCustomToolTarget(
+				ctCfg.ID,
+				ctCfg.Name,
+				ctCfg.Endpoint,
+				ctCfg.Method,
+				ctCfg.Headers,
+				ctCfg.Operations,
+				ctCfg.RequireApproval,
+				ctCfg.Timeout(),
+			)
+			if err != nil {
+				return fmt.Errorf("initializing custom tool %s: %w", ctCfg.ID, err)
+			}
+			customExecutors[ctCfg.ID] = gateway.NewCustomToolExecutor(target)
+		}
+
 		var githubExecutor gateway.Executor
 		githubToken := os.Getenv(cfg.GitHubTokenEnv)
 		if cfg.GitHubApp != nil {
@@ -168,8 +187,8 @@ func init() {
 			githubExecutor = gateway.NewGitHub(githubToken)
 		}
 
-		if githubExecutor == nil && len(wsExecutors) == 0 && len(dbExecutors) == 0 && len(cloudExecutors) == 0 && len(commExecutors) == 0 && len(paymentExecutors) == 0 {
-			return fmt.Errorf("gateway requires either GitHub credentials (%s / github_app), at least one workspace, at least one database, at least one cloud environment, at least one communication target, or at least one payment account configured", cfg.GitHubTokenEnv)
+		if githubExecutor == nil && len(wsExecutors) == 0 && len(dbExecutors) == 0 && len(cloudExecutors) == 0 && len(commExecutors) == 0 && len(paymentExecutors) == 0 && len(customExecutors) == 0 {
+			return fmt.Errorf("gateway requires either GitHub credentials (%s / github_app), at least one workspace, at least one database, at least one cloud environment, at least one communication target, at least one payment account, or at least one custom tool configured", cfg.GitHubTokenEnv)
 		}
 
 		if err := os.MkdirAll(filepath.Dir(dataPath), 0700); err != nil {
@@ -180,7 +199,7 @@ func init() {
 			return err
 		}
 		defer store.Close()
-		service, err := gateway.NewService(cfg, store, gateway.NewRouterExecutor(githubExecutor, wsExecutors, dbExecutors, cloudExecutors, commExecutors, paymentExecutors))
+		service, err := gateway.NewService(cfg, store, gateway.NewRouterExecutor(githubExecutor, wsExecutors, dbExecutors, cloudExecutors, commExecutors, paymentExecutors, customExecutors))
 		if err != nil {
 			return err
 		}
@@ -225,7 +244,7 @@ func init() {
 		if cfg.Webhook != nil {
 			webhookMsg = cfg.Webhook.Path
 		}
-		cmd.Printf("Gateway %q validated: auth=%s, webhook=%s, %d workspaces, %d databases, %d environments, %d communications, %d payment accounts, %d agents, %d rules, %d limits.\n", cfg.Name, authMode, webhookMsg, len(cfg.Workspaces), len(cfg.Databases), len(cfg.Environments), len(cfg.Communications), len(cfg.PaymentAccounts), len(cfg.Agents), len(cfg.Rules), len(cfg.Limits))
+		cmd.Printf("Gateway %q validated: auth=%s, webhook=%s, %d workspaces, %d databases, %d environments, %d communications, %d payment accounts, %d custom tools, %d agents, %d rules, %d limits.\n", cfg.Name, authMode, webhookMsg, len(cfg.Workspaces), len(cfg.Databases), len(cfg.Environments), len(cfg.Communications), len(cfg.PaymentAccounts), len(cfg.CustomTools), len(cfg.Agents), len(cfg.Rules), len(cfg.Limits))
 		return nil
 	}}
 	gatewayCmd.AddCommand(check)

@@ -252,6 +252,10 @@ func limitKey(l Limit, a *Action) string {
 		key += "/acc/" + a.Request.Account
 	case "agent_account":
 		key += "/agent/" + a.AgentID + "/acc/" + a.Request.Account
+	case "custom_tool":
+		key += "/custom/" + a.Request.CustomTool
+	case "agent_custom_tool":
+		key += "/agent/" + a.AgentID + "/custom/" + a.Request.CustomTool
 	}
 	return key
 }

@@ -90,6 +90,25 @@ func (p *PaymentAccountConfig) Timeout() time.Duration {
 	return p.timeout
 }
 
+type CustomToolConfig struct {
+	ID              string            `yaml:"id" json:"id"`
+	Name            string            `yaml:"name" json:"name"`
+	Endpoint        string            `yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
+	Method          string            `yaml:"method,omitempty" json:"method,omitempty"`
+	Headers         map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
+	Operations      []string          `yaml:"operations,omitempty" json:"operations,omitempty"`
+	RequireApproval bool              `yaml:"require_approval,omitempty" json:"require_approval,omitempty"`
+	MaxTimeout      string            `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
+	timeout         time.Duration
+}
+
+func (c *CustomToolConfig) Timeout() time.Duration {
+	if c.timeout <= 0 {
+		return 30 * time.Second
+	}
+	return c.timeout
+}
+
 type Agent struct {
 	ID           string   `yaml:"id" json:"id"`
 	TokenEnv     string   `yaml:"token_env" json:"token_env"`
@@ -99,6 +118,7 @@ type Agent struct {
 	Environments []string `yaml:"environments,omitempty" json:"environments,omitempty"`
 	Channels     []string `yaml:"channels,omitempty" json:"channels,omitempty"`
 	Accounts     []string `yaml:"accounts,omitempty" json:"accounts,omitempty"`
+	CustomTools  []string `yaml:"custom_tools,omitempty" json:"custom_tools,omitempty"`
 	Actions      []string `yaml:"actions" json:"actions"`
 	BranchPrefix string   `yaml:"branch_prefix,omitempty" json:"branch_prefix,omitempty"`
 }
@@ -142,6 +162,7 @@ type Config struct {
 	Environments    []CloudEnvironmentConfig `yaml:"environments,omitempty" json:"environments,omitempty"`
 	Communications  []CommunicationConfig    `yaml:"communications,omitempty" json:"communications,omitempty"`
 	PaymentAccounts []PaymentAccountConfig   `yaml:"payment_accounts,omitempty" json:"payment_accounts,omitempty"`
+	CustomTools     []CustomToolConfig       `yaml:"custom_tools,omitempty" json:"custom_tools,omitempty"`
 	ApprovalTTL     string                   `yaml:"approval_ttl" json:"approval_ttl"`
 	Agents          []Agent                  `yaml:"agents" json:"agents"`
 	Rules           []Rule                   `yaml:"rules,omitempty" json:"rules,omitempty"`
@@ -149,6 +170,18 @@ type Config struct {
 	Safety          config.SafetyConfig      `yaml:"safety,omitempty" json:"safety"`
 	ttl             time.Duration
 	digest          string
+}
+
+func (c *Config) isCustomOperation(op string) bool {
+	if op == "call_custom_tool" {
+		return true
+	}
+	for _, ct := range c.CustomTools {
+		if member(ct.Operations, op) {
+			return true
+		}
+	}
+	return false
 }
 
 var repoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$`)
@@ -161,6 +194,7 @@ var operations = map[string]bool{
 	"deploy_service": true, "rollback_deployment": true, "restart_service": true, "get_deployment_status": true, "scale_service": true,
 	"send_message": true, "send_email": true, "create_ticket": true, "update_ticket": true, "publish_document": true,
 	"transfer_funds": true, "create_charge": true, "issue_refund": true, "get_balance": true,
+	"call_custom_tool": true,
 }
 
 func member(items []string, item string) bool {
@@ -307,6 +341,31 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		pa.timeout = to
 	}
+	toolIDs := map[string]bool{}
+	for j := range c.CustomTools {
+		ct := &c.CustomTools[j]
+		if !identifier.MatchString(ct.ID) || toolIDs[ct.ID] {
+			return nil, fmt.Errorf("custom tools need unique valid IDs")
+		}
+		toolIDs[ct.ID] = true
+		if ct.Method == "" {
+			ct.Method = "POST"
+		}
+		ct.Method = strings.ToUpper(ct.Method)
+		if ct.MaxTimeout == "" {
+			ct.MaxTimeout = "30s"
+		}
+		to, err := time.ParseDuration(ct.MaxTimeout)
+		if err != nil || to <= 0 {
+			return nil, fmt.Errorf("invalid max_timeout for custom tool %s", ct.ID)
+		}
+		ct.timeout = to
+		for _, op := range ct.Operations {
+			if !identifier.MatchString(op) {
+				return nil, fmt.Errorf("invalid operation %q for custom tool %s", op, ct.ID)
+			}
+		}
+	}
 	if c.ApprovalTTL == "" {
 		c.ApprovalTTL = "1h"
 	}
@@ -325,8 +384,8 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			return nil, fmt.Errorf("agents need unique valid IDs and token_env")
 		}
 		ids[a.ID] = true
-		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 && len(a.Environments) == 0 && len(a.Channels) == 0 && len(a.Accounts) == 0 {
-			return nil, fmt.Errorf("agent %s needs repositories, workspaces, databases, environments, channels, or accounts", a.ID)
+		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 && len(a.Environments) == 0 && len(a.Channels) == 0 && len(a.Accounts) == 0 && len(a.CustomTools) == 0 {
+			return nil, fmt.Errorf("agent %s needs repositories, workspaces, databases, environments, channels, accounts, or custom_tools", a.ID)
 		}
 		if len(a.Actions) == 0 {
 			return nil, fmt.Errorf("agent %s needs actions", a.ID)
@@ -362,8 +421,13 @@ func ParseConfig(r io.Reader) (*Config, error) {
 				return nil, fmt.Errorf("invalid account %q for agent %s", accID, a.ID)
 			}
 		}
+		for _, toolID := range a.CustomTools {
+			if !identifier.MatchString(toolID) {
+				return nil, fmt.Errorf("invalid custom tool %q for agent %s", toolID, a.ID)
+			}
+		}
 		for _, op := range a.Actions {
-			if !operations[op] {
+			if !operations[op] && !c.isCustomOperation(op) {
 				return nil, fmt.Errorf("unsupported action %q", op)
 			}
 		}
@@ -385,6 +449,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		cel.Variable("environment", cel.StringType),
 		cel.Variable("channel", cel.StringType),
 		cel.Variable("account", cel.StringType),
+		cel.Variable("custom_tool", cel.StringType),
 		cel.Variable("agent_id", cel.StringType),
 	)
 	if err != nil {
@@ -398,7 +463,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		ids[rule.ID] = true
 		for _, op := range rule.Actions {
-			if !operations[op] {
+			if !operations[op] && !c.isCustomOperation(op) {
 				return nil, fmt.Errorf("unknown rule action %q", op)
 			}
 		}
@@ -430,12 +495,12 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		ids[limit.ID] = true
 		switch limit.Scope {
-		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace", "database", "agent_database", "environment", "agent_environment", "channel", "agent_channel", "account", "agent_account":
+		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace", "database", "agent_database", "environment", "agent_environment", "channel", "agent_channel", "account", "agent_account", "custom_tool", "agent_custom_tool":
 		default:
 			return nil, fmt.Errorf("invalid budget scope %q", limit.Scope)
 		}
 		for _, op := range limit.Actions {
-			if !operations[op] {
+			if !operations[op] && !c.isCustomOperation(op) {
 				return nil, fmt.Errorf("unknown limit action %q", op)
 			}
 		}
@@ -462,7 +527,29 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 	if agent == nil || !member(agent.Actions, req.Operation) {
 		return config.ActionDeny, "Agent is not permitted to use this action", nil
 	}
-	if isPaymentOperation(req) {
+	if isCustomOperation(req) || c.isCustomOperation(req.Operation) {
+		toolID := req.CustomTool
+		if toolID == "" {
+			toolID = text(req.Args, "tool")
+		}
+		if toolID == "" {
+			for _, ct := range c.CustomTools {
+				if member(ct.Operations, req.Operation) {
+					toolID = ct.ID
+					break
+				}
+			}
+		}
+		if toolID == "" && len(agent.CustomTools) == 1 {
+			toolID = agent.CustomTools[0]
+		}
+		if toolID == "" {
+			toolID = "default"
+		}
+		if !member(agent.CustomTools, toolID) {
+			return config.ActionDeny, fmt.Sprintf("Agent is not permitted to access custom tool %q", toolID), nil
+		}
+	} else if isPaymentOperation(req) {
 		accID := req.Account
 		if accID == "" {
 			accID = "default"
@@ -512,7 +599,33 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 	}
 	verdict := config.ActionAllow
 	reason := "Within agent scope"
-	if req.Operation == "merge_pr" {
+	if isCustomOperation(req) || c.isCustomOperation(req.Operation) {
+		toolID := req.CustomTool
+		if toolID == "" {
+			toolID = text(req.Args, "tool")
+		}
+		if toolID == "" {
+			for _, ct := range c.CustomTools {
+				if member(ct.Operations, req.Operation) {
+					toolID = ct.ID
+					break
+				}
+			}
+		}
+		if toolID == "" && len(agent.CustomTools) == 1 {
+			toolID = agent.CustomTools[0]
+		}
+		if toolID == "" {
+			toolID = "default"
+		}
+		for _, ct := range c.CustomTools {
+			if ct.ID == toolID && ct.RequireApproval {
+				verdict = config.ActionRequireApproval
+				reason = fmt.Sprintf("All actions on custom tool %q require operator approval", toolID)
+				break
+			}
+		}
+	} else if req.Operation == "merge_pr" {
 		verdict = config.ActionRequireApproval
 		reason = "Merge requires approval of the exact head commit"
 	} else if req.Operation == "delete_file" {
@@ -666,6 +779,7 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 				"environment": req.Environment,
 				"channel":     req.Channel,
 				"account":     req.Account,
+				"custom_tool": req.CustomTool,
 				"agent_id":    agentID,
 			})
 			if err != nil {
