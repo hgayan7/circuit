@@ -83,6 +83,8 @@ jobs:
           cache: true
       - name: Build restricted gateway image
         run: docker build --target gateway -f deploy/docker/Dockerfile -t circuit-ci .
+      - name: Rehearse optional Docker runner with scoped MCP and interruption cleanup
+        run: python3 examples/sandbox-validation.py --image circuit-ci
       - name: Build separate operator worker image
         run: docker build --target operations -f deploy/docker/Dockerfile -t circuit-operations-ci .
       - name: Build replaceable storage backend image

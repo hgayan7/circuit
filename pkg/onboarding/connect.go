@@ -34,6 +34,9 @@ func Client(c Connection) (*http.Client, error) {
 		return nil, fmt.Errorf("gateway URL must be an HTTPS origin without credentials, query, or path")
 	}
 	data, err := privateFile(c.TokenFile)
+	if c.MountedToken {
+		data, err = mountedToken(c.TokenFile)
+	}
 	if err != nil {
 		return nil, err
 	}

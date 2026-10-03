@@ -33,9 +33,10 @@ type Options struct {
 	Executable                                                             string
 }
 type Connection struct {
-	URL       string `json:"url"`
-	TokenFile string `json:"token_file"`
-	CACert    string `json:"ca_cert"`
+	URL          string `json:"url"`
+	TokenFile    string `json:"token_file"`
+	CACert       string `json:"ca_cert"`
+	MountedToken bool   `json:"-"`
 }
 type Setup struct {
 	Version     int        `json:"version"`

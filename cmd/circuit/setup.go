@@ -257,6 +257,7 @@ func newConnectCommand() *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&c.URL, "url", "", "Gateway HTTPS origin")
 	f.StringVar(&c.TokenFile, "token-file", "", "Agent-only credential file")
+	f.BoolVar(&c.MountedToken, "mounted-token", false, "Linux container only: require credential on a read-only filesystem mount")
 	f.StringVar(&c.CACert, "ca-cert", "", "Trusted gateway CA; defaults to system trust")
 	return cmd
 }
