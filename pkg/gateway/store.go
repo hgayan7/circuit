@@ -244,6 +244,10 @@ func limitKey(l Limit, a *Action) string {
 		key += "/env/" + a.Request.Environment
 	case "agent_environment":
 		key += "/agent/" + a.AgentID + "/env/" + a.Request.Environment
+	case "channel":
+		key += "/comm/" + a.Request.Channel
+	case "agent_channel":
+		key += "/agent/" + a.AgentID + "/comm/" + a.Request.Channel
 	}
 	return key
 }

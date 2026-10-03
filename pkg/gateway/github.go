@@ -22,6 +22,7 @@ type Request struct {
 	Workspace   string         `json:"workspace,omitempty"`
 	Database    string         `json:"database,omitempty"`
 	Environment string         `json:"environment,omitempty"`
+	Channel     string         `json:"channel,omitempty"`
 	Args        map[string]any `json:"args"`
 }
 type Outcome struct {
@@ -175,6 +176,50 @@ func validateRequest(req *Request) error {
 		return nil
 	}
 
+	if isCommOperation(*req) {
+		if req.Channel == "" {
+			req.Channel = "default"
+		}
+		if !identifier.MatchString(req.Channel) {
+			return fmt.Errorf("invalid channel identifier %q", req.Channel)
+		}
+		commFields := map[string][]string{
+			"send_message":     {"channel", "message"},
+			"send_email":       {"to", "subject", "body"},
+			"create_ticket":    {"project", "title", "description"},
+			"update_ticket":    {"key", "status", "comment"},
+			"publish_document": {"title", "content"},
+		}
+		for k := range req.Args {
+			if !member(commFields[req.Operation], k) {
+				return fmt.Errorf("unexpected argument %q for %s", k, req.Operation)
+			}
+		}
+		switch req.Operation {
+		case "send_message":
+			if text(req.Args, "channel") == "" || text(req.Args, "message") == "" {
+				return fmt.Errorf("channel and message are required")
+			}
+		case "send_email":
+			if _, ok := req.Args["to"]; !ok || text(req.Args, "subject") == "" || text(req.Args, "body") == "" {
+				return fmt.Errorf("to, subject, and body are required")
+			}
+		case "create_ticket":
+			if text(req.Args, "title") == "" {
+				return fmt.Errorf("title is required")
+			}
+		case "update_ticket":
+			if text(req.Args, "key") == "" {
+				return fmt.Errorf("key is required")
+			}
+		case "publish_document":
+			if text(req.Args, "title") == "" || text(req.Args, "content") == "" {
+				return fmt.Errorf("title and content are required")
+			}
+		}
+		return nil
+	}
+
 	req.Repository = strings.ToLower(req.Repository)
 	if !repoPattern.MatchString(req.Repository) {
 		return fmt.Errorf("unsupported operation or invalid repository")
@@ -245,6 +290,16 @@ func validateRequest(req *Request) error {
 	return nil
 }
 func validateScope(agent *Agent, req Request) error {
+	if isCommOperation(req) {
+		chID := req.Channel
+		if chID == "" {
+			chID = "default"
+		}
+		if !member(agent.Channels, chID) {
+			return fmt.Errorf("Access to communication target %q is not permitted for this agent", chID)
+		}
+		return nil
+	}
 	if isCloudOperation(req) {
 		envID := req.Environment
 		if envID == "" {

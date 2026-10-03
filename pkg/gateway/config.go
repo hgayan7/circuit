@@ -61,6 +61,15 @@ func (e *CloudEnvironmentConfig) Timeout() time.Duration {
 	return e.timeout
 }
 
+type CommunicationConfig struct {
+	ID                         string   `yaml:"id" json:"id"`
+	Kind                       string   `yaml:"kind,omitempty" json:"kind,omitempty"`
+	AllowedChannels            []string `yaml:"allowed_channels,omitempty" json:"allowed_channels,omitempty"`
+	InternalDomains            []string `yaml:"internal_domains,omitempty" json:"internal_domains,omitempty"`
+	MaxRecipients              int      `yaml:"max_recipients,omitempty" json:"max_recipients,omitempty"`
+	RequireApprovalForExternal bool     `yaml:"require_approval_for_external,omitempty" json:"require_approval_for_external,omitempty"`
+}
+
 type Agent struct {
 	ID           string   `yaml:"id" json:"id"`
 	TokenEnv     string   `yaml:"token_env" json:"token_env"`
@@ -68,6 +77,7 @@ type Agent struct {
 	Workspaces   []string `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
 	Databases    []string `yaml:"databases,omitempty" json:"databases,omitempty"`
 	Environments []string `yaml:"environments,omitempty" json:"environments,omitempty"`
+	Channels     []string `yaml:"channels,omitempty" json:"channels,omitempty"`
 	Actions      []string `yaml:"actions" json:"actions"`
 	BranchPrefix string   `yaml:"branch_prefix,omitempty" json:"branch_prefix,omitempty"`
 }
@@ -109,6 +119,7 @@ type Config struct {
 	Workspaces     []WorkspaceConfig        `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
 	Databases      []DatabaseConfig         `yaml:"databases,omitempty" json:"databases,omitempty"`
 	Environments   []CloudEnvironmentConfig `yaml:"environments,omitempty" json:"environments,omitempty"`
+	Communications []CommunicationConfig    `yaml:"communications,omitempty" json:"communications,omitempty"`
 	ApprovalTTL    string                   `yaml:"approval_ttl" json:"approval_ttl"`
 	Agents         []Agent                  `yaml:"agents" json:"agents"`
 	Rules          []Rule                   `yaml:"rules,omitempty" json:"rules,omitempty"`
@@ -126,6 +137,7 @@ var operations = map[string]bool{
 	"exec_cmd": true, "write_file": true, "delete_file": true, "list_dir": true,
 	"query_sql": true, "exec_sql": true, "list_tables": true, "describe_table": true,
 	"deploy_service": true, "rollback_deployment": true, "restart_service": true, "get_deployment_status": true, "scale_service": true,
+	"send_message": true, "send_email": true, "create_ticket": true, "update_ticket": true, "publish_document": true,
 }
 
 func member(items []string, item string) bool {
@@ -241,6 +253,17 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		ce.timeout = to
 	}
+	commIDs := map[string]bool{}
+	for j := range c.Communications {
+		cm := &c.Communications[j]
+		if !identifier.MatchString(cm.ID) || commIDs[cm.ID] {
+			return nil, fmt.Errorf("communications need unique valid IDs")
+		}
+		commIDs[cm.ID] = true
+		if cm.MaxRecipients <= 0 {
+			cm.MaxRecipients = 50
+		}
+	}
 	if c.ApprovalTTL == "" {
 		c.ApprovalTTL = "1h"
 	}
@@ -259,8 +282,8 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			return nil, fmt.Errorf("agents need unique valid IDs and token_env")
 		}
 		ids[a.ID] = true
-		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 && len(a.Environments) == 0 {
-			return nil, fmt.Errorf("agent %s needs repositories, workspaces, databases, or environments", a.ID)
+		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 && len(a.Environments) == 0 && len(a.Channels) == 0 {
+			return nil, fmt.Errorf("agent %s needs repositories, workspaces, databases, environments, or channels", a.ID)
 		}
 		if len(a.Actions) == 0 {
 			return nil, fmt.Errorf("agent %s needs actions", a.ID)
@@ -286,6 +309,11 @@ func ParseConfig(r io.Reader) (*Config, error) {
 				return nil, fmt.Errorf("invalid environment %q for agent %s", envID, a.ID)
 			}
 		}
+		for _, chID := range a.Channels {
+			if !identifier.MatchString(chID) {
+				return nil, fmt.Errorf("invalid channel %q for agent %s", chID, a.ID)
+			}
+		}
 		for _, op := range a.Actions {
 			if !operations[op] {
 				return nil, fmt.Errorf("unsupported action %q", op)
@@ -307,6 +335,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		cel.Variable("workspace", cel.StringType),
 		cel.Variable("database", cel.StringType),
 		cel.Variable("environment", cel.StringType),
+		cel.Variable("channel", cel.StringType),
 		cel.Variable("agent_id", cel.StringType),
 	)
 	if err != nil {
@@ -352,7 +381,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		ids[limit.ID] = true
 		switch limit.Scope {
-		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace", "database", "agent_database", "environment", "agent_environment":
+		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace", "database", "agent_database", "environment", "agent_environment", "channel", "agent_channel":
 		default:
 			return nil, fmt.Errorf("invalid budget scope %q", limit.Scope)
 		}
@@ -384,7 +413,15 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 	if agent == nil || !member(agent.Actions, req.Operation) {
 		return config.ActionDeny, "Agent is not permitted to use this action", nil
 	}
-	if isCloudOperation(req) {
+	if isCommOperation(req) {
+		chID := req.Channel
+		if chID == "" {
+			chID = "default"
+		}
+		if !member(agent.Channels, chID) {
+			return config.ActionDeny, fmt.Sprintf("Agent is not permitted to access communication target %q", chID), nil
+		}
+	} else if isCloudOperation(req) {
 		envID := req.Environment
 		if envID == "" {
 			envID = "default"
@@ -471,6 +508,45 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 				}
 			}
 		}
+	} else if isCommOperation(req) {
+		chID := req.Channel
+		if chID == "" {
+			chID = "default"
+		}
+		if req.Operation == "publish_document" {
+			verdict = config.ActionRequireApproval
+			reason = "Publishing documents broadly requires operator approval"
+		} else if req.Operation == "send_message" {
+			msg := text(req.Args, "message")
+			if strings.Contains(msg, "@channel") || strings.Contains(msg, "@here") || strings.Contains(msg, "@everyone") {
+				verdict = config.ActionRequireApproval
+				reason = "Broadcast channel mentions (@channel/@here/@everyone) require operator approval"
+			}
+		} else if req.Operation == "send_email" {
+			for _, comm := range c.Communications {
+				if comm.ID == chID && comm.RequireApprovalForExternal {
+					toRaw := req.Args["to"]
+					var recs []string
+					switch v := toRaw.(type) {
+					case string:
+						recs = strings.Split(v, ",")
+					case []any:
+						for _, item := range v {
+							if s, ok := item.(string); ok {
+								recs = append(recs, s)
+							}
+						}
+					case []string:
+						recs = v
+					}
+					target := &CommTarget{InternalDomains: comm.InternalDomains}
+					if target.HasExternalRecipient(recs) {
+						verdict = config.ActionRequireApproval
+						reason = "Sending email to external domains requires operator approval"
+					}
+				}
+			}
+		}
 	}
 	for _, rule := range c.Rules {
 		if !member(rule.Actions, req.Operation) || (len(rule.Repositories) > 0 && !member(rule.Repositories, req.Repository)) {
@@ -484,6 +560,7 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 				"workspace":   req.Workspace,
 				"database":    req.Database,
 				"environment": req.Environment,
+				"channel":     req.Channel,
 				"agent_id":    agentID,
 			})
 			if err != nil {

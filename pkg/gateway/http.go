@@ -255,6 +255,7 @@ type toolInput struct {
 	Workspace      string         `json:"workspace,omitempty" jsonschema:"Allowed workspace ID (for shell/file actions)"`
 	Database       string         `json:"database,omitempty" jsonschema:"Allowed database target ID (for SQL actions)"`
 	Environment    string         `json:"environment,omitempty" jsonschema:"Allowed cloud deployment environment ID (for cloud actions)"`
+	Channel        string         `json:"channel,omitempty" jsonschema:"Allowed communication target ID (for communication actions)"`
 	Args           map[string]any `json:"args" jsonschema:"Operation-specific arguments"`
 	IdempotencyKey string         `json:"idempotency_key" jsonschema:"Stable unique key. Reuse this exact key when retrying the same action"`
 }
@@ -281,6 +282,11 @@ var descriptions = map[string]string{
 	"restart_service":       "Restart service containers/pods in an environment. Production restarts require operator approval. Args: service.",
 	"get_deployment_status": "Get deployment revision and health status for a service. Args: service.",
 	"scale_service":         "Scale service replica count within permitted min/max bounds. Scaling to 0 requires operator review. Args: service, replicas.",
+	"send_message":          "Send a message to a team chat or webhook channel. Broadcast mentions (@channel/@here/@everyone) require operator approval. Args: channel, message.",
+	"send_email":            "Send an email to specified recipients. External recipient domains require operator review if configured. Args: to, subject, body.",
+	"create_ticket":         "Create a new issue/ticket in a tracking system. Args: title, optional description, optional project.",
+	"update_ticket":         "Update a ticket status or append comments. Args: key, optional status, optional comment.",
+	"publish_document":      "Publish or broadcast a document with mandatory operator approval. Args: title, content.",
 }
 
 func toolResult(a *Action) *mcp.CallToolResult {
@@ -319,6 +325,16 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 			names = []string{"cloud_status"}
 		case "scale_service":
 			names = []string{"cloud_scale"}
+		case "send_message":
+			names = []string{"comm_send_message"}
+		case "send_email":
+			names = []string{"comm_send_email"}
+		case "create_ticket":
+			names = []string{"comm_create_ticket"}
+		case "update_ticket":
+			names = []string{"comm_update_ticket"}
+		case "publish_document":
+			names = []string{"comm_publish_document"}
 		case "read_file":
 			if len(agent.Workspaces) > 0 && len(agent.Repositories) == 0 {
 				names = []string{"file_read"}
@@ -329,7 +345,7 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 		for _, name := range names {
 			tName := name
 			mcp.AddTool(server, &mcp.Tool{Name: tName, Description: descriptions[op]}, func(ctx context.Context, req *mcp.CallToolRequest, in toolInput) (*mcp.CallToolResult, any, error) {
-				reqPayload := Request{Operation: op, Repository: in.Repository, Workspace: in.Workspace, Database: in.Database, Environment: in.Environment, Args: in.Args}
+				reqPayload := Request{Operation: op, Repository: in.Repository, Workspace: in.Workspace, Database: in.Database, Environment: in.Environment, Channel: in.Channel, Args: in.Args}
 				if tName == "file_read" && reqPayload.Workspace == "" && len(agent.Workspaces) > 0 {
 					reqPayload.Workspace = agent.Workspaces[0]
 				}
@@ -338,6 +354,9 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 				}
 				if isCloudOperation(reqPayload) && reqPayload.Environment == "" && len(agent.Environments) > 0 {
 					reqPayload.Environment = agent.Environments[0]
+				}
+				if isCommOperation(reqPayload) && reqPayload.Channel == "" && len(agent.Channels) > 0 {
+					reqPayload.Channel = agent.Channels[0]
 				}
 				a, err := h.service.Submit(ctx, agent.ID, in.IdempotencyKey, reqPayload)
 				if err != nil {

@@ -5,21 +5,32 @@ import (
 	"fmt"
 )
 
-// RouterExecutor routes action requests to the appropriate backend executor (GitHub, Workspace, Database, or Cloud).
+// RouterExecutor routes action requests to the appropriate backend executor (GitHub, Workspace, Database, Cloud, or Communication).
 type RouterExecutor struct {
 	github       Executor
 	workspaces   map[string]*ShellExecutor
 	databases    map[string]*DatabaseExecutor
 	environments map[string]*CloudExecutor
+	comms        map[string]*CommExecutor
 }
 
 // NewRouterExecutor creates a composite router executor.
-func NewRouterExecutor(github Executor, workspaces map[string]*ShellExecutor, databases map[string]*DatabaseExecutor, environments map[string]*CloudExecutor) *RouterExecutor {
+func NewRouterExecutor(github Executor, workspaces map[string]*ShellExecutor, databases map[string]*DatabaseExecutor, environments map[string]*CloudExecutor, comms map[string]*CommExecutor) *RouterExecutor {
 	return &RouterExecutor{
 		github:       github,
 		workspaces:   workspaces,
 		databases:    databases,
 		environments: environments,
+		comms:        comms,
+	}
+}
+
+func isCommOperation(r Request) bool {
+	switch r.Operation {
+	case "send_message", "send_email", "create_ticket", "update_ticket", "publish_document":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -46,13 +57,24 @@ func isWorkspaceOperation(r Request) bool {
 	case "exec_cmd", "write_file", "delete_file", "list_dir":
 		return true
 	case "read_file":
-		return r.Workspace != "" || (r.Repository == "" && r.Database == "" && r.Environment == "")
+		return r.Workspace != "" || (r.Repository == "" && r.Database == "" && r.Environment == "" && r.Channel == "")
 	default:
 		return false
 	}
 }
 
 func (r *RouterExecutor) Execute(ctx context.Context, req Request) Outcome {
+	if isCommOperation(req) {
+		commKey := req.Channel
+		if commKey == "" {
+			commKey = "default"
+		}
+		executor, ok := r.comms[commKey]
+		if !ok {
+			return Outcome{Error: fmt.Sprintf("communication target %q is not configured on this gateway", commKey)}
+		}
+		return executor.Execute(ctx, req)
+	}
 	if isCloudOperation(req) {
 		envKey := req.Environment
 		if envKey == "" {

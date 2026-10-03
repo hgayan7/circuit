@@ -106,6 +106,23 @@ func init() {
 			cloudExecutors[envCfg.ID] = gateway.NewCloudExecutor(env)
 		}
 
+		// Setup communication executors
+		commExecutors := map[string]*gateway.CommExecutor{}
+		for _, commCfg := range cfg.Communications {
+			target, err := gateway.NewCommTarget(
+				commCfg.ID,
+				commCfg.Kind,
+				commCfg.AllowedChannels,
+				commCfg.InternalDomains,
+				commCfg.MaxRecipients,
+				commCfg.RequireApprovalForExternal,
+			)
+			if err != nil {
+				return fmt.Errorf("initializing communication target %s: %w", commCfg.ID, err)
+			}
+			commExecutors[commCfg.ID] = gateway.NewCommExecutor(target)
+		}
+
 		var githubExecutor gateway.Executor
 		githubToken := os.Getenv(cfg.GitHubTokenEnv)
 		if cfg.GitHubApp != nil {
@@ -131,8 +148,8 @@ func init() {
 			githubExecutor = gateway.NewGitHub(githubToken)
 		}
 
-		if githubExecutor == nil && len(wsExecutors) == 0 && len(dbExecutors) == 0 && len(cloudExecutors) == 0 {
-			return fmt.Errorf("gateway requires either GitHub credentials (%s / github_app), at least one workspace, at least one database, or at least one cloud environment configured", cfg.GitHubTokenEnv)
+		if githubExecutor == nil && len(wsExecutors) == 0 && len(dbExecutors) == 0 && len(cloudExecutors) == 0 && len(commExecutors) == 0 {
+			return fmt.Errorf("gateway requires either GitHub credentials (%s / github_app), at least one workspace, at least one database, at least one cloud environment, or at least one communication target configured", cfg.GitHubTokenEnv)
 		}
 
 		if err := os.MkdirAll(filepath.Dir(dataPath), 0700); err != nil {
@@ -143,7 +160,7 @@ func init() {
 			return err
 		}
 		defer store.Close()
-		service, err := gateway.NewService(cfg, store, gateway.NewRouterExecutor(githubExecutor, wsExecutors, dbExecutors, cloudExecutors))
+		service, err := gateway.NewService(cfg, store, gateway.NewRouterExecutor(githubExecutor, wsExecutors, dbExecutors, cloudExecutors, commExecutors))
 		if err != nil {
 			return err
 		}
@@ -188,7 +205,7 @@ func init() {
 		if cfg.Webhook != nil {
 			webhookMsg = cfg.Webhook.Path
 		}
-		cmd.Printf("Gateway %q validated: auth=%s, webhook=%s, %d workspaces, %d databases, %d environments, %d agents, %d rules, %d limits.\n", cfg.Name, authMode, webhookMsg, len(cfg.Workspaces), len(cfg.Databases), len(cfg.Environments), len(cfg.Agents), len(cfg.Rules), len(cfg.Limits))
+		cmd.Printf("Gateway %q validated: auth=%s, webhook=%s, %d workspaces, %d databases, %d environments, %d communications, %d agents, %d rules, %d limits.\n", cfg.Name, authMode, webhookMsg, len(cfg.Workspaces), len(cfg.Databases), len(cfg.Environments), len(cfg.Communications), len(cfg.Agents), len(cfg.Rules), len(cfg.Limits))
 		return nil
 	}}
 	gatewayCmd.AddCommand(check)
