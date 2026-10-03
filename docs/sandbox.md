@@ -1,6 +1,6 @@
 # Optional Agent Sandbox
 
-Circuit's action gateway works with your existing sandbox. The optional `circuit agent run` command on `main` provides a restricted Docker invocation; it is not an OS isolation implementation or a replacement for the action gateway. It is not in v0.2.0-rc.1 downloads.
+Circuit's action gateway works with your existing sandbox. The optional `circuit agent run` command in v0.2.0-rc.2 and on `main` provides a restricted Docker invocation; it is not an OS isolation implementation or a replacement for the action gateway.
 
 ```text
 Agent container -- scoped Circuit token --> Action gateway --> Provider/plugin

@@ -4,14 +4,14 @@ Circuit is a self-hosted action gateway with CLI administration, REST/MCP integr
 
 ## Install The Candidate
 
-[v0.2.0-rc.1](https://github.com/hgayan7/circuit/releases/tag/v0.2.0-rc.1) is a developer preview / release candidate. Download the archive for Linux/macOS and amd64/arm64, compare its SHA-256 with the published `checksums.txt`, and extract it. The stable Homebrew tap does not install this candidate. Native Windows gateway execution is not supported.
+[v0.2.0-rc.2](https://github.com/hgayan7/circuit/releases/tag/v0.2.0-rc.2) is a developer preview / release candidate. Download the archive for Linux/macOS and amd64/arm64, compare its SHA-256 with the published `checksums.txt`, and extract it. The stable Homebrew tap does not install this candidate. Native Windows gateway execution is not supported.
 
 For the sample agent, Docker builds, and rehearsal scripts, use a source checkout. Requires Go 1.26.7 or later; the sample Python agent requires Python 3.
 
 ```sh
-git clone --branch v0.2.0-rc.1 https://github.com/hgayan7/circuit.git
+git clone --branch v0.2.0-rc.2 https://github.com/hgayan7/circuit.git
 cd circuit
-go build -ldflags '-X main.version=0.2.0-rc.1' -o bin/circuit ./cmd/circuit
+go build -ldflags '-X main.version=0.2.0-rc.2' -o bin/circuit ./cmd/circuit
 bin/circuit version
 ```
 
@@ -33,7 +33,7 @@ The agent submits simulated GitHub actions. Review the file-write and merge prop
 
 ## Connect A Real Agent
 
-For the simpler guided flow, build the current `main` source and follow [guided setup](onboarding.md): `circuit setup`, `circuit start`, then `circuit doctor` in another terminal. Register its generated agent-only `mcp.json` in your client. These commands and the optional [Docker runner](sandbox.md) were added after the rc.1 tag and are not in its existing downloads.
+Use the rc.2 binary or matching source and follow [guided setup](onboarding.md): `circuit setup`, `circuit start`, then `circuit doctor` in another terminal. Register its generated agent-only `mcp.json` in your client. The optional [Docker runner](sandbox.md) uses an existing internal gateway network and your trusted agent image.
 
 Run Circuit as a persistent gateway and configure your agent's tools to call its authenticated REST or Streamable HTTP MCP endpoint. Integration requires routing those tool calls through Circuit; it is not automatic protection for every outbound request.
 

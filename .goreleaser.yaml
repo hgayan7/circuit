@@ -39,6 +39,10 @@ release:
     durable approvals/audit, the GitHub App profile, REST/MCP and approval UI,
     configurable email alerts, and encrypted backups with verified storage adapters.
 
+    Guided BYOK setup (setup/start/doctor), an agent-only stdio MCP connector,
+    and an optional restricted Docker agent runner are included. Provider integrations
+    remain extensible; the production-oriented profile supports GitHub only.
+
     Linux/macOS amd64/arm64 binaries and deployment templates are included.
     For Docker builds and rehearsal scripts, use the source checkout for this tag.
     Supply your own protected credentials; no production secrets are bundled.

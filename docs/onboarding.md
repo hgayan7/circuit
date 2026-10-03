@@ -1,6 +1,6 @@
 # Guided Setup
 
-These commands are available on `main` after v0.2.0-rc.1. The existing rc.1 downloads do not include them. Build the current source with Go 1.26.7 or later:
+These commands are available in v0.2.0-rc.2 and on `main`. Use a downloaded rc.2 binary, or build its source with Go 1.26.7 or later:
 
 ```sh
 go build -o bin/circuit ./cmd/circuit

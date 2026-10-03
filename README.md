@@ -10,7 +10,7 @@ For example, let an engineering agent read two repositories and open up to five 
 
 ## Release Status
 
-[**v0.2.0-rc.1**](https://github.com/hgayan7/circuit/releases/tag/v0.2.0-rc.1) is available as a **developer preview / release candidate**, not a production-certified release. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums. The stable Homebrew tap does not install this candidate.
+[**v0.2.0-rc.2**](https://github.com/hgayan7/circuit/releases/tag/v0.2.0-rc.2) is available as a **developer preview / release candidate**, not a production-certified release. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums. The stable Homebrew tap does not install this candidate.
 
 The GitHub-only production-oriented profile, operational extensions, recovery tests, and cross-platform builds are implemented. The full uninterrupted 72-hour fixture soak remains pending. Operators must also validate their intended workload, email delivery, and separate-host recovery with their own credentials. See the [release checklist](docs/release-checklist.md) for acceptance criteria and supported scope.
 
@@ -29,7 +29,7 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080) and enter the public demo op
 python3 examples/github-agent.py --demo
 ```
 
-Review file-write and merge proposals in the interface. This simulation never contacts GitHub and needs no real credentials. For a reproducible candidate checkout, use the `v0.2.0-rc.1` tag. See [Getting Started](docs/getting-started.md) for installation and next steps.
+Review file-write and merge proposals in the interface. This simulation never contacts GitHub and needs no real credentials. For a reproducible candidate checkout, use the `v0.2.0-rc.2` tag. See [Getting Started](docs/getting-started.md) for installation and next steps.
 
 ## How It Fits
 
@@ -46,9 +46,9 @@ Circuit action gateway --- Operator review interface
 
 Run Circuit as a persistent middleware service. Connect agent tools through authenticated REST or MCP; operators use the web interface. The CLI supplies setup, validation, recovery, and an optional restricted Docker runner. Circuit is not a model router and does not implement its own OS sandbox.
 
-### Simpler Setup On Main
+### Guided Setup
 
-The current source includes a guided BYOK flow and agent-only stdio MCP connector. These commands are newer than the rc.1 downloads:
+The rc.2 binaries and current source include a guided BYOK flow and agent-only stdio MCP connector:
 
 ```sh
 bin/circuit setup
