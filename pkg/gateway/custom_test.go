@@ -19,7 +19,7 @@ func TestCustomToolExecutor(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. Built-in simulator mode
-	simTarget, err := NewCustomToolTarget("local-sim", "Local Simulator", "", "POST", nil, nil, false, 5*time.Second)
+	simTarget, err := NewCustomToolTarget("local-sim", "Local Simulator", "mock:local", "POST", nil, nil, false, 5*time.Second)
 	require.NoError(t, err)
 
 	simExec := NewCustomToolExecutor(simTarget)
@@ -39,7 +39,7 @@ func TestCustomToolExecutor(t *testing.T) {
 	assert.NotEmpty(t, simData["call_id"])
 
 	// 2. Custom mock handler
-	mockTarget, err := NewCustomToolTarget("mock-service", "Mock Service", "", "POST", nil, nil, false, 5*time.Second)
+	mockTarget, err := NewCustomToolTarget("mock-service", "Mock Service", "mock:service", "POST", nil, nil, false, 5*time.Second)
 	require.NoError(t, err)
 	mockTarget.SetMockHandler(func(req Request) (int, any, error) {
 		return 201, map[string]any{"received_op": req.Operation, "custom_status": "ok"}, nil

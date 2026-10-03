@@ -35,6 +35,9 @@ func NewCustomToolTarget(id, name, endpoint, method string, headers map[string]s
 	if id == "" {
 		return nil, fmt.Errorf("custom tool ID is required")
 	}
+	if endpoint == "" {
+		return nil, fmt.Errorf("custom tool endpoint is required; use mock: explicitly for simulation")
+	}
 	if method == "" {
 		method = "POST"
 	}
@@ -92,7 +95,7 @@ func (e *CustomToolExecutor) Execute(ctx context.Context, r Request) Outcome {
 	}
 
 	// 2. If endpoint is empty or marked as simulator/mock, use built-in simulator.
-	if e.target.Endpoint == "" || strings.HasPrefix(e.target.Endpoint, "mock:") || strings.HasPrefix(e.target.Endpoint, "sim:") {
+	if strings.HasPrefix(e.target.Endpoint, "mock:") || strings.HasPrefix(e.target.Endpoint, "sim:") {
 		e.target.simMu.Lock()
 		defer e.target.simMu.Unlock()
 
@@ -105,6 +108,7 @@ func (e *CustomToolExecutor) Execute(ctx context.Context, r Request) Outcome {
 			"operation": r.Operation,
 			"args":      r.Args,
 			"status":    "executed",
+			"simulated": true,
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		}
 		e.target.callHistory = append(e.target.callHistory, record)
@@ -158,7 +162,7 @@ func (e *CustomToolExecutor) Execute(ctx context.Context, r Request) Outcome {
 
 	respData, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
-		return Outcome{Status: resp.StatusCode, Error: fmt.Sprintf("reading response: %v", err)}
+		return Outcome{Status: resp.StatusCode, Error: fmt.Sprintf("reading response: %v", err), Uncertain: method != "GET" && method != "HEAD"}
 	}
 
 	if resp.StatusCode >= 400 {

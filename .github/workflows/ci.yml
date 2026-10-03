@@ -29,10 +29,37 @@ jobs:
       - name: Run Tests with Race Detector
         run: go test -v -race ./...
 
+  postgres:
+    name: Live PostgreSQL Integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: circuit_fixture
+          POSTGRES_PASSWORD: fixture-only
+          POSTGRES_DB: circuit_validation
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+      - name: Exercise real database and MCP
+        env:
+          CIRCUIT_TEST_POSTGRES_DSN: host=127.0.0.1 port=5432 user=circuit_fixture password=fixture-only dbname=circuit_validation sslmode=disable
+        run: go test -race -v ./pkg/gateway -run TestPostgresLive -count=1
+
   build-matrix:
     name: Cross-Platform Build
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, postgres]
     strategy:
       matrix:
         goos: [linux, darwin]

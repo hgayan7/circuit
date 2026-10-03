@@ -105,12 +105,7 @@ webhook:
   path: /webhooks/github
 ```
 
-When network failures, 5xx errors, or restarts leave an action in `uncertain` state, GitHub webhook events automatically reconcile the action:
-- `pull_request` (closed & merged): reconciles uncertain `merge_pr` proposals to `succeeded` with the merge commit SHA.
-- `pull_request` (closed & unmerged): reconciles uncertain `merge_pr` proposals to `failed`.
-- `pull_request` (opened): reconciles uncertain `create_pr` proposals to `succeeded`.
-- `create` / `push`: reconciles uncertain `create_branch` or `put_file` proposals to `succeeded`.
-- `issues` (opened, closed, edited): reconciles uncertain `create_issue` or `update_issue` proposals to `succeeded`.
+Only `pull_request` closed-and-merged events automatically reconcile an uncertain `merge_pr`. The repository, PR number, and exact approved head SHA must match, and the event must include a merge commit SHA. Other operations and mismatched events remain uncertain for operator reconciliation. Titles, branch names, and paths alone do not prove execution of the approved payload.
 
 All automated reconciliations record an audit entry with `actor: "webhook"`.
 
@@ -139,7 +134,7 @@ A private bbolt database stores actions, atomic budget reservations, idempotency
 
 Before an upstream call, Circuit persists `executing`. Completed calls become `succeeded` or `failed`. Transport failures and ambiguous write responses become `uncertain`. On restart, any leftover `executing` action becomes `uncertain` and will not be replayed. Pending approvals and usage persist.
 
-GitHub does not offer a universal idempotency mechanism for all these operations. Therefore Circuit promises no automatic replay of a claimed action, not exactly-once delivery. A crash before dispatch can leave an action uncertain even if nothing happened. When webhooks are enabled, incoming GitHub delivery events automatically reconcile uncertain actions; otherwise, operators reconcile them through the review interface.
+GitHub does not offer a universal idempotency mechanism for all these operations. Therefore Circuit promises no automatic replay of a claimed action, not exactly-once delivery. A crash before dispatch can leave an action uncertain even if nothing happened. Webhooks can resolve exact-head merges as described above; other uncertain actions require operator reconciliation.
 
 Optional prompt checks use the existing heuristic detector. If a completed action's returned content is blocked, the action remains succeeded with a warning and a withheld result; it is not mislabeled as a failed write. Detection limitations are documented in [safety.md](safety.md).
 
@@ -147,4 +142,4 @@ Optional prompt checks use the existing heuristic detector. If a completed actio
 
 `go test -race ./...` covers real SDK MCP calls, the REST approval workflow, concurrent retries, multiple budgets, restart persistence, uncertain outcomes, payload integrity, stale policy/commit approvals, cross-agent access, RSA key parsing, RS256 JWT generation, GitHub App token rotation, webhook HMAC signature verification, automatic webhook reconciliation, and a full GitHub workflow against a local HTTP origin.
 
-The [live GitHub pilot](github-pilot.md) passed 43 checks across private and protected public fixture repositories. GitHub App installation tokens, repository-scoped permissions, and webhook reconciliation are now implemented and tested in the gateway engine. Multi-reviewer quorum, notification delivery (Slack/email), and distributed storage remain future roadmap items.
+The follow-up App pilot passed 44 checks with an isolated agent container and real fixture-repository writes. A real signed repository webhook resolved a deliberately lost merge response. App-token repository scoping and refresh also passed live tests. App-level webhook registration is not separately validated. See [validation status](validation-status.md) for evidence and reproduction. Multi-reviewer quorum, notification delivery, and distributed storage remain future work.

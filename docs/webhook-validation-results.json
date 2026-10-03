@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "checks": [
+    "Public tunnel does not expose operator API",
+    "Live branch created",
+    "Exact action pending",
+    "Approved live file written",
+    "Live PR created",
+    "Live PR read",
+    "Exact action pending",
+    "Lost merge response requires reconciliation",
+    "Uncertain retry returns original action",
+    "Real signed webhook reconciles exact approved head",
+    "Webhook attribution persisted",
+    "GitHub confirms successful delivery"
+  ],
+  "pull_request": "https://github.com/hgayan7/circuit-gateway-pilot-20261003/pull/5",
+  "deliveries": [
+    {
+      "event": "pull_request",
+      "status_code": 200,
+      "delivered_at": "2026-10-03T12:54:45.152Z"
+    },
+    {
+      "event": "pull_request",
+      "status_code": 200,
+      "delivered_at": "2026-10-03T12:54:41.082Z"
+    },
+    {
+      "event": "ping",
+      "status_code": 200,
+      "delivered_at": "2026-10-03T12:54:33.188Z"
+    }
+  ]
+}

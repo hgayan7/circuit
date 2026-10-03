@@ -29,6 +29,7 @@ func TestCloudExecutor(t *testing.T) {
 	assert.Equal(t, 200, statusRes.Status)
 	var statusData map[string]any
 	require.NoError(t, json.Unmarshal(statusRes.Body, &statusData))
+	assert.Equal(t, true, statusData["simulated"])
 	assert.Equal(t, "web-api", statusData["service"])
 	assert.Equal(t, float64(3), statusData["replicas"])
 
@@ -110,6 +111,7 @@ func TestCloudGatewayApprovalAndLimits(t *testing.T) {
 	ctx := context.Background()
 	cfgYAML := `
 name: cloud-gateway
+simulation: true
 admin_token_env: ADMIN_TOKEN
 approval_ttl: 15m
 environments:
@@ -255,6 +257,7 @@ func TestCloudMCPIntegration(t *testing.T) {
 	ctx := context.Background()
 	cfgYAML := `
 name: cloud-mcp-gateway
+simulation: true
 admin_token_env: ADMIN_TOKEN
 approval_ttl: 15m
 environments:

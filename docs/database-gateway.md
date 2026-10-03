@@ -1,15 +1,15 @@
 # Database Gateway Action Adapter
 
-Circuit provides a secure, durable, and policy-governed gateway adapter for databases. Like the GitHub and Workspace adapters, the Database adapter allows autonomous AI agents to query and mutate SQL databases while enforcing strict safety boundaries:
+Circuit supports real PostgreSQL execution. Local PostgreSQL 18 integration tests cover reads, writes, rollback, permissions, timeouts, metadata, and official MCP calls. This is bounded pilot validation, not a guarantee for every PostgreSQL feature or a substitute for least-privilege database roles.
 
-- **SQL AST Analysis**: Every statement is parsed using a full PostgreSQL AST parser (`github.com/auxten/postgresql-parser`) before execution. Statements cannot be concealed by obfuscated whitespace, comments, or SQL injection tricks.
-- **Read-Only vs Mutation Separation**: Read actions (`query_sql`) only permit non-locking `SELECT` statements. Mutations (`INSERT`, `UPDATE`, `DELETE`, DDL) must go through `exec_sql`.
-- **Table Allow/Denylists**: Restricts agents to permitted tables and explicitly blocks access to sensitive tables (e.g. `users`, `secrets`, `admin_tokens`), evaluated statically on all referenced tables across `SELECT`, `JOIN`, subqueries, and CTEs.
+- **SQL AST Analysis**: Statements are parsed using `github.com/auxten/postgresql-parser`. Unsupported syntax fails rather than being executed unparsed. The parser and static checks are conservative, not a complete model of PostgreSQL semantics.
+- **Read-Only vs Mutation Separation**: `query_sql` permits conservative non-locking SELECTs, rejects unsafe functions and nested mutations, and runs in a PostgreSQL read-only transaction. Mutations must use `exec_sql`.
+- **Table Allow/Denylists**: Static table references are checked, preserving non-public schema qualifications. Transactions use `search_path = public, pg_catalog`. Views, operators, triggers, and function bodies require database-level permissions; static table lists do not constrain all indirect access.
 - **Destructive Statement Protection**: Destructive DDL (`DROP TABLE`, `TRUNCATE`, `ALTER TABLE`, `DROP DATABASE`) and unconstrained DML (`UPDATE` or `DELETE` without a `WHERE` clause) automatically trigger **mandatory human operator approval**.
 - **Affected-Row Bounds & Transaction Rollback**: When `max_affected_rows` is specified on `exec_sql`, the statement is executed within an isolated transaction. If `RowsAffected()` exceeds the allowed threshold, Circuit immediately rolls back the transaction and returns a 400 error.
 - **Row Limits**: `max_rows` truncates result sets to prevent memory exhaustion or token explosion when feeding results back into LLM contexts.
 - **Durable Budgets & Velocity Limits**: Scoped rate limits per `database` or `agent_database` prevent runaways.
-- **Zero-Dependency Mock Mode**: Built-in simulated database engine enables unit testing and rapid prototyping without running an external database daemon.
+- **Explicit Mock Mode**: Only `driver: mock` simulates. Missing real credentials or failed startup connectivity produce errors.
 
 ---
 
@@ -74,7 +74,7 @@ Circuit automatically exposes the following actions over REST (`POST /v1/actions
 | `query_sql` | `db_query` | Run a read-only `SELECT` query against the database target. | `query` | `database`, `max_rows`, `timeout_sec` |
 | `exec_sql` | `db_exec` | Execute a SQL mutation (`INSERT`, `UPDATE`, `DELETE`, DDL). Destructive statements require human operator approval. | `query` | `database`, `timeout_sec`, `max_affected_rows` |
 | `list_tables` | `db_list_tables` | List accessible tables in the database target (filtered by allow/denylists). | _none_ | `database`, `schema` |
-| `describe_table` | `db_describe_table` | Inspect table columns, types, and nullability. | `table` | `database`, `schema` |
+| `describe_table` | `db_describe_table` | Inspect public-schema table columns, types, and nullability. | `table` | `database` |
 
 ---
 
@@ -84,7 +84,7 @@ Circuit automatically exposes the following actions over REST (`POST /v1/actions
 Circuit parses every incoming SQL query into an Abstract Syntax Tree using `github.com/auxten/postgresql-parser/pkg/sql/parser`:
 - **Statement Type Classification**: Classifies statements into `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `DROP TABLE`, `TRUNCATE`, `ALTER TABLE`, `CREATE TABLE`, etc.
 - **Lock Detection**: `SELECT ... FOR UPDATE` or `FOR SHARE` locks rows and is therefore classified as a mutation, rejecting it on `query_sql`.
-- **Table Extraction**: Walks the AST to extract all referenced table names, ensuring tables hidden within joins, subqueries, or sub-selects are subject to `allow_tables` and `deny_tables` checks.
+- **Table Extraction**: Walks the AST for direct table references in joins, subqueries, and CTEs. Indirect access must be restricted by database roles.
 - **Multiple Statement Rejection**: Queries containing multiple statements (e.g. `SELECT 1; DROP TABLE users;`) are strictly forbidden and rejected before execution.
 
 ### 2. Mandatory Approval for Destructive Statements
@@ -131,3 +131,5 @@ Serve the gateway with database adapters:
 ```bash
 CIRCUIT_ADMIN_TOKEN="..." AGENT_TOKEN="..." ANALYTICS_DB_DSN="..." circuit gateway serve --config gateway.yaml
 ```
+
+Use a dedicated role with only required table privileges, no superuser, role creation, untrusted functions, or unrestricted schema creation. `max_affected_rows` is optional and measures the driver's reported row count, not all trigger side effects. Add approval rules for all mutations when needed. Commit-response loss is uncertain and is not automatically replayed. See [validation status](validation-status.md).

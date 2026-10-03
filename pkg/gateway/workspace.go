@@ -3,6 +3,7 @@ package gateway
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -18,7 +19,7 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// Workspace defines an isolated local directory boundary for agent shell and file operations.
+// Workspace pins a file-operation root; shell isolation requires an external sandbox.
 type Workspace struct {
 	ID           string
 	Root         string
@@ -27,6 +28,7 @@ type Workspace struct {
 	DeniedCmds   []string
 	MaxTimeout   time.Duration
 	EnvAllowlist []string
+	root         *os.Root
 }
 
 // NewWorkspace validates and constructs a Workspace with an absolute, clean root path.
@@ -53,16 +55,23 @@ func NewWorkspace(id, rootPath string, readOnly bool, maxTimeout time.Duration) 
 	if maxTimeout <= 0 {
 		maxTimeout = 60 * time.Second
 	}
+	root, err := os.OpenRoot(realRoot)
+	if err != nil {
+		return nil, err
+	}
 	return &Workspace{
 		ID:         id,
 		Root:       realRoot,
 		ReadOnly:   readOnly,
 		MaxTimeout: maxTimeout,
+		root:       root,
 	}, nil
 }
 
-// ResolvePath securely resolves a relative path within the workspace root.
-// It strictly prevents path traversal, escaping symlinks, or accessing anything outside root.
+func (w *Workspace) Close() error { return w.root.Close() }
+
+// ResolvePath checks paths for cwd and display. File I/O additionally uses os.Root
+// to enforce containment during the operation, including concurrent symlink changes.
 func (w *Workspace) ResolvePath(relPath string) (string, error) {
 	relPath = filepath.Clean(relPath)
 	if relPath == "." || relPath == "" {
@@ -172,6 +181,9 @@ func (e *ShellExecutor) Execute(ctx context.Context, r Request) Outcome {
 }
 
 func (e *ShellExecutor) execCmd(ctx context.Context, r Request) Outcome {
+	if e.workspace.ReadOnly {
+		return Outcome{Status: 403, Error: "shell execution is forbidden in a read-only workspace"}
+	}
 	cmdStr := text(r.Args, "command")
 	if strings.TrimSpace(cmdStr) == "" {
 		return Outcome{Error: "command is required"}
@@ -200,6 +212,10 @@ func (e *ShellExecutor) execCmd(ctx context.Context, r Request) Outcome {
 	cmd := exec.CommandContext(callCtx, "sh", "-c", cmdStr)
 	cmd.Dir = workDir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Do not inherit gateway provider credentials or operator tokens.
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + e.workspace.Root, "TMPDIR=" + e.workspace.Root}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	cmd.WaitDelay = time.Second
 
 	var stdout, stderr bytes.Buffer
 	const maxOutput = 512 << 10 // 512 KiB max output buffer
@@ -256,7 +272,11 @@ func (e *ShellExecutor) readFile(_ context.Context, r Request) Outcome {
 		return Outcome{Error: err.Error()}
 	}
 
-	f, err := os.Open(resolved)
+	rel, err := filepath.Rel(e.workspace.Root, resolved)
+	if err != nil {
+		return Outcome{Status: 400, Error: err.Error()}
+	}
+	f, err := e.workspace.root.Open(rel)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Outcome{Status: 404, Error: "file not found"}
@@ -317,19 +337,31 @@ func (e *ShellExecutor) writeFile(_ context.Context, r Request) Outcome {
 		return Outcome{Error: err.Error()}
 	}
 
-	// Ensure parent directory exists
-	dir := filepath.Dir(resolved)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	rel, err := filepath.Rel(e.workspace.Root, resolved)
+	if err != nil {
+		return Outcome{Status: 400, Error: err.Error()}
+	}
+	dir := filepath.Dir(rel)
+	if err := e.workspace.root.MkdirAll(dir, 0755); err != nil {
 		return Outcome{Status: 500, Error: fmt.Sprintf("creating directory: %v", err)}
 	}
 
-	// Write atomically using temporary file
-	tmpFile, err := os.CreateTemp(dir, ".circuit-write-*")
+	// Anchor the parent directory while publishing the temporary file.
+	parent, err := e.workspace.root.OpenRoot(dir)
+	if err != nil {
+		return Outcome{Status: 400, Error: err.Error()}
+	}
+	defer parent.Close()
+	random := make([]byte, 16)
+	if _, err := rand.Read(random); err != nil {
+		return Outcome{Status: 500, Error: "creating random file name failed"}
+	}
+	tmpName := fmt.Sprintf(".circuit-write-%x", random)
+	tmpFile, err := parent.OpenFile(tmpName, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return Outcome{Status: 500, Error: fmt.Sprintf("creating temp file: %v", err)}
 	}
-	tmpName := tmpFile.Name()
-	defer os.Remove(tmpName)
+	defer parent.Remove(tmpName)
 
 	if _, err := tmpFile.Write(data); err != nil {
 		tmpFile.Close()
@@ -339,7 +371,17 @@ func (e *ShellExecutor) writeFile(_ context.Context, r Request) Outcome {
 		return Outcome{Status: 500, Error: fmt.Sprintf("closing temp file: %v", err)}
 	}
 
-	if err := os.Rename(tmpName, resolved); err != nil {
+	overwrite, _ := r.Args["overwrite"].(bool)
+	if overwrite {
+		err = parent.Rename(tmpName, filepath.Base(rel))
+	} else {
+		// Link publishes atomically without replacing a concurrently created file.
+		err = parent.Link(tmpName, filepath.Base(rel))
+	}
+	if err != nil {
+		if os.IsExist(err) {
+			return Outcome{Status: 409, Error: "file exists; resubmit with overwrite: true for operator approval"}
+		}
 		return Outcome{Status: 500, Error: fmt.Sprintf("atomically replacing file: %v", err)}
 	}
 
@@ -372,11 +414,15 @@ func (e *ShellExecutor) deleteFile(_ context.Context, r Request) Outcome {
 	if recVal, ok := r.Args["recursive"].(bool); ok {
 		recursive = recVal
 	}
+	rel, err := filepath.Rel(e.workspace.Root, resolved)
+	if err != nil {
+		return Outcome{Status: 400, Error: err.Error()}
+	}
 
 	if recursive {
-		err = os.RemoveAll(resolved)
+		err = e.workspace.root.RemoveAll(rel)
 	} else {
-		err = os.Remove(resolved)
+		err = e.workspace.root.Remove(rel)
 	}
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -407,7 +453,16 @@ func (e *ShellExecutor) listDir(_ context.Context, r Request) Outcome {
 		return Outcome{Error: err.Error()}
 	}
 
-	entries, err := os.ReadDir(resolved)
+	rel, err := filepath.Rel(e.workspace.Root, resolved)
+	if err != nil {
+		return Outcome{Status: 400, Error: err.Error()}
+	}
+	f, err := e.workspace.root.Open(rel)
+	if err != nil {
+		return Outcome{Status: 400, Error: err.Error()}
+	}
+	defer f.Close()
+	entries, err := f.ReadDir(-1)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Outcome{Status: 404, Error: "directory not found"}

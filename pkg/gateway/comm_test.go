@@ -29,6 +29,7 @@ func TestCommExecutor(t *testing.T) {
 	assert.Equal(t, 200, msgRes.Status)
 	var msgData map[string]any
 	require.NoError(t, json.Unmarshal(msgRes.Body, &msgData))
+	assert.Equal(t, true, msgData["simulated"])
 	assert.Equal(t, "#general", msgData["channel"])
 	assert.Equal(t, "sent", msgData["status"])
 
@@ -101,6 +102,7 @@ func TestCommGatewayApprovalAndLimits(t *testing.T) {
 	ctx := context.Background()
 	cfgYAML := `
 name: comm-gateway
+simulation: true
 admin_token_env: ADMIN_TOKEN
 approval_ttl: 15m
 communications:
@@ -225,6 +227,7 @@ func TestCommMCPIntegration(t *testing.T) {
 	ctx := context.Background()
 	cfgYAML := `
 name: comm-mcp-gateway
+simulation: true
 admin_token_env: ADMIN_TOKEN
 approval_ttl: 15m
 communications:

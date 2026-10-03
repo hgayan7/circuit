@@ -280,12 +280,15 @@ limits:
 	svc, err := NewService(cfg, store, router)
 	require.NoError(t, err)
 
-	// 1. Safe command executes immediately (within quota 1/2)
+	// 1. Shell commands reserve quota and wait for exact approval.
 	a, err := svc.Submit(context.Background(), "ws-agent", "key-1", Request{
 		Operation: "exec_cmd",
 		Workspace: "local",
 		Args:      map[string]any{"command": "echo 'safe'"},
 	})
+	require.NoError(t, err)
+	require.Equal(t, "pending", a.State)
+	a, err = svc.Decide(context.Background(), a.ID, a.Digest, "approve")
 	require.NoError(t, err)
 	require.Equal(t, "succeeded", a.State, "denial reason: %s", a.Reason)
 
@@ -297,7 +300,7 @@ limits:
 	})
 	require.NoError(t, err)
 	require.Equal(t, "pending", aDestructive.State)
-	require.Contains(t, aDestructive.Reason, "destructive utility \"rm\" requires operator review")
+	require.Contains(t, aDestructive.Reason, "Arbitrary shell execution requires operator approval")
 
 	// Rejecting the pending destructive action releases its reserved budget quota
 	rejected, err := svc.Decide(context.Background(), aDestructive.ID, aDestructive.Digest, "reject")
@@ -339,6 +342,9 @@ limits:
 		Workspace: "local",
 		Args:      map[string]any{"command": "echo 'safe 2'"},
 	})
+	require.NoError(t, err)
+	require.Equal(t, "pending", a.State)
+	a, err = svc.Decide(context.Background(), a.ID, a.Digest, "approve")
 	require.NoError(t, err)
 	require.Equal(t, "succeeded", a.State)
 
@@ -436,5 +442,11 @@ agents:
 	})
 	require.NoError(t, err)
 	require.False(t, res.IsError)
-	require.Contains(t, res.Content[0].(*mcp.TextContent).Text, "Created via official MCP SDK")
+	var pending Action
+	require.NoError(t, json.Unmarshal([]byte(res.Content[0].(*mcp.TextContent).Text), &pending))
+	require.Equal(t, "pending", pending.State)
+	approved, err := svc.Decide(context.Background(), pending.ID, pending.Digest, "approve")
+	require.NoError(t, err)
+	require.Equal(t, "succeeded", approved.State)
+	require.Contains(t, string(approved.Outcome.Body), "Created via official MCP SDK")
 }

@@ -1,17 +1,17 @@
 # Circuit Workspace & Shell Action Gateway
 
-Circuit provides bounded execution for autonomous agents performing local shell commands and file operations within sandboxed workspace boundaries.
+Circuit provides root-scoped file operations and approval-gated local shell execution. File operations use Go's `os.Root`; shell execution is not an OS sandbox and can access the host outside the workspace. Use an independently configured OS sandbox before relying on shell isolation.
 
 Like the GitHub adapter, the gateway holds execution authority. Each agent receives explicit workspace allowlists, operation permissions, durable call quotas, and mandatory operator approval for destructive operations.
 
 ## Capabilities
 
-- **Workspace Path Sandboxing:** All operations are constrained to an explicit local directory root. Path traversal (`../`), null-byte injection, absolute path escapes, and symlinks pointing outside the workspace root are rejected before execution.
-- **Destructive Command Review:** Commands are parsed and analyzed using standard Bash AST inspection (`mvdan.cc/sh/v3`). Potentially destructive utilities (`rm`, `chmod`, `chown`, `kill`, `sudo`, `dd`, `mkfs`) and consequential git operations (`git reset`, `git clean`, `git push`, `git rebase`) automatically pause for operator approval of the exact command digest.
+- **File Root Boundaries:** File operations are constrained to an explicit local directory root, including protection against symlink replacement races. Hard links, bind mounts, and independently privileged processes remain deployment concerns.
+- **Shell Review:** Every `exec_cmd` requires approval of the exact command, including interpreters and redirects. AST inspection adds review context but is not a security boundary. The shell receives a minimal PATH/HOME/TMPDIR environment, not gateway provider or operator credentials.
 - **Controlled File Mutations:** 
   - `write_file` performs atomic writes with parent directory creation and 2 MiB bounds. Overwriting an existing file requires human operator approval.
   - `delete_file` always requires operator review before deleting files or directories. Workspace roots cannot be deleted.
-  - Workspaces can be marked `read_only: true` to prevent any writes or deletions entirely.
+  - Workspaces marked `read_only: true` reject writes, deletion, and shell execution.
 - **Bounded Resource Limits:**
   - Configurable execution timeouts per workspace (default 60s) with clean process group termination on timeout.
   - Output buffers capped at 512 KiB stdout/stderr to prevent memory exhaustion.
@@ -62,7 +62,7 @@ limits:
 
 | Operation | Required Arguments | Optional Arguments | Default Safety |
 | --- | --- | --- | --- |
-| `exec_cmd` | `command` | `cwd` (relative), `timeout_sec` | Destructive commands require operator approval |
+| `exec_cmd` | `command` | `cwd` (relative), `timeout_sec` | Every command requires approval; external sandbox required |
 | `read_file` | `path` (relative) | — | Allowed within workspace |
 | `write_file` | `path` (relative), `content` | `encoding` (`base64` or plain), `overwrite` (bool) | Overwrites require operator approval |
 | `delete_file` | `path` (relative) | `recursive` (bool) | Mandatory operator approval |
@@ -78,3 +78,5 @@ When connected via Streamable HTTP MCP (`/mcp`) using an agent bearer token:
 - `file_delete`: Delete a file or directory (prompts for operator review).
 - `file_list_dir`: List files and subdirectories.
 - `circuit_action_status`: Poll action status by ID while waiting for operator approval.
+
+Existing files are never replaced implicitly: `write_file` without `overwrite: true` fails with a conflict. Explicit replacement requires review. See [validation status](validation-status.md) for local race and operator workflow tests.

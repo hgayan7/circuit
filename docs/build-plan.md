@@ -1,5 +1,7 @@
 # Circuit expanded build plan
 
+Historical planning document. Current adapter support and tested behavior are tracked in [validation status](validation-status.md).
+
 ## Product promise and USP
 Circuit applies configurable safety checks to agent HTTP requests and MCP tool calls before execution, and checks untrusted text responses before returning them to the agent. The intended advantage is one local, framework-independent enforcement point combining transport inspection, content detection, and structured action checks.
 

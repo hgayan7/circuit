@@ -264,7 +264,7 @@ func (s *Service) Execute(ctx context.Context, id string) (*Action, error) {
 			a.Reason = outcome.Error
 		default:
 			a.State = "succeeded"
-			a.Reason = "GitHub action completed"
+			a.Reason = "Action completed"
 		}
 		return saveAction(tx, a, "github")
 	})

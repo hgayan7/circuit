@@ -75,19 +75,23 @@ These provide HTTPS inspection for proxy-aware clients, heuristic prompt-injecti
 
 Read [the safety guide](docs/safety.md) for coverage and limitations. Those tools do not replace a sandbox, and their older first-match CEL policy semantics differ from the gateway's combined enforcement.
 
-## Roadmap
+## Support and roadmap
 
-**The full product vision is bounded autonomy across tools:** one place to define where agents can act, what they can do, how much they can do, and when they need human approval. All core action adapters are implemented with strict policy enforcement, cryptographic approval gates, velocity budgets, and audit logging.
+The product vision is bounded autonomy across tools. Current support distinguishes real execution from simulations; policy tests alone do not establish provider support.
 
-| Area | Intended support |
+| Area | Current status |
 | --- | --- |
-| GitHub | **Supported:** branch, file, PR, merge, and issue actions with approval and budgets; GitHub App installations with short-lived repository-scoped tokens and automated webhook reconciliation. |
-| Cloud and deployments | **Supported:** bounded deployment and infrastructure operations (`deploy_service`, `rollback_deployment`, `restart_service`, `get_deployment_status`, `scale_service`), scoped to environments and allowed services, with replica limits and mandatory approval for production changes and destructive rollbacks. See [Cloud gateway guide](docs/cloud-gateway.md). |
-| Databases | **Supported:** scoped queries (`query_sql`) and mutations (`exec_sql`) with SQL AST safety analysis, table allow/denylists, affected-row bounds, transaction rollback, and human approval for destructive operations (`DROP`, `TRUNCATE`, `ALTER`, `UPDATE`/`DELETE` without `WHERE`). See [Database gateway guide](docs/database-gateway.md). |
-| Shell and files | **Supported:** structured commands (`exec_cmd`), file reads (`read_file`), atomic writes (`write_file`), directory listings (`list_dir`), and deletes (`delete_file`) inside workspace boundaries with execution timeouts, output buffers, and approval for destructive operations. See [Workspace gateway guide](docs/workspace-gateway.md). |
-| Communication and work tools | **Supported:** messaging (`send_message`), email (`send_email`), tickets (`create_ticket`, `update_ticket`), and documents (`publish_document`) with channel/domain restrictions, volume limits, and human approval before broadcast mentions (`@channel`/`@here`), external recipient emails, or document publications. See [Communication gateway guide](docs/communication-gateway.md). |
-| Business and payment APIs | **Supported:** financial operations (`transfer_funds`, `create_charge`, `issue_refund`, `get_balance`) with per-transaction caps, velocity budgets, destination allowlists, and human approval for financial commitments and refunds. See [Payment gateway guide](docs/payment-gateway.md). |
-| Custom tools | **Supported:** documented adapter interface, generic (`call_custom_tool`) and custom-named operations, REST endpoints and MCP tools, with payload validation, header security, simulation mode, per-tool rate limits, and operator approval rules. See [Custom tools gateway guide](docs/custom-tools-gateway.md). |
+| GitHub | **Live pilot validated:** branches, files, PRs, merges, issues, exact approvals, budgets, repository-scoped GitHub App tokens, and an agent container with upstream egress blocked. Signed repository webhook delivery validates exact-head merge recovery. |
+| PostgreSQL | **Local integration validated:** real queries and mutations, row limits, transactional rollback, permission failures, and timeouts. PostgreSQL is the only real database backend tested. |
+| Workspace/files | **Local integration validated:** root-scoped file access, atomic writes without implicit replacement, symlink-race protection, and bounded shell execution. All shell commands require approval and an external OS sandbox. |
+| Cloud | **Simulation only:** deployment, rollback, restart, status, and scale policies; no cloud provider backend. |
+| Communication/work tools | **Simulation only:** messages, email, tickets, and documents; no Slack, SMTP, Jira, Notion, or other native delivery backend. |
+| Payments | **Simulation only:** transfers, charges, refunds, and balance; no payment provider backend. |
+| Custom tools | **Local HTTP integration validated:** generic HTTP dispatch and MCP exposure, approvals, budgets, and uncertain-response recovery. Individual providers require their own validation. |
+
+Cloud, communication, and payment configurations require explicit `simulation: true`; successful simulator results contain `simulated: true`. Database simulation requires `driver: mock`, and custom-tool simulation requires a `mock:` or `sim:` endpoint. Missing database credentials and empty custom endpoints fail instead of silently simulating.
+
+See [the validation report](docs/validation-status.md) for evidence, reproduction, compatibility changes, and remaining release limits.
 
 Across these integrations, the roadmap includes:
 
@@ -109,7 +113,9 @@ go vet ./...
 
 Gateway tests cover the full simulated GitHub workflow, official SDK MCP connections, concurrent retries, persistent budgets, approval expiry, stale policies and commit SHAs, uncertain-outcome recovery, RSA key parsing, RS256 JWT minting, GitHub App short-lived token auto-refresh, HMAC-SHA256 webhook verification, and automated event reconciliation.
 
-This is an initial pilot implementation. A [live GitHub pilot](docs/github-pilot.md) passed 43 checks across private and protected public fixture repositories, including real merges, stale-SHA rejection, enforced branch protection, and restart persistence. GitHub App installation tokens, repository-scoped permissions, and webhook reconciliation are now integrated into the gateway engine. A single private bbolt database provides durability; distributed operation and individual reviewer SSO are not implemented. Circuit prevents automatic replay of claimed actions, rather than promising exactly-once delivery across the GitHub network boundary.
+The follow-up GitHub App pilot passed 44 checks with an isolated agent. Real signed repository webhook recovery passed 12 checks; the local CLI/REST/browser workflow passed 14 checks. Real PostgreSQL integration and official SDK MCP tests pass, with a dedicated PostgreSQL CI job now configured. See [validation status](docs/validation-status.md) for evidence, reproduction, compatibility changes, and remaining release gates.
+
+This remains a bounded pilot. Shell execution needs an external OS sandbox, SQL needs least-privilege database roles, and cloud/communication/payment adapters are simulation-only. The single-process bbolt store and shared operator token do not provide distributed operation or individual reviewer SSO. Circuit prevents automatic replay of claimed actions, not exactly-once delivery across network boundaries.
 
 ## License
 

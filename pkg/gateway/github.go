@@ -52,7 +52,7 @@ func NewGitHubWithProvider(provider TokenProvider) *GitHub {
 		provider: provider,
 		base:     "https://api.github.com",
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:       30 * time.Second,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 	}
@@ -65,8 +65,8 @@ func validRef(ref string) bool {
 }
 func text(args map[string]any, key string) string { s, _ := args[key].(string); return s }
 func number(args map[string]any, key string) int {
-	n, ok := args[key].(float64)
-	if !ok || n <= 0 || n > 2147483647 || n != float64(int(n)) {
+	n := floatVal(args, key)
+	if n <= 0 || n > 2147483647 || n != float64(int(n)) {
 		return 0
 	}
 	return int(n)

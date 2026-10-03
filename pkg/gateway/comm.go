@@ -93,6 +93,10 @@ func NewCommExecutor(target *CommTarget) *CommExecutor {
 }
 
 func (e *CommExecutor) Execute(ctx context.Context, r Request) Outcome {
+	return simulationOutcome(e.execute(ctx, r))
+}
+
+func (e *CommExecutor) execute(ctx context.Context, r Request) Outcome {
 	switch r.Operation {
 	case "send_message":
 		return e.sendMessage(ctx, r)

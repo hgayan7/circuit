@@ -43,6 +43,7 @@ func TestPaymentExecutor(t *testing.T) {
 	require.Equal(t, 200, res.Status)
 	var txData map[string]any
 	require.NoError(t, json.Unmarshal(res.Body, &txData))
+	assert.Equal(t, true, txData["simulated"])
 	assert.Equal(t, 50.0, txData["amount"])
 	assert.Equal(t, 950.0, txData["balance_after"])
 	assert.NotEmpty(t, txData["tx_id"])
@@ -192,6 +193,7 @@ func TestPaymentExecutor(t *testing.T) {
 func TestPaymentGatewayApprovalAndLimits(t *testing.T) {
 	cfgYAML := `
 name: payment-gateway
+simulation: true
 admin_token_env: CIRCUIT_ADMIN_TOKEN
 approval_ttl: 1h
 
@@ -355,6 +357,7 @@ limits:
 func TestPaymentMCPIntegration(t *testing.T) {
 	cfgYAML := `
 name: payment-mcp-gateway
+simulation: true
 admin_token_env: CIRCUIT_ADMIN_TOKEN
 approval_ttl: 1h
 

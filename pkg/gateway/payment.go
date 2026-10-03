@@ -71,6 +71,10 @@ func NewPaymentExecutor(account *PaymentAccount) *PaymentExecutor {
 }
 
 func (e *PaymentExecutor) Execute(ctx context.Context, r Request) Outcome {
+	return simulationOutcome(e.execute(ctx, r))
+}
+
+func (e *PaymentExecutor) execute(ctx context.Context, r Request) Outcome {
 	if e.account.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, e.account.Timeout)
@@ -224,15 +228,15 @@ func (e *PaymentExecutor) issueRefund(ctx context.Context, r Request) Outcome {
 	refundID := fmt.Sprintf("rf_%05d", e.account.refundSeq)
 
 	record := map[string]any{
-		"refund_id":       refundID,
-		"charge_id":       chargeID,
-		"account_id":      e.account.ID,
-		"amount":          amount,
-		"currency":        e.account.Currency,
-		"reason":          reason,
-		"balance_after":   e.account.balance,
-		"status":          "succeeded",
-		"timestamp":       time.Now().UTC().Format(time.RFC3339),
+		"refund_id":     refundID,
+		"charge_id":     chargeID,
+		"account_id":    e.account.ID,
+		"amount":        amount,
+		"currency":      e.account.Currency,
+		"reason":        reason,
+		"balance_after": e.account.balance,
+		"status":        "succeeded",
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	}
 	e.account.refunds[refundID] = record
 

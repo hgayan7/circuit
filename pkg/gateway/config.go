@@ -30,15 +30,15 @@ func (w *WorkspaceConfig) Timeout() time.Duration {
 }
 
 type DatabaseConfig struct {
-	ID          string        `yaml:"id" json:"id"`
-	Driver      string        `yaml:"driver,omitempty" json:"driver,omitempty"`
-	DSN         string        `yaml:"dsn,omitempty" json:"dsn,omitempty"`
-	DSNEnv      string        `yaml:"dsn_env,omitempty" json:"dsn_env,omitempty"`
-	ReadOnly    bool          `yaml:"read_only,omitempty" json:"read_only,omitempty"`
-	MaxRows     int           `yaml:"max_rows,omitempty" json:"max_rows,omitempty"`
-	MaxTimeout  string        `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
-	AllowTables []string      `yaml:"allow_tables,omitempty" json:"allow_tables,omitempty"`
-	DenyTables  []string      `yaml:"deny_tables,omitempty" json:"deny_tables,omitempty"`
+	ID          string   `yaml:"id" json:"id"`
+	Driver      string   `yaml:"driver,omitempty" json:"driver,omitempty"`
+	DSN         string   `yaml:"dsn,omitempty" json:"dsn,omitempty"`
+	DSNEnv      string   `yaml:"dsn_env,omitempty" json:"dsn_env,omitempty"`
+	ReadOnly    bool     `yaml:"read_only,omitempty" json:"read_only,omitempty"`
+	MaxRows     int      `yaml:"max_rows,omitempty" json:"max_rows,omitempty"`
+	MaxTimeout  string   `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
+	AllowTables []string `yaml:"allow_tables,omitempty" json:"allow_tables,omitempty"`
+	DenyTables  []string `yaml:"deny_tables,omitempty" json:"deny_tables,omitempty"`
 	timeout     time.Duration
 }
 
@@ -47,13 +47,13 @@ func (d *DatabaseConfig) Timeout() time.Duration {
 }
 
 type CloudEnvironmentConfig struct {
-	ID              string        `yaml:"id" json:"id"`
-	Name            string        `yaml:"name,omitempty" json:"name,omitempty"`
-	Production      bool          `yaml:"production,omitempty" json:"production,omitempty"`
-	AllowedServices []string      `yaml:"allowed_services,omitempty" json:"allowed_services,omitempty"`
-	MaxReplicas     int           `yaml:"max_replicas,omitempty" json:"max_replicas,omitempty"`
-	MinReplicas     int           `yaml:"min_replicas,omitempty" json:"min_replicas,omitempty"`
-	MaxTimeout      string        `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
+	ID              string   `yaml:"id" json:"id"`
+	Name            string   `yaml:"name,omitempty" json:"name,omitempty"`
+	Production      bool     `yaml:"production,omitempty" json:"production,omitempty"`
+	AllowedServices []string `yaml:"allowed_services,omitempty" json:"allowed_services,omitempty"`
+	MaxReplicas     int      `yaml:"max_replicas,omitempty" json:"max_replicas,omitempty"`
+	MinReplicas     int      `yaml:"min_replicas,omitempty" json:"min_replicas,omitempty"`
+	MaxTimeout      string   `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
 	timeout         time.Duration
 }
 
@@ -152,6 +152,7 @@ type WebhookConfig struct {
 }
 
 type Config struct {
+	Simulation      bool                     `yaml:"simulation,omitempty" json:"simulation,omitempty"`
 	Name            string                   `yaml:"name" json:"name"`
 	AdminTokenEnv   string                   `yaml:"admin_token_env" json:"admin_token_env"`
 	GitHubTokenEnv  string                   `yaml:"github_token_env,omitempty" json:"github_token_env,omitempty"`
@@ -223,6 +224,9 @@ func ParseConfig(r io.Reader) (*Config, error) {
 	if c.Name == "" {
 		return nil, fmt.Errorf("gateway name is required")
 	}
+	if !c.Simulation && (len(c.Environments) > 0 || len(c.Communications) > 0 || len(c.PaymentAccounts) > 0) {
+		return nil, fmt.Errorf("cloud, communication, and payment adapters are simulation-only; set simulation: true explicitly")
+	}
 	if c.AdminTokenEnv == "" {
 		c.AdminTokenEnv = "CIRCUIT_ADMIN_TOKEN"
 	}
@@ -278,6 +282,9 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		dbIDs[db.ID] = true
 		if db.Driver == "" {
 			db.Driver = "postgres"
+		}
+		if db.Driver != "mock" && db.DSN == "" && db.DSNEnv == "" {
+			return nil, fmt.Errorf("database %s requires dsn or dsn_env; use driver: mock explicitly for simulation", db.ID)
 		}
 		if db.MaxRows <= 0 {
 			db.MaxRows = 500
@@ -348,6 +355,9 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			return nil, fmt.Errorf("custom tools need unique valid IDs")
 		}
 		toolIDs[ct.ID] = true
+		if ct.Endpoint == "" {
+			return nil, fmt.Errorf("custom tool %s requires endpoint; use mock: explicitly for simulation", ct.ID)
+		}
 		if ct.Method == "" {
 			ct.Method = "POST"
 		}
@@ -637,11 +647,8 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 			reason = "Overwriting existing files requires operator approval"
 		}
 	} else if req.Operation == "exec_cmd" {
-		cmdStr := text(req.Args, "command")
-		if isDestructive, r := IsDestructiveCommand(cmdStr); isDestructive {
-			verdict = config.ActionRequireApproval
-			reason = r
-		}
+		verdict = config.ActionRequireApproval
+		reason = "Arbitrary shell execution requires operator approval and an external sandbox"
 	} else if req.Operation == "exec_sql" {
 		queryStr := text(req.Args, "query")
 		if analysis, err := AnalyzeSQL(queryStr); err == nil && analysis.IsDestructive {

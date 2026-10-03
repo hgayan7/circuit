@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "checks": [
+    "CLI executes real PostgreSQL query",
+    "REST row limit fails and rolls back",
+    "Rollback preserved real rows",
+    "Implicit overwrite fails",
+    "Explicit overwrite waits for review",
+    "Agent cannot approve",
+    "Lost provider response is uncertain",
+    "Uncertain retry never replays",
+    "Restart preserves uncertain action",
+    "Browser approval executed exact file payload",
+    "Browser reconciliation did not replay provider",
+    "Operator decision persisted in history",
+    "Restart preserves approved action and idempotency",
+    "Restart preserves consumed budget"
+  ]
+}

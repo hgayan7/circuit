@@ -28,10 +28,13 @@ type DatabaseTarget struct {
 	simTables   map[string][]map[string]any
 }
 
-// NewDatabaseTarget creates a DatabaseTarget. If dsn is empty or driver is "mock", it uses a simulated engine.
+// NewDatabaseTarget uses simulation only when driver is explicitly "mock".
 func NewDatabaseTarget(id, driver, dsn string, readOnly bool, maxRows int, maxTimeout time.Duration, allowTables, denyTables []string) (*DatabaseTarget, error) {
 	if id == "" {
 		return nil, fmt.Errorf("database ID is required")
+	}
+	if driver != "mock" && (dsn == "" || driver == "") {
+		return nil, fmt.Errorf("database %s requires an explicit driver and nonempty DSN; use driver mock for simulation", id)
 	}
 	if maxRows <= 0 {
 		maxRows = 500
@@ -52,7 +55,7 @@ func NewDatabaseTarget(id, driver, dsn string, readOnly bool, maxRows int, maxTi
 		simTables:   make(map[string][]map[string]any),
 	}
 
-	if dsn == "" || driver == "mock" || driver == "" {
+	if driver == "mock" {
 		target.simulated = true
 		// Seed default sample data for simulation/demos
 		target.simTables["users"] = []map[string]any{
@@ -72,6 +75,12 @@ func NewDatabaseTarget(id, driver, dsn string, readOnly bool, maxRows int, maxTi
 		db.SetMaxIdleConns(5)
 		db.SetMaxOpenConns(20)
 		target.DB = db
+		ctx, cancel := context.WithTimeout(context.Background(), maxTimeout)
+		defer cancel()
+		if err := db.PingContext(ctx); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("database %s connection check failed", id)
+		}
 	}
 
 	return target, nil
@@ -88,6 +97,8 @@ func NewDatabaseExecutor(target *DatabaseTarget) *DatabaseExecutor {
 }
 
 func (e *DatabaseExecutor) Execute(ctx context.Context, r Request) Outcome {
+	ctx, cancel := context.WithTimeout(ctx, e.target.MaxTimeout)
+	defer cancel()
 	switch r.Operation {
 	case "query_sql":
 		return e.querySQL(ctx, r)
@@ -141,7 +152,15 @@ func (e *DatabaseExecutor) querySQL(ctx context.Context, r Request) Outcome {
 		return e.simulatedQuery(analysis, maxRows, startTime)
 	}
 
-	rows, err := e.target.DB.QueryContext(callCtx, query)
+	tx, err := e.target.DB.BeginTx(callCtx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return Outcome{Status: 500, Error: "beginning read-only transaction failed"}
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(callCtx, "SET LOCAL search_path = public, pg_catalog"); err != nil {
+		return Outcome{Status: 500, Error: "setting query schema failed"}
+	}
+	rows, err := tx.QueryContext(callCtx, query)
 	if err != nil {
 		return Outcome{Status: 500, Error: fmt.Sprintf("query failed: %v", err)}
 	}
@@ -180,6 +199,9 @@ func (e *DatabaseExecutor) querySQL(ctx context.Context, r Request) Outcome {
 		}
 		results = append(results, cleanRow)
 		count++
+	}
+	if err := rows.Err(); err != nil {
+		return Outcome{Status: 500, Error: fmt.Sprintf("reading query results: %v", err)}
 	}
 
 	duration := time.Since(startTime)
@@ -293,12 +315,18 @@ func (e *DatabaseExecutor) execSQL(ctx context.Context, r Request) Outcome {
 	}
 	defer tx.Rollback()
 
+	if _, err := tx.ExecContext(callCtx, "SET LOCAL search_path = public, pg_catalog"); err != nil {
+		return Outcome{Status: 500, Error: "setting mutation schema failed"}
+	}
 	res, err := tx.ExecContext(callCtx, query)
 	if err != nil {
 		return Outcome{Status: 500, Error: fmt.Sprintf("executing statement: %v", err)}
 	}
 
-	rowsAffected, _ := res.RowsAffected()
+	rowsAffected, err := res.RowsAffected()
+	if err != nil && maxAffected > 0 {
+		return Outcome{Status: 500, Error: "cannot verify affected-row limit; transaction rolled back"}
+	}
 	lastInsertID, _ := res.LastInsertId()
 
 	if maxAffected > 0 && int(rowsAffected) > maxAffected {
@@ -309,7 +337,7 @@ func (e *DatabaseExecutor) execSQL(ctx context.Context, r Request) Outcome {
 	}
 
 	if err := tx.Commit(); err != nil {
-		return Outcome{Status: 500, Error: fmt.Sprintf("committing transaction: %v", err)}
+		return Outcome{Status: 500, Error: fmt.Sprintf("committing transaction: %v", err), Uncertain: true}
 	}
 
 	duration := time.Since(startTime)
@@ -347,11 +375,15 @@ func (e *DatabaseExecutor) listTables(ctx context.Context, _ Request) Outcome {
 	var tables []string
 	for rows.Next() {
 		var name string
-		if err := rows.Scan(&name); err == nil {
-			if CheckTableAccess([]string{name}, e.target.AllowTables, e.target.DenyTables) == nil {
-				tables = append(tables, name)
-			}
+		if err := rows.Scan(&name); err != nil {
+			return Outcome{Status: 500, Error: "reading table metadata failed"}
 		}
+		if CheckTableAccess([]string{name}, e.target.AllowTables, e.target.DenyTables) == nil {
+			tables = append(tables, name)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return Outcome{Status: 500, Error: "reading table metadata failed"}
 	}
 
 	body, _ := json.Marshal(map[string]any{"tables": tables, "count": len(tables)})
@@ -384,7 +416,7 @@ func (e *DatabaseExecutor) describeTable(ctx context.Context, r Request) Outcome
 		return Outcome{Status: 200, Body: body}
 	}
 
-	query := `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position;`
+	query := `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position;`
 	rows, err := e.target.DB.QueryContext(ctx, query, table)
 	if err != nil {
 		return Outcome{Status: 500, Error: fmt.Sprintf("describing table %s: %v", table, err)}
@@ -394,13 +426,17 @@ func (e *DatabaseExecutor) describeTable(ctx context.Context, r Request) Outcome
 	var columns []map[string]any
 	for rows.Next() {
 		var cName, dType, nullable string
-		if err := rows.Scan(&cName, &dType, &nullable); err == nil {
-			columns = append(columns, map[string]any{
-				"column_name": cName,
-				"data_type":   dType,
-				"is_nullable": nullable,
-			})
+		if err := rows.Scan(&cName, &dType, &nullable); err != nil {
+			return Outcome{Status: 500, Error: "reading column metadata failed"}
 		}
+		columns = append(columns, map[string]any{
+			"column_name": cName,
+			"data_type":   dType,
+			"is_nullable": nullable,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return Outcome{Status: 500, Error: "reading column metadata failed"}
 	}
 
 	body, _ := json.Marshal(map[string]any{"table": table, "columns": columns})

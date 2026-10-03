@@ -63,6 +63,7 @@ func init() {
 				return fmt.Errorf("initializing workspace %s: %w", wsCfg.ID, err)
 			}
 			wsExecutors[wsCfg.ID] = gateway.NewShellExecutor(ws)
+			defer ws.Close()
 		}
 
 		// Setup database executors
@@ -86,6 +87,9 @@ func init() {
 				return fmt.Errorf("initializing database %s: %w", dbCfg.ID, err)
 			}
 			dbExecutors[dbCfg.ID] = gateway.NewDatabaseExecutor(target)
+			if target.DB != nil {
+				defer target.DB.Close()
+			}
 		}
 
 		// Setup cloud environment executors
@@ -206,6 +210,9 @@ func init() {
 		var webhookSecret string
 		if cfg.Webhook != nil && cfg.Webhook.SecretEnv != "" {
 			webhookSecret = os.Getenv(cfg.Webhook.SecretEnv)
+			if webhookSecret == "" {
+				return fmt.Errorf("configured webhook requires nonempty %s", cfg.Webhook.SecretEnv)
+			}
 		}
 		tokens := gateway.Tokens{
 			Admin:         os.Getenv(cfg.AdminTokenEnv),

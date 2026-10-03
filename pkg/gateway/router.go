@@ -2,8 +2,20 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 )
+
+func simulationOutcome(out Outcome) Outcome {
+	if len(out.Body) > 0 {
+		var body map[string]any
+		if json.Unmarshal(out.Body, &body) == nil {
+			body["simulated"] = true
+			out.Body, _ = json.Marshal(body)
+		}
+	}
+	return out
+}
 
 // RouterExecutor routes action requests to the appropriate backend executor (GitHub, Workspace, Database, Cloud, Communication, Payment, or Custom Tools).
 type RouterExecutor struct {

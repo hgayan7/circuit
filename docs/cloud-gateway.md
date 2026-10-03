@@ -1,6 +1,6 @@
 # Cloud & Deployments Gateway Action Adapter
 
-Circuit provides a secure, durable, and policy-governed gateway adapter for cloud and application deployments. Like GitHub, Workspace, and Database adapters, the Cloud adapter allows autonomous AI agents to manage services, rollout updates, and scale infrastructure while enforcing strict safety boundaries:
+This adapter is **simulation only**. It does not call cloud providers or Kubernetes. Set `simulation: true`; successful outcomes include `simulated: true`. Simulated deployments and revision history are in memory and reset on restart; action audit and budgets persist separately. The following controls describe simulator policy behavior, not production deployment guarantees.
 
 - **Environment Scoping**: Every action targets an isolated cloud environment (e.g. `staging`, `production`, `preview`, `dev`).
 - **Service Allowlisting**: Agents can only interact with services explicitly listed in `allowed_services`.
@@ -18,6 +18,7 @@ Cloud environments are declared in your Circuit gateway YAML configuration under
 
 ```yaml
 name: production-deployment-gateway
+simulation: true
 admin_token_env: CIRCUIT_ADMIN_TOKEN
 approval_ttl: 1h
 
@@ -90,7 +91,7 @@ If an agent attempts to scale a service to 0 replicas:
 - If an agent specifies replicas above `max_replicas` or below `min_replicas`, Circuit rejects the request with HTTP 400 without executing.
 
 ### 3. Revision History & Rollback
-Circuit tracks deployment revisions and previous container images for each service, ensuring that rollback operations restore the verified prior image.
+The simulator tracks previous images in memory. It does not verify images or restore an actual deployment.
 
 ---
 

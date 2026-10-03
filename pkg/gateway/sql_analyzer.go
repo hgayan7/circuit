@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/hgayan7/circuit/pkg/safety"
+
 	"github.com/auxten/postgresql-parser/pkg/sql/parser"
 	"github.com/auxten/postgresql-parser/pkg/sql/sem/tree"
 )
@@ -55,6 +57,14 @@ func AnalyzeSQL(query string) (*SQLAnalysis, error) {
 		if len(s.Locking) > 0 {
 			analysis.IsReadOnly = false
 			analysis.Reason = "SELECT with row locks is treated as a mutation"
+		}
+		if err := safety.CheckSQL(query, nil); err != nil {
+			analysis.IsReadOnly = false
+			analysis.IsDestructive = true
+			analysis.Reason = "SELECT contains locking, nested mutation, or an unapproved function; operator review required"
+			if len(s.Locking) > 0 {
+				analysis.IsDestructive = false
+			}
 		}
 	case *tree.Insert:
 		analysis.StatementType = "INSERT"
@@ -123,15 +133,15 @@ func extractTables(v reflect.Value, tableMap map[string]bool, depth int) {
 	}
 	if v.CanInterface() {
 		if tn, ok := v.Interface().(*tree.TableName); ok && tn != nil {
-			tableMap[strings.ToLower(tn.Table())] = true
+			tableMap[tableNameKey(tn)] = true
 		} else if tn, ok := v.Interface().(tree.TableName); ok {
-			tableMap[strings.ToLower((&tn).Table())] = true
+			tableMap[tableNameKey(&tn)] = true
 		} else if un, ok := v.Interface().(*tree.UnresolvedObjectName); ok && un != nil {
 			tbl := un.ToTableName()
-			tableMap[strings.ToLower((&tbl).Table())] = true
+			tableMap[tableNameKey(&tbl)] = true
 		} else if un, ok := v.Interface().(tree.UnresolvedObjectName); ok {
 			tbl := un.ToTableName()
-			tableMap[strings.ToLower((&tbl).Table())] = true
+			tableMap[tableNameKey(&tbl)] = true
 		}
 	}
 	switch v.Kind() {
@@ -150,6 +160,17 @@ func extractTables(v reflect.Value, tableMap map[string]bool, depth int) {
 	}
 }
 
+func tableNameKey(t *tree.TableName) string {
+	name := t.Table()
+	if t.ExplicitSchema && t.Schema() != "public" {
+		name = t.Schema() + "." + name
+	}
+	if t.ExplicitCatalog {
+		name = t.Catalog() + "." + name
+	}
+	return strings.ToLower(name)
+}
+
 // CheckTableAccess verifies whether the extracted tables are permitted by the allowlist and denylist.
 func CheckTableAccess(tables []string, allowlist, denylist []string) error {
 	allowMap := make(map[string]bool)
@@ -163,7 +184,8 @@ func CheckTableAccess(tables []string, allowlist, denylist []string) error {
 
 	for _, tbl := range tables {
 		tbl = strings.ToLower(tbl)
-		if denyMap[tbl] {
+		parts := strings.Split(tbl, ".")
+		if denyMap[tbl] || denyMap[parts[len(parts)-1]] {
 			return fmt.Errorf("access to sensitive table %q is forbidden by denylist", tbl)
 		}
 		if len(allowlist) > 0 && !allowMap[tbl] {

@@ -1,6 +1,6 @@
 # Business & Payment APIs Gateway Action Adapter
 
-Circuit provides a secure, durable, and policy-governed gateway adapter for business and payment APIs (Stripe, Modern Treasury, Wise, Mercury, corporate bank integrations). Like GitHub, Shell, Database, Cloud, and Communication adapters, the Payment adapter enables AI agents to perform financial workflows while enforcing strict institutional guardrails:
+This adapter is **simulation only**. It does not call Stripe, banks, or other payment providers and never moves real funds. Set `simulation: true`; successful outcomes include `simulated: true`. Its ledger is in memory and resets on restart; action audit and budgets persist separately. The following controls describe simulator policy behavior, not validated financial-service guarantees.
 
 - **Account Scoping**: Every financial action targets an isolated payment/billing account (e.g. `corporate-ops`, `treasury`, `customer-billing`).
 - **Destination Allowlisting**: Outbound transfers (`transfer_funds`) are restricted to pre-approved beneficiary accounts configured in `allowed_destinations`.
@@ -18,6 +18,7 @@ Payment accounts are declared in your Circuit gateway YAML configuration under `
 
 ```yaml
 name: billing-ops-gateway
+simulation: true
 admin_token_env: CIRCUIT_ADMIN_TOKEN
 approval_ttl: 24h
 
@@ -73,10 +74,10 @@ Circuit exposes payment actions over REST (`POST /v1/actions`) and the Model Con
 ### 1. Dual-Boundary Transaction Verification
 When an autonomous agent attempts `transfer_funds`:
 1. **Hard Limit**: If `amount > max_transaction_amount`, the policy engine immediately denies the action with an immutable audit record.
-2. **Soft Limit**: If `amount > auto_approval_threshold`, Circuit creates a pending action and notifies operators. Funds do not move until approved via Circuit's web UI (`http://127.0.0.1:8080/`) or Admin REST API.
+2. **Soft Limit**: If `amount > auto_approval_threshold`, Circuit creates a pending action for review via Circuit's web UI or Admin REST API. Automatic operator notifications are not implemented.
 
 ### 2. Destination Enclosure
-Transfers cannot be routed to arbitrary external accounts. If `allowed_destinations` is configured, Circuit verifies beneficiary IDs before execution, eliminating transfer diversion risks.
+When configured, `allowed_destinations` restricts simulated beneficiary IDs. This does not validate actual bank beneficiaries or eliminate financial risk.
 
 ### 3. Balance & Refund Tracking
 The gateway ledger tracks refunded amounts per charge, preventing double-refunds or refund amounts greater than the original charge.
@@ -87,12 +88,12 @@ The gateway ledger tracks refunded amounts per charge, preventing double-refunds
 
 Validate your gateway configuration:
 ```bash
-circuit gateway check -config gateway.yaml
+circuit gateway check gateway.yaml
 ```
 
 Run Circuit gateway:
 ```bash
 export CIRCUIT_ADMIN_TOKEN="a-secure-secret-token-with-at-least-32-chars"
 export FINANCE_OPS_AGENT_TOKEN="agent-token-12345"
-circuit gateway serve -config gateway.yaml -addr 127.0.0.1:8080
+circuit gateway serve --config gateway.yaml --listen 127.0.0.1:8080
 ```

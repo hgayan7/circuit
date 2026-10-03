@@ -112,6 +112,10 @@ func (e *CloudExecutor) checkServiceAllowed(svc string) error {
 }
 
 func (e *CloudExecutor) Execute(ctx context.Context, r Request) Outcome {
+	return simulationOutcome(e.execute(ctx, r))
+}
+
+func (e *CloudExecutor) execute(ctx context.Context, r Request) Outcome {
 	switch r.Operation {
 	case "deploy_service":
 		return e.deployService(ctx, r)
@@ -243,10 +247,10 @@ func (e *CloudExecutor) restartService(ctx context.Context, r Request) Outcome {
 
 	svc.Status = "restarting"
 	resp := map[string]any{
-		"service":     svc.Name,
-		"environment": e.env.ID,
-		"status":      "restarted",
-		"replicas":    svc.Replicas,
+		"service":      svc.Name,
+		"environment":  e.env.ID,
+		"status":       "restarted",
+		"replicas":     svc.Replicas,
 		"restarted_at": time.Now().UTC(),
 	}
 	body, _ := json.Marshal(resp)

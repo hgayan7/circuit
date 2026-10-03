@@ -1,0 +1,210 @@
+{
+  "run_id": "app-isolated-20261003b",
+  "repositories": [
+    "hgayan7/circuit-gateway-pilot-20261003",
+    "hgayan7/circuit-gateway-protection-pilot-20261003"
+  ],
+  "checks": [
+    {
+      "name": "Agent has no provider credentials or upstream egress"
+    },
+    {
+      "name": "Real branch created",
+      "action_id": "55b17232f8379fa76369ea14f8dc12fe",
+      "state": "succeeded",
+      "http_status": 201
+    },
+    {
+      "name": "Same-key retry returns original action",
+      "action_id": "55b17232f8379fa76369ea14f8dc12fe"
+    },
+    {
+      "name": "Default-branch write denied"
+    },
+    {
+      "name": "Workflow write denied"
+    },
+    {
+      "name": "Action waits for exact approval",
+      "action_id": "641efb7177ccefe5b5fd5832545fe667"
+    },
+    {
+      "name": "Approved file written on GitHub",
+      "action_id": "641efb7177ccefe5b5fd5832545fe667",
+      "state": "succeeded",
+      "http_status": 201
+    },
+    {
+      "name": "Real file read",
+      "action_id": "2ae9ab9fc292fc7145d74adf1cfa3516",
+      "state": "succeeded",
+      "http_status": 200
+    },
+    {
+      "name": "Read content matches approved bytes"
+    },
+    {
+      "name": "Real pull request created",
+      "action_id": "39f6d570089507e1a869010715bb17a0",
+      "state": "succeeded",
+      "http_status": 201
+    },
+    {
+      "name": "Real pull request read",
+      "action_id": "ee0deb045f1972561904de7cf22166b2",
+      "state": "succeeded",
+      "http_status": 200
+    },
+    {
+      "name": "Action waits for exact approval",
+      "action_id": "6e47c69140a3829af9e03dda5a573195"
+    },
+    {
+      "name": "Approved exact commit merged on GitHub",
+      "action_id": "6e47c69140a3829af9e03dda5a573195",
+      "state": "succeeded",
+      "http_status": 200
+    },
+    {
+      "name": "GitHub confirms merged PR"
+    },
+    {
+      "name": "Real issue created",
+      "action_id": "75f39428c573aa2af4b8e19c4f21fa94",
+      "state": "succeeded",
+      "http_status": 201
+    },
+    {
+      "name": "Test issue closed",
+      "action_id": "4b0431bb7eb210c02dec11d7ee73b2d2",
+      "state": "succeeded",
+      "http_status": 200
+    },
+    {
+      "name": "Real action allowance exhausted"
+    },
+    {
+      "name": "Real branch created",
+      "action_id": "32aa71358537dcc4821377b14a20d74e",
+      "state": "succeeded",
+      "http_status": 201
+    },
+    {
+      "name": "Same-key retry returns original action",
+      "action_id": "32aa71358537dcc4821377b14a20d74e"
+    },
+    {
+      "name": "Default-branch write denied"
+    },
+    {
+      "name": "Workflow write denied"
+    },
+    {
+      "name": "Action waits for exact approval",
+      "action_id": "bd8a9b004fc84d4ff388f4478a10917b"
+    },
+    {
+      "name": "Approved file written on GitHub",
+      "action_id": "bd8a9b004fc84d4ff388f4478a10917b",
+      "state": "succeeded",
+      "http_status": 201
+    },
+    {
+      "name": "Real file read",
+      "action_id": "7c87143227041e05b3ae3eed25b967ee",
+      "state": "succeeded",
+      "http_status": 200
+    },
+    {
+      "name": "Read content matches approved bytes"
+    },
+    {
+      "name": "Real pull request created",
+      "action_id": "4431e77c1aac07e97164f0361ba575d8",
+      "state": "succeeded",
+      "http_status": 201
+    },
+    {
+      "name": "Real pull request read",
+      "action_id": "c01621cc561765bbe0611718314e4cff",
+      "state": "succeeded",
+      "http_status": 200
+    },
+    {
+      "name": "Action waits for exact approval",
+      "action_id": "f2ec651ae74b5ce1322940ece7668243"
+    },
+    {
+      "name": "Updated PR head",
+      "action_id": "f2ec651ae74b5ce1322940ece7668243",
+      "state": "succeeded",
+      "http_status": 200
+    },
+    {
+      "name": "Action waits for exact approval",
+      "action_id": "661a4b3e3b0337b72f9c779ecdb5fc9c"
+    },
+    {
+      "name": "Stale commit cannot merge",
+      "reason": "PR head changed during review; propose a new merge"
+    },
+    {
+      "name": "Action waits for exact approval",
+      "action_id": "451dc2244a9baecbc556bd14e891a994"
+    },
+    {
+      "name": "GitHub branch protection rejects approved merge",
+      "http_status": 405
+    },
+    {
+      "name": "Blocked PR remains unmerged"
+    },
+    {
+      "name": "Action waits for exact approval",
+      "action_id": "d49a054d053026ce49bd28aad5f0afdb"
+    },
+    {
+      "name": "Approved exact commit merged on GitHub",
+      "action_id": "d49a054d053026ce49bd28aad5f0afdb",
+      "state": "succeeded",
+      "http_status": 200
+    },
+    {
+      "name": "GitHub confirms merged PR"
+    },
+    {
+      "name": "Real issue created",
+      "action_id": "eda32a09717ba88644e85d65a85c02f5",
+      "state": "succeeded",
+      "http_status": 201
+    },
+    {
+      "name": "Test issue closed",
+      "action_id": "c3e3d48a671a3ae61d82f7756a044e44",
+      "state": "succeeded",
+      "http_status": 200
+    },
+    {
+      "name": "Real action allowance exhausted"
+    },
+    {
+      "name": "Out-of-scope repository denied"
+    },
+    {
+      "name": "Execution history retained"
+    },
+    {
+      "name": "Restart preserves idempotency"
+    },
+    {
+      "name": "Restart preserves consumed allowance"
+    }
+  ],
+  "pull_requests": [
+    "https://github.com/hgayan7/circuit-gateway-pilot-20261003/pull/3",
+    "https://github.com/hgayan7/circuit-gateway-protection-pilot-20261003/pull/3"
+  ],
+  "credential": "Repository-scoped short-lived GitHub App installation tokens",
+  "isolated_agent": true,
+  "passed": true
+}
