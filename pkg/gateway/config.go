@@ -70,6 +70,26 @@ type CommunicationConfig struct {
 	RequireApprovalForExternal bool     `yaml:"require_approval_for_external,omitempty" json:"require_approval_for_external,omitempty"`
 }
 
+type PaymentAccountConfig struct {
+	ID                        string   `yaml:"id" json:"id"`
+	Name                      string   `yaml:"name" json:"name"`
+	Currency                  string   `yaml:"currency,omitempty" json:"currency,omitempty"`
+	AllowedDestinations       []string `yaml:"allowed_destinations,omitempty" json:"allowed_destinations,omitempty"`
+	MaxTransactionAmount      float64  `yaml:"max_transaction_amount,omitempty" json:"max_transaction_amount,omitempty"`
+	AutoApprovalThreshold     float64  `yaml:"auto_approval_threshold,omitempty" json:"auto_approval_threshold,omitempty"`
+	RequireApprovalForRefunds bool     `yaml:"require_approval_for_refunds,omitempty" json:"require_approval_for_refunds,omitempty"`
+	InitialBalance            float64  `yaml:"initial_balance,omitempty" json:"initial_balance,omitempty"`
+	MaxTimeout                string   `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
+	timeout                   time.Duration
+}
+
+func (p *PaymentAccountConfig) Timeout() time.Duration {
+	if p.timeout <= 0 {
+		return 30 * time.Second
+	}
+	return p.timeout
+}
+
 type Agent struct {
 	ID           string   `yaml:"id" json:"id"`
 	TokenEnv     string   `yaml:"token_env" json:"token_env"`
@@ -78,6 +98,7 @@ type Agent struct {
 	Databases    []string `yaml:"databases,omitempty" json:"databases,omitempty"`
 	Environments []string `yaml:"environments,omitempty" json:"environments,omitempty"`
 	Channels     []string `yaml:"channels,omitempty" json:"channels,omitempty"`
+	Accounts     []string `yaml:"accounts,omitempty" json:"accounts,omitempty"`
 	Actions      []string `yaml:"actions" json:"actions"`
 	BranchPrefix string   `yaml:"branch_prefix,omitempty" json:"branch_prefix,omitempty"`
 }
@@ -111,22 +132,23 @@ type WebhookConfig struct {
 }
 
 type Config struct {
-	Name           string                   `yaml:"name" json:"name"`
-	AdminTokenEnv  string                   `yaml:"admin_token_env" json:"admin_token_env"`
-	GitHubTokenEnv string                   `yaml:"github_token_env,omitempty" json:"github_token_env,omitempty"`
-	GitHubApp      *GitHubAppConfig         `yaml:"github_app,omitempty" json:"github_app,omitempty"`
-	Webhook        *WebhookConfig           `yaml:"webhook,omitempty" json:"webhook,omitempty"`
-	Workspaces     []WorkspaceConfig        `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
-	Databases      []DatabaseConfig         `yaml:"databases,omitempty" json:"databases,omitempty"`
-	Environments   []CloudEnvironmentConfig `yaml:"environments,omitempty" json:"environments,omitempty"`
-	Communications []CommunicationConfig    `yaml:"communications,omitempty" json:"communications,omitempty"`
-	ApprovalTTL    string                   `yaml:"approval_ttl" json:"approval_ttl"`
-	Agents         []Agent                  `yaml:"agents" json:"agents"`
-	Rules          []Rule                   `yaml:"rules,omitempty" json:"rules,omitempty"`
-	Limits         []Limit                  `yaml:"limits,omitempty" json:"limits,omitempty"`
-	Safety         config.SafetyConfig      `yaml:"safety,omitempty" json:"safety"`
-	ttl            time.Duration
-	digest         string
+	Name            string                   `yaml:"name" json:"name"`
+	AdminTokenEnv   string                   `yaml:"admin_token_env" json:"admin_token_env"`
+	GitHubTokenEnv  string                   `yaml:"github_token_env,omitempty" json:"github_token_env,omitempty"`
+	GitHubApp       *GitHubAppConfig         `yaml:"github_app,omitempty" json:"github_app,omitempty"`
+	Webhook         *WebhookConfig           `yaml:"webhook,omitempty" json:"webhook,omitempty"`
+	Workspaces      []WorkspaceConfig        `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
+	Databases       []DatabaseConfig         `yaml:"databases,omitempty" json:"databases,omitempty"`
+	Environments    []CloudEnvironmentConfig `yaml:"environments,omitempty" json:"environments,omitempty"`
+	Communications  []CommunicationConfig    `yaml:"communications,omitempty" json:"communications,omitempty"`
+	PaymentAccounts []PaymentAccountConfig   `yaml:"payment_accounts,omitempty" json:"payment_accounts,omitempty"`
+	ApprovalTTL     string                   `yaml:"approval_ttl" json:"approval_ttl"`
+	Agents          []Agent                  `yaml:"agents" json:"agents"`
+	Rules           []Rule                   `yaml:"rules,omitempty" json:"rules,omitempty"`
+	Limits          []Limit                  `yaml:"limits,omitempty" json:"limits,omitempty"`
+	Safety          config.SafetyConfig      `yaml:"safety,omitempty" json:"safety"`
+	ttl             time.Duration
+	digest          string
 }
 
 var repoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$`)
@@ -138,6 +160,7 @@ var operations = map[string]bool{
 	"query_sql": true, "exec_sql": true, "list_tables": true, "describe_table": true,
 	"deploy_service": true, "rollback_deployment": true, "restart_service": true, "get_deployment_status": true, "scale_service": true,
 	"send_message": true, "send_email": true, "create_ticket": true, "update_ticket": true, "publish_document": true,
+	"transfer_funds": true, "create_charge": true, "issue_refund": true, "get_balance": true,
 }
 
 func member(items []string, item string) bool {
@@ -264,6 +287,26 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			cm.MaxRecipients = 50
 		}
 	}
+	payIDs := map[string]bool{}
+	for j := range c.PaymentAccounts {
+		pa := &c.PaymentAccounts[j]
+		if !identifier.MatchString(pa.ID) || payIDs[pa.ID] {
+			return nil, fmt.Errorf("payment accounts need unique valid IDs")
+		}
+		payIDs[pa.ID] = true
+		if pa.Currency == "" {
+			pa.Currency = "USD"
+		}
+		pa.Currency = strings.ToUpper(pa.Currency)
+		if pa.MaxTimeout == "" {
+			pa.MaxTimeout = "30s"
+		}
+		to, err := time.ParseDuration(pa.MaxTimeout)
+		if err != nil || to <= 0 {
+			return nil, fmt.Errorf("invalid max_timeout for payment account %s", pa.ID)
+		}
+		pa.timeout = to
+	}
 	if c.ApprovalTTL == "" {
 		c.ApprovalTTL = "1h"
 	}
@@ -282,8 +325,8 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			return nil, fmt.Errorf("agents need unique valid IDs and token_env")
 		}
 		ids[a.ID] = true
-		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 && len(a.Environments) == 0 && len(a.Channels) == 0 {
-			return nil, fmt.Errorf("agent %s needs repositories, workspaces, databases, environments, or channels", a.ID)
+		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 && len(a.Environments) == 0 && len(a.Channels) == 0 && len(a.Accounts) == 0 {
+			return nil, fmt.Errorf("agent %s needs repositories, workspaces, databases, environments, channels, or accounts", a.ID)
 		}
 		if len(a.Actions) == 0 {
 			return nil, fmt.Errorf("agent %s needs actions", a.ID)
@@ -314,6 +357,11 @@ func ParseConfig(r io.Reader) (*Config, error) {
 				return nil, fmt.Errorf("invalid channel %q for agent %s", chID, a.ID)
 			}
 		}
+		for _, accID := range a.Accounts {
+			if !identifier.MatchString(accID) {
+				return nil, fmt.Errorf("invalid account %q for agent %s", accID, a.ID)
+			}
+		}
 		for _, op := range a.Actions {
 			if !operations[op] {
 				return nil, fmt.Errorf("unsupported action %q", op)
@@ -336,6 +384,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		cel.Variable("database", cel.StringType),
 		cel.Variable("environment", cel.StringType),
 		cel.Variable("channel", cel.StringType),
+		cel.Variable("account", cel.StringType),
 		cel.Variable("agent_id", cel.StringType),
 	)
 	if err != nil {
@@ -381,7 +430,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		ids[limit.ID] = true
 		switch limit.Scope {
-		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace", "database", "agent_database", "environment", "agent_environment", "channel", "agent_channel":
+		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace", "database", "agent_database", "environment", "agent_environment", "channel", "agent_channel", "account", "agent_account":
 		default:
 			return nil, fmt.Errorf("invalid budget scope %q", limit.Scope)
 		}
@@ -413,7 +462,15 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 	if agent == nil || !member(agent.Actions, req.Operation) {
 		return config.ActionDeny, "Agent is not permitted to use this action", nil
 	}
-	if isCommOperation(req) {
+	if isPaymentOperation(req) {
+		accID := req.Account
+		if accID == "" {
+			accID = "default"
+		}
+		if !member(agent.Accounts, accID) {
+			return config.ActionDeny, fmt.Sprintf("Agent is not permitted to access payment account %q", accID), nil
+		}
+	} else if isCommOperation(req) {
 		chID := req.Channel
 		if chID == "" {
 			chID = "default"
@@ -547,6 +604,53 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 				}
 			}
 		}
+	} else if isPaymentOperation(req) {
+		accID := req.Account
+		if accID == "" {
+			accID = "default"
+		}
+		var targetAcc *PaymentAccountConfig
+		for j := range c.PaymentAccounts {
+			if c.PaymentAccounts[j].ID == accID {
+				targetAcc = &c.PaymentAccounts[j]
+				break
+			}
+		}
+		amount := floatVal(req.Args, "amount")
+		if targetAcc != nil {
+			if targetAcc.MaxTransactionAmount > 0 && amount > targetAcc.MaxTransactionAmount {
+				return config.ActionDeny, fmt.Sprintf("Transaction amount %.2f exceeds maximum permitted transaction amount of %.2f", amount, targetAcc.MaxTransactionAmount), nil
+			}
+			if req.Operation == "transfer_funds" {
+				if targetAcc.AutoApprovalThreshold > 0 {
+					if amount > targetAcc.AutoApprovalThreshold {
+						verdict = config.ActionRequireApproval
+						reason = fmt.Sprintf("Fund transfer of %.2f exceeds auto-approval threshold of %.2f", amount, targetAcc.AutoApprovalThreshold)
+					}
+				} else {
+					verdict = config.ActionRequireApproval
+					reason = "All fund transfers require operator approval"
+				}
+			} else if req.Operation == "issue_refund" {
+				if targetAcc.RequireApprovalForRefunds {
+					verdict = config.ActionRequireApproval
+					reason = "Refunds require operator approval"
+				} else if targetAcc.AutoApprovalThreshold > 0 && amount > targetAcc.AutoApprovalThreshold {
+					verdict = config.ActionRequireApproval
+					reason = fmt.Sprintf("Refund amount of %.2f exceeds auto-approval threshold of %.2f", amount, targetAcc.AutoApprovalThreshold)
+				}
+			} else if req.Operation == "create_charge" {
+				if targetAcc.AutoApprovalThreshold > 0 && amount > targetAcc.AutoApprovalThreshold {
+					verdict = config.ActionRequireApproval
+					reason = fmt.Sprintf("Charge amount of %.2f exceeds auto-approval threshold of %.2f", amount, targetAcc.AutoApprovalThreshold)
+				}
+			}
+		} else {
+			if req.Operation == "transfer_funds" || req.Operation == "issue_refund" {
+				verdict = config.ActionRequireApproval
+				reason = "Financial transaction requires operator approval"
+			}
+		}
 	}
 	for _, rule := range c.Rules {
 		if !member(rule.Actions, req.Operation) || (len(rule.Repositories) > 0 && !member(rule.Repositories, req.Repository)) {
@@ -561,6 +665,7 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 				"database":    req.Database,
 				"environment": req.Environment,
 				"channel":     req.Channel,
+				"account":     req.Account,
 				"agent_id":    agentID,
 			})
 			if err != nil {

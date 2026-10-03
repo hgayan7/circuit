@@ -256,6 +256,7 @@ type toolInput struct {
 	Database       string         `json:"database,omitempty" jsonschema:"Allowed database target ID (for SQL actions)"`
 	Environment    string         `json:"environment,omitempty" jsonschema:"Allowed cloud deployment environment ID (for cloud actions)"`
 	Channel        string         `json:"channel,omitempty" jsonschema:"Allowed communication target ID (for communication actions)"`
+	Account        string         `json:"account,omitempty" jsonschema:"Allowed payment account ID (for payment actions)"`
 	Args           map[string]any `json:"args" jsonschema:"Operation-specific arguments"`
 	IdempotencyKey string         `json:"idempotency_key" jsonschema:"Stable unique key. Reuse this exact key when retrying the same action"`
 }
@@ -287,6 +288,10 @@ var descriptions = map[string]string{
 	"create_ticket":         "Create a new issue/ticket in a tracking system. Args: title, optional description, optional project.",
 	"update_ticket":         "Update a ticket status or append comments. Args: key, optional status, optional comment.",
 	"publish_document":      "Publish or broadcast a document with mandatory operator approval. Args: title, content.",
+	"transfer_funds":        "Transfer funds to an external destination or account. Amounts above threshold require operator approval. Args: amount, destination, optional currency, optional reason.",
+	"create_charge":         "Create a customer payment charge. Args: amount, customer_id, optional currency, optional description.",
+	"issue_refund":          "Refund a prior payment transaction or charge with operator review. Args: charge_id, optional amount, optional reason.",
+	"get_balance":           "Query the current financial balance and ledger summary. Args: optional currency.",
 }
 
 func toolResult(a *Action) *mcp.CallToolResult {
@@ -335,6 +340,14 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 			names = []string{"comm_update_ticket"}
 		case "publish_document":
 			names = []string{"comm_publish_document"}
+		case "transfer_funds":
+			names = []string{"payment_transfer"}
+		case "create_charge":
+			names = []string{"payment_charge"}
+		case "issue_refund":
+			names = []string{"payment_refund"}
+		case "get_balance":
+			names = []string{"payment_balance"}
 		case "read_file":
 			if len(agent.Workspaces) > 0 && len(agent.Repositories) == 0 {
 				names = []string{"file_read"}
@@ -345,7 +358,7 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 		for _, name := range names {
 			tName := name
 			mcp.AddTool(server, &mcp.Tool{Name: tName, Description: descriptions[op]}, func(ctx context.Context, req *mcp.CallToolRequest, in toolInput) (*mcp.CallToolResult, any, error) {
-				reqPayload := Request{Operation: op, Repository: in.Repository, Workspace: in.Workspace, Database: in.Database, Environment: in.Environment, Channel: in.Channel, Args: in.Args}
+				reqPayload := Request{Operation: op, Repository: in.Repository, Workspace: in.Workspace, Database: in.Database, Environment: in.Environment, Channel: in.Channel, Account: in.Account, Args: in.Args}
 				if tName == "file_read" && reqPayload.Workspace == "" && len(agent.Workspaces) > 0 {
 					reqPayload.Workspace = agent.Workspaces[0]
 				}
@@ -357,6 +370,9 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 				}
 				if isCommOperation(reqPayload) && reqPayload.Channel == "" && len(agent.Channels) > 0 {
 					reqPayload.Channel = agent.Channels[0]
+				}
+				if isPaymentOperation(reqPayload) && reqPayload.Account == "" && len(agent.Accounts) > 0 {
+					reqPayload.Account = agent.Accounts[0]
 				}
 				a, err := h.service.Submit(ctx, agent.ID, in.IdempotencyKey, reqPayload)
 				if err != nil {

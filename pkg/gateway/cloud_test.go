@@ -153,7 +153,7 @@ limits:
 	router := NewRouterExecutor(nil, nil, nil, map[string]*CloudExecutor{
 		"staging": NewCloudExecutor(stagingEnv),
 		"prod":    NewCloudExecutor(prodEnv),
-	}, nil)
+	}, nil, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)
@@ -279,7 +279,7 @@ agents:
 	require.NoError(t, err)
 	router := NewRouterExecutor(nil, nil, nil, map[string]*CloudExecutor{
 		"staging": NewCloudExecutor(stagingEnv),
-	}, nil)
+	}, nil, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)

@@ -270,7 +270,7 @@ limits:
 
 	ws, err := NewWorkspace("local", tmpDir, false, 10*time.Second)
 	require.NoError(t, err)
-	router := NewRouterExecutor(nil, map[string]*ShellExecutor{"local": NewShellExecutor(ws)}, nil, nil, nil)
+	router := NewRouterExecutor(nil, map[string]*ShellExecutor{"local": NewShellExecutor(ws)}, nil, nil, nil, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)
@@ -371,7 +371,7 @@ agents:
 
 	ws, err := NewWorkspace("default", tmpDir, false, 10*time.Second)
 	require.NoError(t, err)
-	router := NewRouterExecutor(nil, map[string]*ShellExecutor{"default": NewShellExecutor(ws)}, nil, nil, nil)
+	router := NewRouterExecutor(nil, map[string]*ShellExecutor{"default": NewShellExecutor(ws)}, nil, nil, nil, nil)
 
 	storeFile := filepath.Join(t.TempDir(), "state.db")
 	store, err := OpenStore(storeFile)

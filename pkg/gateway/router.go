@@ -5,23 +5,25 @@ import (
 	"fmt"
 )
 
-// RouterExecutor routes action requests to the appropriate backend executor (GitHub, Workspace, Database, Cloud, or Communication).
+// RouterExecutor routes action requests to the appropriate backend executor (GitHub, Workspace, Database, Cloud, Communication, or Payment).
 type RouterExecutor struct {
 	github       Executor
 	workspaces   map[string]*ShellExecutor
 	databases    map[string]*DatabaseExecutor
 	environments map[string]*CloudExecutor
 	comms        map[string]*CommExecutor
+	payments     map[string]*PaymentExecutor
 }
 
 // NewRouterExecutor creates a composite router executor.
-func NewRouterExecutor(github Executor, workspaces map[string]*ShellExecutor, databases map[string]*DatabaseExecutor, environments map[string]*CloudExecutor, comms map[string]*CommExecutor) *RouterExecutor {
+func NewRouterExecutor(github Executor, workspaces map[string]*ShellExecutor, databases map[string]*DatabaseExecutor, environments map[string]*CloudExecutor, comms map[string]*CommExecutor, payments map[string]*PaymentExecutor) *RouterExecutor {
 	return &RouterExecutor{
 		github:       github,
 		workspaces:   workspaces,
 		databases:    databases,
 		environments: environments,
 		comms:        comms,
+		payments:     payments,
 	}
 }
 
@@ -52,18 +54,38 @@ func isDatabaseOperation(r Request) bool {
 	}
 }
 
+func isPaymentOperation(r Request) bool {
+	switch r.Operation {
+	case "transfer_funds", "create_charge", "issue_refund", "get_balance":
+		return true
+	default:
+		return false
+	}
+}
+
 func isWorkspaceOperation(r Request) bool {
 	switch r.Operation {
 	case "exec_cmd", "write_file", "delete_file", "list_dir":
 		return true
 	case "read_file":
-		return r.Workspace != "" || (r.Repository == "" && r.Database == "" && r.Environment == "" && r.Channel == "")
+		return r.Workspace != "" || (r.Repository == "" && r.Database == "" && r.Environment == "" && r.Channel == "" && r.Account == "")
 	default:
 		return false
 	}
 }
 
 func (r *RouterExecutor) Execute(ctx context.Context, req Request) Outcome {
+	if isPaymentOperation(req) {
+		accKey := req.Account
+		if accKey == "" {
+			accKey = "default"
+		}
+		executor, ok := r.payments[accKey]
+		if !ok {
+			return Outcome{Error: fmt.Sprintf("payment account %q is not configured on this gateway", accKey)}
+		}
+		return executor.Execute(ctx, req)
+	}
 	if isCommOperation(req) {
 		commKey := req.Channel
 		if commKey == "" {

@@ -23,6 +23,7 @@ type Request struct {
 	Database    string         `json:"database,omitempty"`
 	Environment string         `json:"environment,omitempty"`
 	Channel     string         `json:"channel,omitempty"`
+	Account     string         `json:"account,omitempty"`
 	Args        map[string]any `json:"args"`
 }
 type Outcome struct {
@@ -68,6 +69,18 @@ func number(args map[string]any, key string) int {
 		return 0
 	}
 	return int(n)
+}
+func floatVal(args map[string]any, key string) float64 {
+	switch v := args[key].(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	default:
+		return 0
+	}
 }
 func forbiddenPath(p string) bool {
 	p = strings.ToLower(p)
@@ -220,6 +233,41 @@ func validateRequest(req *Request) error {
 		return nil
 	}
 
+	if isPaymentOperation(*req) {
+		if req.Account == "" {
+			req.Account = "default"
+		}
+		if !identifier.MatchString(req.Account) {
+			return fmt.Errorf("invalid payment account identifier %q", req.Account)
+		}
+		paymentFields := map[string][]string{
+			"transfer_funds": {"amount", "destination", "currency", "reason"},
+			"create_charge":  {"amount", "customer_id", "currency", "description"},
+			"issue_refund":   {"charge_id", "amount", "currency", "reason"},
+			"get_balance":    {"currency"},
+		}
+		for k := range req.Args {
+			if !member(paymentFields[req.Operation], k) {
+				return fmt.Errorf("unexpected argument %q for %s", k, req.Operation)
+			}
+		}
+		switch req.Operation {
+		case "transfer_funds":
+			if floatVal(req.Args, "amount") <= 0 || text(req.Args, "destination") == "" {
+				return fmt.Errorf("amount (positive number) and destination are required")
+			}
+		case "create_charge":
+			if floatVal(req.Args, "amount") <= 0 || text(req.Args, "customer_id") == "" {
+				return fmt.Errorf("amount (positive number) and customer_id are required")
+			}
+		case "issue_refund":
+			if text(req.Args, "charge_id") == "" {
+				return fmt.Errorf("charge_id is required")
+			}
+		}
+		return nil
+	}
+
 	req.Repository = strings.ToLower(req.Repository)
 	if !repoPattern.MatchString(req.Repository) {
 		return fmt.Errorf("unsupported operation or invalid repository")
@@ -290,6 +338,16 @@ func validateRequest(req *Request) error {
 	return nil
 }
 func validateScope(agent *Agent, req Request) error {
+	if isPaymentOperation(req) {
+		accID := req.Account
+		if accID == "" {
+			accID = "default"
+		}
+		if !member(agent.Accounts, accID) {
+			return fmt.Errorf("Access to payment account %q is not permitted for this agent", accID)
+		}
+		return nil
+	}
 	if isCommOperation(req) {
 		chID := req.Channel
 		if chID == "" {
