@@ -1,165 +1,59 @@
-# Getting Started with Circuit Proxy
+# Getting Started
 
-Circuit Proxy enforces policies, budgets, and approvals on every outbound call
-your AI agent makes — with **zero changes to your agent code**.
+Circuit is a self-hosted action gateway with CLI administration, REST/MCP integration, and a built-in operator review interface. Start with the credential-free demo, then configure the GitHub App deployment with your own credentials.
 
-## Install
+## Install The Candidate
 
-```bash
-brew install hgayan7/circuit/circuit
+[v0.2.0-rc.1](https://github.com/hgayan7/circuit/releases/tag/v0.2.0-rc.1) is a developer preview / release candidate. Download the archive for Linux/macOS and amd64/arm64, compare its SHA-256 with the published `checksums.txt`, and extract it. The stable Homebrew tap does not install this candidate. Native Windows gateway execution is not supported.
+
+For the sample agent, Docker builds, and rehearsal scripts, use a source checkout. Requires Go 1.26.7 or later; the sample Python agent requires Python 3.
+
+```sh
+git clone --branch v0.2.0-rc.1 https://github.com/hgayan7/circuit.git
+cd circuit
+go build -ldflags '-X main.version=0.2.0-rc.1' -o bin/circuit ./cmd/circuit
+bin/circuit version
 ```
 
-Or from source:
+Building without the version flag still works, but does not embed the candidate version.
 
-```bash
-go install github.com/hgayan7/circuit/cmd/circuit@latest
+## Run The Demo
+
+```sh
+bin/circuit gateway demo
 ```
 
----
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). Enter the public demo operator token printed by the command. In a second terminal from the same source checkout:
 
-## Step 1 — Generate your policy
-
-Run the interactive wizard in your project directory:
-
-```bash
-circuit init
+```sh
+python3 examples/github-agent.py --demo
 ```
 
-It asks 5 questions and writes a `circuit.yaml` tailored to your stack:
+The agent submits simulated GitHub actions. Review the file-write and merge proposals in the interface, approve or reject them, and inspect the resulting history. The demo never contacts GitHub and requires no upstream credentials. Do not use demo credentials or its plaintext local listener in production.
 
-```
-⚡ Circuit Init — generate a circuit.yaml for your project
+## Connect A Real Agent
 
-How are you running your agent?
-  1) circuit run   — wrap an agent process (HTTP APIs)
-  2) circuit mcp   — wrap an MCP stdio server (tool calls)
-Choice [1]: 1
+Run Circuit as a persistent gateway and configure your agent's tools to call its authenticated REST or Streamable HTTP MCP endpoint. Integration requires routing those tool calls through Circuit; it is not automatic protection for every outbound request.
 
-What API or server are you protecting?
-  1) OpenAI  2) Anthropic  3) Postgres MCP  4) Stripe  5) Custom
-Choice [1]: 1
+The agent receives only a scoped Circuit token. Keep GitHub App credentials in the gateway, and isolate the agent from direct provider access and alternative execution paths. Circuit supplies policy enforcement, not OS isolation or model routing.
 
-Add spending/action budgets? [y/N]: y
-  Max actions per hour [100]: 50
-  Max spend per hour in USD [5.00]: 2.00
+Follow the [GitHub gateway guide](github-gateway.md) for action requests, idempotency keys, approvals, and MCP connections. Use the [production-oriented deployment guide](production-deployment.md) for GitHub App configuration, TLS, named roles, and restricted Docker services.
 
-Enable audit log? [y/N]: y
-Require human approval for sensitive actions? [y/N]: n
+## Bring Your Own Operations
 
-✅ Created ./circuit.yaml
-```
+The [operations guide](operations.md) configures SMTP alert delivery, encrypted backup retention, optional storage adapters, and recovery rehearsals. Keep credentials in protected operator-owned files and the backup decryption identity offline. Test your actual email/storage destinations and restore on a separate host before promising disaster recovery.
 
-## Step 2 — Validate your policy
+Use the [release checklist](release-checklist.md) for acceptance. The full 72-hour fixture soak remains pending; it tests uninterrupted read-path stability, not every intended agent workload.
 
-```bash
-circuit check
-# ✅ Policy 'openai-guard' (version 1.0) compiled successfully with 2 rule(s).
+## Optional Inspection Tools
+
+The older HTTP proxy and MCP wrapper use `circuit.yaml`, separately from the action gateway's `gateway.yaml`:
+
+```sh
+bin/circuit init
+bin/circuit check
+bin/circuit run --policy circuit.yaml -- python agent.py
+bin/circuit mcp wrap --policy circuit.yaml -- your-mcp-server
 ```
 
-## Step 3 — Run your agent through Circuit
-
-Pick the mode that matches your setup:
-
----
-
-### Mode A — HTTP Agent (Python, Node, Go, etc.)
-
-```bash
-circuit run -- python agent.py
-circuit run -- node agent.js
-circuit run -- go run ./agent
-```
-
-Circuit starts an ephemeral proxy and injects `HTTP_PROXY` into your agent's
-environment automatically. Proxy-aware HTTP clients are intercepted. Common CA trust variables are injected
-for HTTPS inspection; clients with custom trust or proxy behavior need configuration.
-See [the safety guide](./safety.md) for coverage limits.
-
-```
-Agent process              Circuit proxy           Upstream API
-python agent.py   ──────►  127.0.0.1:XXXX  ──────► api.openai.com
-                   (HTTP_PROXY injected)    (policies enforced)
-```
-
-With options:
-
-```bash
-# Use a specific policy file
-circuit run --policy ./policies/strict.yaml -- python agent.py
-
-# Write an audit log
-circuit run --audit ./logs/agent.ndjson -- python agent.py
-
-# Both
-circuit run --policy strict.yaml --audit agent.ndjson -- python agent.py
-```
-
----
-
-### Mode B — MCP Server (Claude Desktop, Cursor, etc.)
-
-Edit your `claude_desktop_config.json` — wrap the MCP server command:
-
-```json
-{
-  "mcpServers": {
-    "postgres": {
-      "command": "circuit",
-      "args": [
-        "mcp", "wrap", "--",
-        "npx", "-y", "@modelcontextprotocol/server-postgres",
-        "postgresql://localhost/mydb"
-      ]
-    }
-  }
-}
-```
-
-Circuit sits between the LLM host and the MCP server. Every `tools/call`
-JSON-RPC message is evaluated against your `circuit.yaml` before being
-forwarded.
-
-```
-Claude Desktop  ──►  circuit mcp wrap  ──►  MCP Server
-                     (policies enforced)
-```
-
----
-
-### Mode C — Persistent Proxy Daemon (Docker / k8s)
-
-```bash
-circuit serve --target https://api.openai.com --port 8080
-# ⚡ Circuit proxy listening on http://localhost:8080 -> https://api.openai.com
-```
-
-Point your agent at it:
-
-```bash
-# Configure your SDK base URL to http://localhost:8080 (preserving its API path).
-```
-
-Docker Compose example:
-
-```yaml
-services:
-  circuit:
-    image: ghcr.io/hgayan7/circuit   # coming soon
-    command: serve --target https://api.openai.com
-    volumes:
-      - ./circuit.yaml:/circuit.yaml
-
-  agent:
-    build: .
-    environment:
-      API_BASE_URL: http://circuit:8080 # wire this into your SDK base URL
-    depends_on: [circuit]
-```
-
----
-
-## Next steps
-
-- **[How the policy YAML works →](./policy.md)**
-- **[Example policies →](../examples/policies/)**
-- **[Safety commands and configuration →](./safety.md)**
+Proxy inspection depends on client proxy/trust configuration. Heuristic detection does not guarantee prompt-injection prevention, and these tools do not replace a sandbox. Read the [safety guide](safety.md) and [policy guide](policy.md) for coverage and first-match policy semantics.

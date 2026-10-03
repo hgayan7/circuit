@@ -2,66 +2,108 @@
 
 # Circuit
 
-**A bounded allowance for autonomous agents to act.**
+**Approval and action limits for AI agents.**
 
-Circuit is a self-hosted GitHub action gateway for unattended engineering agents. Give an agent permission to work in selected repositories, enforce cumulative action limits, and require approval of consequential changes.
+Circuit is a self-hosted action gateway between an agent and the tools it uses. Agents receive scoped Circuit credentials; the gateway holds upstream credentials, evaluates policies and budgets, and asks a human to approve consequential actions. A built-in web interface shows proposals, decisions, and execution history.
 
-For example: let an agent open five PRs per hour in two repositories, restrict its writes to `circuit/` branches, forbid workflow-file changes, and require approval before merging an exact commit.
+For example, let an engineering agent read two repositories and open up to five PRs per hour. Restrict writes to approved branches, forbid workflow-file changes, and require approval before merging an exact commit. The agent can keep working without receiving an unrestricted GitHub token.
 
-## Try it
+## Release Status
+
+[**v0.2.0-rc.1**](https://github.com/hgayan7/circuit/releases/tag/v0.2.0-rc.1) is available as a **developer preview / release candidate**, not a production-certified release. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums. The stable Homebrew tap does not install this candidate.
+
+The GitHub-only production-oriented profile, operational extensions, recovery tests, and cross-platform builds are implemented. The full uninterrupted 72-hour fixture soak remains pending. Operators must also validate their intended workload, email delivery, and separate-host recovery with their own credentials. See the [release checklist](docs/release-checklist.md) for acceptance criteria and supported scope.
+
+## Try It Locally
+
+Requires Go 1.26.7 or later and Python 3 for the sample agent. From a source checkout:
 
 ```sh
 go build -o bin/circuit ./cmd/circuit
 bin/circuit gateway demo
 ```
 
-Open http://127.0.0.1:8080 and enter the public demo operator token printed by the command. In another terminal:
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080) and enter the public demo operator token printed by the command. In another terminal:
 
 ```sh
 python3 examples/github-agent.py --demo
 ```
 
-Review the file-write and merge proposals in the interface. This simulation never contacts GitHub and needs no real credentials.
+Review file-write and merge proposals in the interface. This simulation never contacts GitHub and needs no real credentials. For a reproducible candidate checkout, use the `v0.2.0-rc.1` tag. See [Getting Started](docs/getting-started.md) for installation and next steps.
 
-## What the gateway does
-
-- **Scoped agent access:** explicit repository and operation allowlists, separate Circuit bearer identities, and upstream credentials held by the gateway.
-- **Combined enforcement:** DENY overrides ALLOW; approval requirements and all matching budgets apply together.
-- **Durable limits:** atomic reservations persist through restarts and are rechecked before execution.
-- **Exact-action approvals:** approve a stored payload and digest, with expiry and policy-version checks; merges also use GitHub's head-SHA precondition.
-- **Retry protection:** stable idempotency keys return the original action. Claimed actions are never automatically replayed after ambiguous failures or restarts.
-- **Accountable execution:** a web review queue and persisted history show proposals, decisions, operator attribution, and upstream outcomes.
-- **REST and MCP:** structured GitHub actions over authenticated REST or Streamable HTTP MCP using the official Go SDK.
+## How It Fits
 
 ```text
 Agent in an existing sandbox
-          │ Circuit agent credential
-          ▼
-Circuit action gateway ─── Operator review interface
-  scopes · limits · approvals · durable state
-          │ scoped GitHub credential
-          ▼
+          | Circuit agent credential
+          v
+Circuit action gateway --- Operator review interface
+  scopes | policies | budgets | approvals | durable state
+          | scoped provider credential
+          v
         GitHub
 ```
 
-Circuit integrates with existing sandboxes and model gateways. It does not provide model routing or OS isolation. To rely on its controls, agents must lack independent GitHub credentials and unrestricted alternative execution paths.
+Run Circuit as a persistent middleware service. Connect agent tools through authenticated REST or Streamable HTTP MCP; operators use the web interface. The CLI supplies setup, validation, and recovery commands. Circuit is not a model router or an OS sandbox.
 
-## Use a real repository
+To rely on enforcement, agents must not have independent provider credentials or unrestricted alternative execution paths. Routing one tool through Circuit does not protect calls that bypass it.
+
+## What Is Enforced
+
+- **Scoped access:** explicit repository and operation allowlists, separate agent identities, and gateway-owned upstream credentials.
+- **Combined policies:** DENY overrides ALLOW; approval requirements and all matching budgets apply together.
+- **Durable budgets:** atomic reservations persist through restarts and are rechecked before execution.
+- **Exact approvals:** decisions bind to stored payloads and digests, with expiry and policy-version checks. GitHub merges also require the approved head SHA.
+- **Retry protection:** stable idempotency keys return the original action. Claimed actions are not automatically replayed after ambiguous failures or restarts.
+- **Review and audit:** a web review queue and persisted history record proposals, decisions, operator attribution, and upstream outcomes.
+
+## BYOK Deployment
+
+You own the deployment and bring your own credentials. No provider keys, SMTP passwords, or backup decryption identities are bundled.
+
+The [GitHub deployment guide](docs/production-deployment.md) covers the single-process `--production` profile: GitHub App authentication, TLS 1.3, named observer/reviewer/admin roles, mounted secrets, restricted Docker containers, health checks, and authenticated metrics. Agents receive Circuit credentials, not the App private key.
+
+Optional [operational extensions](docs/operations.md) provide:
+
+- Prometheus monitoring and Alertmanager notifications through your SMTP provider.
+- Scheduled age-encrypted backups and local retention, with the decryption identity kept offline.
+- A separate storage BYOK worker that uploads immutable archives and verifies full remote readback.
+- Disk-capacity, active TLS-expiry, backup, and storage-transfer alerts.
+- Restore with a mandatory reconciliation barrier, plus upgrade/rollback and soak rehearsal tools.
+
+Docker deployment builds and rehearsal scripts require the source checkout. Local SMTP and authenticated S3-compatible fixtures validate the operational pipelines; they do not prove delivery or disaster recovery for your chosen providers.
+
+## Extensible Integrations
+
+Provider plugins run as separate services using the versioned [plugin contract](docs/plugin-contract.md). Policy, approvals, budgets, durable claims, and audit remain in the trusted core. Registering a plugin does not automatically make its provider production-supported.
+
+| Area | Tested Scope |
+| --- | --- |
+| GitHub | Live fixture pilot: branches, files, PRs, merges, issues, App token refresh, approvals, budgets, isolated-agent execution, and signed webhook recovery. The `--production` profile supports GitHub only. |
+| PostgreSQL | Real local/CI database queries and mutations, row limits, transactional rollback, permission failures, and timeouts. Requires least-privilege roles and query-specific policies; outside the GitHub-only production profile. |
+| Workspace/files | Local root-scoped file access, atomic writes, symlink-race protection, and bounded shell execution. Shell commands require approval and an external OS sandbox. |
+| Custom tools/plugins | Local HTTP/MCP integration and sidecar conformance tests. Each provider needs its own scope, credential-isolation, and recovery validation. |
+| Operational email/storage | Firing/resolved SMTP messages and authenticated S3-compatible upload/readback/recovery fixtures. Actual BYOK destinations require operator acceptance. |
+| Cloud, communication, payments | Simulation-only action adapters; no native provider execution. Operational alert email is separate from the simulated communication adapter. |
+
+Simulations are explicit and return `simulated: true`. Missing real credentials do not silently enable simulation. See [validation status](docs/validation-status.md) for detailed coverage and reproduction.
+
+## Tests And Limits
 
 ```sh
-bin/circuit gateway init --repo your-org/your-repo
-bin/circuit gateway check gateway.yaml
-export CIRCUIT_ADMIN_TOKEN="$(bin/circuit gateway token)"
-export CIRCUIT_AGENT_TOKEN="$(bin/circuit gateway token)"
-# Set a scoped GITHUB_TOKEN securely on the gateway only.
-bin/circuit gateway serve --config gateway.yaml --data .circuit/gateway.db
+go test -race ./...
+go vet ./...
 ```
 
-See the [GitHub gateway guide](docs/github-gateway.md) for configuration, agent/MCP connections, approvals, retry semantics, and deployment limits.
+[CI](https://github.com/hgayan7/circuit/actions/workflows/ci.yml) also exercises live PostgreSQL, reachable Go vulnerability checks, restricted Docker builds, real disk-full recovery, authenticated S3 recovery, alert behavior, and Linux/macOS cross-platform builds. Release publishing requires green CI for the exact tagged commit.
 
-## Supporting inspection tools
+Recorded evidence covers [GitHub and local workflows](docs/validation-status.md), [Docker deployment](docs/production-validation-results.json), [email and backups](docs/operations-validation-results.json), [S3 storage](docs/archive-validation-results.json), and [specific-image upgrade/rollback](docs/upgrade-validation-results.json). A short test or running soak is not a completed multi-day validation.
 
-The earlier generic inspection tools remain available:
+The bbolt store has one owning process, not distributed replicas. Named bearer roles are not SSO/MFA. Circuit prevents automatic replay of claimed actions; it does not guarantee exactly-once delivery across network boundaries. Independent security review was deferred, not completed. Team identity, reviewer quorum, distributed operation, and additional validated providers remain future work.
+
+## Supporting Inspection Tools
+
+The earlier proxy and inspection tools remain available with a separate `circuit.yaml` configuration:
 
 ```sh
 circuit run --policy examples/policies/expanded_safety.yaml -- python agent.py
@@ -71,53 +113,7 @@ circuit inspect --kind shell
 circuit inspect --kind sql
 ```
 
-These provide HTTPS inspection for proxy-aware clients, heuristic prompt-injection checks, and conservative parser-based shell/SQL restrictions. They use `circuit.yaml`, separately from the action gateway's `gateway.yaml`.
-
-Read [the safety guide](docs/safety.md) for coverage and limitations. Those tools do not replace a sandbox, and their older first-match CEL policy semantics differ from the gateway's combined enforcement.
-
-## Support and roadmap
-
-The product vision is bounded autonomy across tools. Current support distinguishes real execution from simulations; policy tests alone do not establish provider support.
-
-| Area | Current status |
-| --- | --- |
-| GitHub | **Live pilot validated:** branches, files, PRs, merges, issues, exact approvals, budgets, repository-scoped GitHub App tokens, and an agent container with upstream egress blocked. Signed repository webhook delivery validates exact-head merge recovery. |
-| PostgreSQL | **Local integration validated:** real queries and mutations, row limits, transactional rollback, permission failures, and timeouts. PostgreSQL is the only real database backend tested. |
-| Workspace/files | **Local integration validated:** root-scoped file access, atomic writes without implicit replacement, symlink-race protection, and bounded shell execution. All shell commands require approval and an external OS sandbox. |
-| Cloud | **Simulation only:** deployment, rollback, restart, status, and scale policies; no cloud provider backend. |
-| Communication/work tools | **Simulation only:** messages, email, tickets, and documents; no Slack, SMTP, Jira, Notion, or other native delivery backend. |
-| Payments | **Simulation only:** transfers, charges, refunds, and balance; no payment provider backend. |
-| Custom tools | **Local HTTP integration validated:** generic HTTP dispatch and MCP exposure, approvals, budgets, and uncertain-response recovery. Individual providers require their own validation. |
-
-Cloud, communication, and payment configurations require explicit `simulation: true`; successful simulator results contain `simulated: true`. Database simulation requires `driver: mock`, and custom-tool simulation requires a `mock:` or `sim:` endpoint. Missing database credentials and empty custom endpoints fail instead of silently simulating.
-
-See [the validation report](docs/validation-status.md) for evidence, reproduction, compatibility changes, and remaining release limits.
-
-Circuit's [extension contract](docs/plugin-contract.md) keeps policy, approvals, budgets, and audit in the trusted core while provider plugins run as separate services. [Operational extensions](docs/operations.md) supply replaceable notifications (email BYOK), encrypted backups/retention, verified storage BYOK, monitoring, and fixture soak workers. The [BYOK release checklist](docs/release-checklist.md) separates tested product capabilities from operator-specific deployment acceptance.
-
-Across these integrations, the roadmap includes:
-
-- **Agent and workflow allowances:** shared agent limits plus separate workflow budgets, expiring credentials, immediate revocation, and constrained delegation to other agents.
-- **Credential isolation:** secret-manager integration, short-lived provider tokens, rotation, and credentials kept outside agent environments.
-- **Team approvals:** SSO/MFA, verified reviewer accounts, multiple-reviewer requirements, and notifications for pending decisions. Named bearer identities and roles are available today.
-- **Reliable execution:** provider-aware retry handling, webhook/status reconciliation, cancellation before dispatch, and clear recovery for uncertain outcomes. Compensation will be offered only where the provider supports it.
-- **Security and isolation:** integration with existing sandboxes and egress controls, plus prompt-injection signals and sensitive-data checks alongside deterministic action policies.
-- **Operations and evidence:** searchable audit history, policy simulation, usage dashboards, retention controls, protected backups, and support for multiple gateway instances.
-
-The governing principle stays the same: agents receive bounded permission to act through Circuit. Enforcement depends on isolating credentials and preventing alternative execution paths; detection alone cannot guarantee safe behavior.
-
-## Validation and status
-
-```sh
-go test -race ./...
-go vet ./...
-```
-
-Gateway tests cover the full simulated GitHub workflow, official SDK MCP connections, concurrent retries, persistent budgets, approval expiry, stale policies and commit SHAs, uncertain-outcome recovery, RSA key parsing, RS256 JWT minting, GitHub App short-lived token auto-refresh, HMAC-SHA256 webhook verification, and automated event reconciliation.
-
-The follow-up GitHub App pilot passed 44 checks with an isolated agent. Real signed repository webhook recovery passed 12 checks; the local CLI/REST/browser workflow passed 14 checks. Real PostgreSQL integration and official SDK MCP tests pass, with a dedicated PostgreSQL CI job now configured. See [validation status](docs/validation-status.md) for evidence, reproduction, compatibility changes, and remaining release gates.
-
-This remains a bounded pilot. A [production-oriented GitHub deployment](docs/production-deployment.md) now includes TLS, named operator roles, restricted Docker containers, health/metrics, and verified backup/paused restore. A short Docker soak is not a multi-day production validation. The single-process bbolt store does not provide distributed operation; named tokens are not SSO/MFA. Shell execution needs an external OS sandbox, SQL needs least-privilege database roles, and cloud/communication/payment adapters are simulation-only. Circuit prevents automatic replay of claimed actions, not exactly-once delivery across network boundaries.
+These cover proxy-aware traffic, heuristic prompt-injection signals, and conservative parser-based shell/SQL restrictions. They do not replace sandboxing or the action gateway, and use older first-match policy semantics. Read the [safety guide](docs/safety.md) before relying on them.
 
 ## License
 
