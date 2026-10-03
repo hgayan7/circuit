@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -53,6 +54,7 @@ type Event struct {
 }
 type Store struct {
 	db             *bolt.DB
+	updateMu       sync.Mutex
 	unavailable    atomic.Bool
 	restorePending atomic.Bool
 }
@@ -63,6 +65,8 @@ var ErrRestorePending = errors.New("restored state is paused; reconcile provider
 // A storage failure latches dispatch off. Restart only after fixing storage and
 // verifying state; retrying provider writes cannot repair an uncertain commit.
 func (s *Store) update(fn func(*bolt.Tx) error) error {
+	s.updateMu.Lock()
+	defer s.updateMu.Unlock()
 	if s.unavailable.Load() {
 		return ErrStorageUnavailable
 	}

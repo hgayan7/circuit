@@ -8,11 +8,52 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	bolt "go.etcd.io/bbolt"
 )
+
+func TestQueuedWritesStopAfterStorageFailure(t *testing.T) {
+	store, err := OpenStore(filepath.Join(t.TempDir(), "state.db"))
+	require.NoError(t, err)
+	defer store.Close()
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	first := make(chan error, 1)
+	go func() {
+		first <- store.update(func(*bolt.Tx) error {
+			close(entered)
+			<-release
+			return syscall.ENOSPC
+		})
+	}()
+	<-entered
+	var callbacks atomic.Int64
+	var queued sync.WaitGroup
+	results := make(chan error, 20)
+	for i := 0; i < 20; i++ {
+		queued.Add(1)
+		go func() {
+			defer queued.Done()
+			results <- store.update(func(*bolt.Tx) error {
+				callbacks.Add(1)
+				return nil
+			})
+		}()
+	}
+	close(release)
+	require.ErrorIs(t, <-first, ErrStorageUnavailable)
+	queued.Wait()
+	close(results)
+	for err := range results {
+		require.ErrorIs(t, err, ErrStorageUnavailable)
+	}
+	require.Zero(t, callbacks.Load())
+}
 
 func TestReadOnlyStorageStopsDispatchAndReadiness(t *testing.T) {
 	cfg := testConfig(t, "")
