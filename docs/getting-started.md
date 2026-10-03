@@ -33,6 +33,8 @@ The agent submits simulated GitHub actions. Review the file-write and merge prop
 
 ## Connect A Real Agent
 
+For the simpler guided flow, build the current `main` source and follow [guided setup](onboarding.md): `circuit setup`, `circuit start`, then `circuit doctor` in another terminal. Register its generated agent-only `mcp.json` in your client. These commands and the optional [Docker runner](sandbox.md) were added after the rc.1 tag and are not in its existing downloads.
+
 Run Circuit as a persistent gateway and configure your agent's tools to call its authenticated REST or Streamable HTTP MCP endpoint. Integration requires routing those tool calls through Circuit; it is not automatic protection for every outbound request.
 
 The agent receives only a scoped Circuit token. Keep GitHub App credentials in the gateway, and isolate the agent from direct provider access and alternative execution paths. Circuit supplies policy enforcement, not OS isolation or model routing.

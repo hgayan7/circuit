@@ -44,7 +44,20 @@ Circuit action gateway --- Operator review interface
         GitHub
 ```
 
-Run Circuit as a persistent middleware service. Connect agent tools through authenticated REST or Streamable HTTP MCP; operators use the web interface. The CLI supplies setup, validation, and recovery commands. Circuit is not a model router or an OS sandbox.
+Run Circuit as a persistent middleware service. Connect agent tools through authenticated REST or MCP; operators use the web interface. The CLI supplies setup, validation, recovery, and an optional restricted Docker runner. Circuit is not a model router and does not implement its own OS sandbox.
+
+### Simpler Setup On Main
+
+The current source includes a guided BYOK flow and agent-only stdio MCP connector. These commands are newer than the rc.1 downloads:
+
+```sh
+bin/circuit setup
+bin/circuit start
+# In another terminal:
+bin/circuit doctor
+```
+
+Choose GitHub, PostgreSQL, read-only workspace access, or a provider plugin; register the generated `mcp.json` entry in your agent client. Start with read-only permissions and explicitly opt into approved writes. See [guided setup](docs/onboarding.md) and the optional [Docker runner](docs/sandbox.md). GitHub remains the only integration in the production-oriented profile.
 
 To rely on enforcement, agents must not have independent provider credentials or unrestricted alternative execution paths. Routing one tool through Circuit does not protect calls that bypass it.
 
