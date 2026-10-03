@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "checks": [
+    "upgrade preserves readiness, history, and idempotency on current state",
+    "rollback preserves readiness, history, and idempotency on current state",
+    "return to upgraded image preserves readiness, history, and idempotency on current state"
+  ],
+  "previous_image": "sha256:39ed0ef79ea70056e7d57d0de147aea3af0195157bdd523ccc70b8c211548e20",
+  "updated_image": "sha256:a481060a3c46fc7a8aa328253709ecfa1a3f98f919a5142eb314069701446c31",
+  "scope": "single-instance GitHub fixture; current state only; no old backup substituted"
+}

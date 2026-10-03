@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+rule_files: [/etc/prometheus/alerts.yaml]
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]
+scrape_configs:
+  - job_name: circuit
+    scheme: https
+    metrics_path: /admin/metrics
+    authorization:
+      credentials_file: /run/secrets/observer-token
+    tls_config:
+      ca_file: /run/secrets/tls.crt
+      min_version: TLS13
+    static_configs:
+      - targets: [gateway:8443]
+  - job_name: circuit_backup
+    static_configs:
+      - targets: [backup:9091]
+  - job_name: circuit_soak
+    static_configs:
+      - targets: [soak:9091]

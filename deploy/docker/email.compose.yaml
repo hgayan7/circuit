@@ -1,0 +1,4 @@
+services:
+  alertmanager:
+    volumes:
+      - ${CIRCUIT_SMTP_PASSWORD_FILE:?set operator-owned SMTP credential file}:/run/secrets/smtp-password:ro

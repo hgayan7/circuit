@@ -1,0 +1,19 @@
+# Local SMTP capture only. Do not use this receiver for production delivery.
+services:
+  mailpit:
+    image: axllent/mailpit:v1.31.4@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
+    user: "10001:10001"
+    ports: ["127.0.0.1:${CIRCUIT_MAILPIT_PORT:-8025}:8025"]
+    environment:
+      MP_DATABASE: /tmp/mailpit.db
+      MP_MAX_MESSAGES: "100"
+      MP_DISABLE_VERSION_CHECK: "true"
+    networks: [monitoring, upstream]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    pids_limit: 32
+    restart: unless-stopped
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m,mode=1777"]
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}

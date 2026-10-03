@@ -81,6 +81,15 @@ jobs:
           cache: true
       - name: Build restricted gateway image
         run: docker build --target gateway -f deploy/docker/Dockerfile -t circuit-ci .
+      - name: Build separate operator worker image
+        run: docker build --target operations -f deploy/docker/Dockerfile -t circuit-operations-ci .
+      - name: Validate operational alert rules
+        run: >-
+          docker run --rm --network none --read-only --cap-drop ALL
+          -v "$PWD/deploy/docker/alerts.example.yaml:/etc/alerts.yaml:ro"
+          --entrypoint /bin/promtool
+          prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+          check rules /etc/alerts.yaml
       - name: Compile offline storage failure fixture
         env:
           CGO_ENABLED: '0'

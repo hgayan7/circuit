@@ -1,0 +1,22 @@
+global:
+  smtp_smarthost: smtp.example.com:587
+  smtp_from: circuit@example.com
+  smtp_auth_username: circuit@example.com
+  smtp_auth_password_file: /run/secrets/smtp-password
+  smtp_require_tls: true
+  smtp_tls_config:
+    min_version: TLS13
+route:
+  receiver: operator-email
+  group_by: [alertname, job]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 4h
+receivers:
+  - name: operator-email
+    email_configs:
+      - to: operator@example.com
+        send_resolved: true
+        headers:
+          Subject: '[Circuit] {{ .Status }}: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Labels.alertname }}: {{ .Annotations.summary }}{{ "\n" }}{{ end }}'

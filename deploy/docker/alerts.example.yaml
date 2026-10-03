@@ -40,3 +40,29 @@ groups:
           severity: warning
         annotations:
           summary: Circuit returned server errors; inspect sanitized logs and state storage
+      - alert: CircuitBackupStale
+        expr: time() - circuit_worker_last_success_unix{job="circuit_backup"} > 7200
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: A verified encrypted backup has not succeeded in two hours
+      - alert: CircuitBackupFailed
+        expr: increase(circuit_worker_failures_total{job="circuit_backup"}[1h]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Scheduled backup or retention failed
+      - alert: CircuitBackupWorkerUnavailable
+        expr: up{job="circuit_backup"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: The encrypted backup worker is unavailable
+      - alert: CircuitSoakFailed
+        expr: circuit_worker_failures_total{job="circuit_soak"} > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Fixture soak recorded a failed read or continuity gap

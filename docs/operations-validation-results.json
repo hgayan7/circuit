@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "checks": [
+    "Prometheus scrapes authenticated gateway over verified TLS",
+    "Scheduled encrypted backups succeed",
+    "Retention keeps two encrypted archives and no plaintext",
+    "Encrypted archive restores with mandatory reconciliation barrier",
+    "Backup worker has neither decryption identity nor provider key",
+    "Short fixture soak passes without claiming multi-day completion",
+    "Real scrape failure travels through Alertmanager to SMTP inbox",
+    "Recovery email is delivered"
+  ],
+  "ports": {
+    "prometheus": 64071,
+    "alertmanager": 64072,
+    "mailpit": 64073
+  },
+  "email_delivery": "local SMTP fixture only; production BYOK configuration required",
+  "independent_review": "deferred by operator",
+  "multi_day_soak_complete": false
+}

@@ -1,0 +1,85 @@
+services:
+  gateway:
+    networks: [agent_only, upstream, monitoring]
+
+  prometheus:
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+    command: [--config.file=/etc/prometheus/prometheus.yaml, --storage.tsdb.path=/prometheus, --storage.tsdb.retention.time=7d, --storage.tsdb.retention.size=256MB]
+    ports: ["127.0.0.1:${CIRCUIT_PROMETHEUS_PORT:-9090}:9090"]
+    networks: [monitoring, upstream]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    pids_limit: 64
+    restart: unless-stopped
+    volumes:
+      - prometheus:/prometheus
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ./alerts.example.yaml:/etc/prometheus/alerts.yaml:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/observer-token:/run/secrets/observer-token:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/tls.crt:/run/secrets/tls.crt:ro
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+    command: [--config.file=/etc/alertmanager/alertmanager.yaml, --storage.path=/alertmanager, --cluster.listen-address=]
+    ports: ["127.0.0.1:${CIRCUIT_ALERTMANAGER_PORT:-9093}:9093"]
+    networks: [monitoring, upstream]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    pids_limit: 64
+    restart: unless-stopped
+    volumes:
+      - alertmanager:/alertmanager
+      - ${CIRCUIT_DEPLOY_DIR}/alertmanager.yaml:/etc/alertmanager/alertmanager.yaml:ro
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+
+  backup:
+    build: {context: ../.., dockerfile: deploy/docker/Dockerfile, target: operations}
+    image: circuit-operations:local
+    command: [--mode, backup, --token-file, /run/secrets/admin-token, --interval, "${CIRCUIT_BACKUP_INTERVAL:-1h}", --retain, "${CIRCUIT_BACKUP_RETAIN:-168}"]
+    networks: [monitoring]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    pids_limit: 32
+    restart: unless-stopped
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=128m,mode=1777"]
+    volumes:
+      - backups:/backups
+      - backup-status:/var/lib/circuit-ops
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/admin-token:/run/secrets/admin-token:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/backup-recipient:/run/secrets/backup-recipient:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/tls.crt:/run/secrets/tls.crt:ro
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+
+  soak:
+    profiles: [soak]
+    image: circuit-operations:local
+    command: [--mode, soak, --token-file, /run/secrets/agent-token, --interval, "${CIRCUIT_SOAK_INTERVAL:-60s}", --duration, "${CIRCUIT_SOAK_DURATION:-72h}", --repo, "${CIRCUIT_SOAK_REPO:-hgayan7/circuit-gateway-pilot-20261003}"]
+    networks: [agent_only, monitoring]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    pids_limit: 32
+    restart: unless-stopped
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=4m,mode=1777"]
+    volumes:
+      - soak-status:/var/lib/circuit-ops
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/agent-token:/run/secrets/agent-token:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/tls.crt:/run/secrets/tls.crt:ro
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+
+networks:
+  monitoring: {internal: true}
+volumes:
+  prometheus: {}
+  alertmanager: {}
+  backups: {}
+  backup-status: {}
+  soak-status: {}
