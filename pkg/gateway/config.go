@@ -112,6 +112,7 @@ func (c *CustomToolConfig) Timeout() time.Duration {
 type Agent struct {
 	ID           string   `yaml:"id" json:"id"`
 	TokenEnv     string   `yaml:"token_env" json:"token_env"`
+	TokenFile    string   `yaml:"token_file,omitempty" json:"token_file,omitempty"`
 	Repositories []string `yaml:"repositories,omitempty" json:"repositories,omitempty"`
 	Workspaces   []string `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
 	Databases    []string `yaml:"databases,omitempty" json:"databases,omitempty"`
@@ -147,8 +148,16 @@ type GitHubAppConfig struct {
 }
 
 type WebhookConfig struct {
-	SecretEnv string `yaml:"secret_env,omitempty" json:"secret_env,omitempty"`
-	Path      string `yaml:"path,omitempty" json:"path,omitempty"`
+	SecretEnv  string `yaml:"secret_env,omitempty" json:"secret_env,omitempty"`
+	SecretFile string `yaml:"secret_file,omitempty" json:"secret_file,omitempty"`
+	Path       string `yaml:"path,omitempty" json:"path,omitempty"`
+}
+
+type OperatorConfig struct {
+	ID        string `yaml:"id" json:"id"`
+	Role      string `yaml:"role" json:"role"`
+	TokenEnv  string `yaml:"token_env,omitempty" json:"token_env,omitempty"`
+	TokenFile string `yaml:"token_file,omitempty" json:"token_file,omitempty"`
 }
 
 type Config struct {
@@ -166,6 +175,7 @@ type Config struct {
 	CustomTools     []CustomToolConfig       `yaml:"custom_tools,omitempty" json:"custom_tools,omitempty"`
 	ApprovalTTL     string                   `yaml:"approval_ttl" json:"approval_ttl"`
 	Agents          []Agent                  `yaml:"agents" json:"agents"`
+	Operators       []OperatorConfig         `yaml:"operators,omitempty" json:"operators,omitempty"`
 	Rules           []Rule                   `yaml:"rules,omitempty" json:"rules,omitempty"`
 	Limits          []Limit                  `yaml:"limits,omitempty" json:"limits,omitempty"`
 	Safety          config.SafetyConfig      `yaml:"safety,omitempty" json:"safety"`
@@ -244,8 +254,11 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		c.GitHubTokenEnv = "GITHUB_TOKEN"
 	}
 	if c.Webhook != nil {
-		if c.Webhook.SecretEnv == "" {
+		if c.Webhook.SecretEnv == "" && c.Webhook.SecretFile == "" {
 			c.Webhook.SecretEnv = "GITHUB_WEBHOOK_SECRET"
+		}
+		if c.Webhook.SecretEnv != "" && c.Webhook.SecretFile != "" {
+			return nil, fmt.Errorf("webhook needs exactly one secret_env or secret_file")
 		}
 		if c.Webhook.Path == "" {
 			c.Webhook.Path = "/webhooks/github"
@@ -387,11 +400,20 @@ func ParseConfig(r io.Reader) (*Config, error) {
 	if len(c.Agents) == 0 {
 		return nil, fmt.Errorf("at least one agent is required")
 	}
+	operatorIDs := map[string]bool{}
+	for _, operator := range c.Operators {
+		if !identifier.MatchString(operator.ID) || operatorIDs[operator.ID] ||
+			(operator.TokenEnv == "") == (operator.TokenFile == "") ||
+			(operator.Role != "observer" && operator.Role != "reviewer" && operator.Role != "admin") {
+			return nil, fmt.Errorf("operators need unique valid IDs, observer/reviewer/admin role, and exactly one token_env or token_file")
+		}
+		operatorIDs[operator.ID] = true
+	}
 	ids := map[string]bool{}
 	for j := range c.Agents {
 		a := &c.Agents[j]
-		if !identifier.MatchString(a.ID) || ids[a.ID] || a.TokenEnv == "" {
-			return nil, fmt.Errorf("agents need unique valid IDs and token_env")
+		if !identifier.MatchString(a.ID) || ids[a.ID] || (a.TokenEnv == "") == (a.TokenFile == "") {
+			return nil, fmt.Errorf("agents need unique valid IDs and exactly one token_env or token_file")
 		}
 		ids[a.ID] = true
 		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 && len(a.Environments) == 0 && len(a.Channels) == 0 && len(a.Accounts) == 0 && len(a.CustomTools) == 0 {

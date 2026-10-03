@@ -51,11 +51,13 @@ The GitHub script requires Docker and an operator-authenticated `gh` account. Us
 
 ## Remaining Release Gates
 
+The [production-oriented Docker foundation](production-deployment.md) and [23-check staging report](production-validation-results.json) now cover named operator roles, TLS, credential rotation, verified backup/paused restore, and a 60-second soak. Process-kill, corruption, read-only storage, and real bounded Docker ENOSPC tests also pass. This does not complete the multi-day staging or independent review gates below.
+
 - Run a multi-day staging soak with the intended agent sandbox and deployment topology. Test crash/kill points, disk full, backup/restore, key rotation/revocation, and provider outages. The current restart and fault tests are bounded scenarios, not exhaustive failure testing.
 - Keep shell executors in an external OS sandbox. File roots do not prevent hard-link, mount, privileged-process, or shell-based host access.
 - Use least-privilege database roles. Static analysis does not fully model views, custom operators, triggers, or function bodies. `max_affected_rows` bounds reported affected rows, not all indirect side effects.
 - Validate non-merge reconciliation procedures with operators. Circuit prevents automatic replay of claimed writes, not exactly-once network delivery.
-- Add individual reviewer identity/SSO, operational alerts, protected backups, retention controls, and deployment monitoring before wider production use. The current shared operator token and single-process bbolt store are pilot limitations.
+- Named bearer identities/roles, metrics and sample alert rules, and verified backups are implemented. SSO/MFA, connected alert delivery, protected off-volume backups, retention controls, and multi-instance storage remain release work. The single-process bbolt store is an explicit deployment limit.
 - Implement and live-test each additional provider before advertising cloud, communication, or payment integration support. Static custom-tool headers are operator configuration; environment-backed header injection and universal response-secret redaction are not implemented.
 
 The private GitHub App remains installed on the two authorized fixture repositories only. Its PEM remains local with restricted permissions. Temporary public tunnels and repository hooks were removed after testing; no product repository received App access.

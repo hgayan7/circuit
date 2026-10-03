@@ -1,0 +1,42 @@
+groups:
+  - name: circuit
+    rules:
+      - alert: CircuitUnavailable
+        expr: up{job="circuit"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Circuit metrics endpoint is unavailable
+      - alert: CircuitUncertainAction
+        expr: circuit_actions{state="uncertain"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: An action requires provider evidence and operator reconciliation
+      - alert: CircuitStorageUnavailable
+        expr: circuit_storage_unavailable == 1
+        labels:
+          severity: critical
+        annotations:
+          summary: Dispatch is stopped after a state storage failure
+      - alert: CircuitRestorePending
+        expr: circuit_restore_pending == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Restored state remains paused pending provider reconciliation
+      - alert: CircuitFailedAction
+        expr: delta(circuit_actions{state="failed"}[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: A provider action failed; inspect the protected action history
+      - alert: CircuitServerErrors
+        expr: increase(circuit_http_errors_total[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Circuit returned server errors; inspect sanitized logs and state storage

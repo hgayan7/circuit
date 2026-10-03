@@ -1,0 +1,31 @@
+name: circuit-github-staging
+approval_ttl: 1h
+github_app:
+  app_id: 123456
+  private_key_file: /run/secrets/github-app.pem
+operators:
+  - id: owner
+    role: admin
+    token_file: /run/secrets/admin-token
+  - id: reviewer
+    role: reviewer
+    token_file: /run/secrets/reviewer-token
+  - id: monitor
+    role: observer
+    token_file: /run/secrets/observer-token
+agents:
+  - id: coding-agent
+    token_file: /run/secrets/agent-token
+    repositories: [owner/fixture-repository]
+    actions: [read_file, get_pr, create_branch, put_file, create_pr, merge_pr]
+    branch_prefix: circuit/
+rules:
+  - id: review-files
+    actions: [put_file]
+    action: REQUIRE_APPROVAL
+limits:
+  - id: agent-hourly-writes
+    actions: [create_branch, put_file, create_pr, merge_pr]
+    scope: agent_repository
+    window: 1h
+    max_calls: 20

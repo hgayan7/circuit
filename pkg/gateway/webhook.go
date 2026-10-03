@@ -57,7 +57,7 @@ func (s *Service) ReconcileWebhook(ctx context.Context, eventType string, body [
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	err := s.store.db.Update(func(tx *bolt.Tx) error {
+	err := s.store.update(func(tx *bolt.Tx) error {
 		return tx.Bucket(actionsBucket).ForEach(func(_, v []byte) error {
 			var a Action
 			if err := json.Unmarshal(v, &a); err != nil {

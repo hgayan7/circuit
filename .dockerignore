@@ -1,0 +1,13 @@
+.git
+.circuit
+.env
+.env.*
+bin
+circuit
+si-shield
+dist
+coverage.out
+**/*.pem
+**/*.key
+**/__pycache__
+**/*.pyc

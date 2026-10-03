@@ -6,9 +6,12 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
+	"sync/atomic"
+	"syscall"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
@@ -48,10 +51,32 @@ type Event struct {
 	PolicyDigest string    `json:"policy_digest"`
 	Timestamp    time.Time `json:"timestamp"`
 }
-type Store struct{ db *bolt.DB }
+type Store struct {
+	db             *bolt.DB
+	unavailable    atomic.Bool
+	restorePending atomic.Bool
+}
+
+var ErrStorageUnavailable = errors.New("gateway state storage unavailable; stop dispatch and recover before restarting")
+var ErrRestorePending = errors.New("restored state is paused; reconcile provider activity since the snapshot, then acknowledge restore offline")
+
+// A storage failure latches dispatch off. Restart only after fixing storage and
+// verifying state; retrying provider writes cannot repair an uncertain commit.
+func (s *Store) update(fn func(*bolt.Tx) error) error {
+	if s.unavailable.Load() {
+		return ErrStorageUnavailable
+	}
+	err := s.db.Update(fn)
+	if errors.Is(err, syscall.ENOSPC) || errors.Is(err, syscall.EIO) || errors.Is(err, syscall.EROFS) || errors.Is(err, bolt.ErrDatabaseNotOpen) || errors.Is(err, bolt.ErrDatabaseReadOnly) {
+		s.unavailable.Store(true)
+		return ErrStorageUnavailable
+	}
+	return err
+}
 
 func OpenStore(path string) (*Store, error) {
-	if info, err := os.Stat(path); err == nil && info.Mode().Perm()&0077 != 0 {
+	info, statErr := os.Stat(path)
+	if statErr == nil && info.Mode().Perm()&0077 != 0 {
 		return nil, fmt.Errorf("state file must be private (chmod 600)")
 	}
 	db, err := bolt.Open(path, 0600, &bolt.Options{Timeout: time.Second})
@@ -59,11 +84,27 @@ func OpenStore(path string) (*Store, error) {
 		return nil, err
 	}
 	s := &Store{db: db}
+	if statErr == nil {
+		if err := db.View(verifyState); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("state validation failed: %w", err)
+		}
+	}
 	err = db.Update(func(tx *bolt.Tx) error {
 		for _, b := range [][]byte{actionsBucket, keysBucket, eventsBucket} {
 			if _, err := tx.CreateBucketIfNotExists(b); err != nil {
 				return err
 			}
+		}
+		return nil
+	})
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	err = db.View(func(tx *bolt.Tx) error {
+		if metadata := tx.Bucket([]byte("recovery")); metadata != nil {
+			s.restorePending.Store(string(metadata.Get([]byte("restore_pending"))) == "true")
 		}
 		return nil
 	})
@@ -136,7 +177,7 @@ func expireAction(tx *bolt.Tx, a *Action) error {
 }
 func (s *Store) Get(id string) (*Action, error) {
 	var a *Action
-	err := s.db.Update(func(tx *bolt.Tx) error {
+	err := s.update(func(tx *bolt.Tx) error {
 		var err error
 		a, err = getAction(tx, id)
 		if err != nil {
@@ -148,7 +189,7 @@ func (s *Store) Get(id string) (*Action, error) {
 }
 func (s *Store) List(agent string) ([]Action, error) {
 	result := []Action{}
-	err := s.db.Update(func(tx *bolt.Tx) error {
+	err := s.update(func(tx *bolt.Tx) error {
 		all := []Action{}
 		if err := tx.Bucket(actionsBucket).ForEach(func(_, v []byte) error {
 			var a Action
@@ -196,7 +237,7 @@ func (s *Store) Events(id string) ([]Event, error) {
 
 // Recover conservatively marks writes claimed before a previous process exit.
 func (s *Store) Recover() error {
-	return s.db.Update(func(tx *bolt.Tx) error {
+	return s.update(func(tx *bolt.Tx) error {
 		all := []Action{}
 		if err := tx.Bucket(actionsBucket).ForEach(func(_, v []byte) error {
 			var a Action

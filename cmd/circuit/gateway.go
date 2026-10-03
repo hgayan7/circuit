@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -21,6 +23,7 @@ import (
 func init() {
 	gatewayCmd := &cobra.Command{Use: "gateway", Short: "Scoped GitHub actions with durable limits and operator approvals"}
 	rootCmd.AddCommand(gatewayCmd)
+	addGatewayOperations(gatewayCmd)
 	gatewayCmd.AddCommand(&cobra.Command{Use: "token", Short: "Generate a Circuit bearer credential", RunE: func(cmd *cobra.Command, args []string) error {
 		data := make([]byte, 32)
 		if _, err := rand.Read(data); err != nil {
@@ -49,13 +52,22 @@ func init() {
 	initCmd.Flags().StringVar(&initPath, "out", "gateway.yaml", "New configuration path (will not overwrite)")
 	initCmd.Flags().StringVar(&repository, "repo", "owner/repository", "Allowed owner/repository")
 	gatewayCmd.AddCommand(initCmd)
-	var configPath, dataPath, listen string
+	var configPath, dataPath, listen, tlsCert, tlsKey string
+	var production bool
 	serve := &cobra.Command{Use: "serve", Short: "Serve the GitHub action API, MCP endpoint, and approval interface", RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := gateway.LoadConfig(configPath)
 		if err != nil {
 			return err
 		}
 		// Setup workspace executors
+		if production {
+			if err := cfg.ValidateProduction(); err != nil {
+				return err
+			}
+			if tlsCert == "" || tlsKey == "" {
+				return fmt.Errorf("production profile requires --tls-cert and --tls-key")
+			}
+		}
 		wsExecutors := map[string]*gateway.ShellExecutor{}
 		for _, wsCfg := range cfg.Workspaces {
 			ws, err := gateway.NewWorkspace(wsCfg.ID, wsCfg.Path, wsCfg.ReadOnly, wsCfg.Timeout())
@@ -207,30 +219,23 @@ func init() {
 		if err != nil {
 			return err
 		}
-		var webhookSecret string
-		if cfg.Webhook != nil && cfg.Webhook.SecretEnv != "" {
-			webhookSecret = os.Getenv(cfg.Webhook.SecretEnv)
-			if webhookSecret == "" {
-				return fmt.Errorf("configured webhook requires nonempty %s", cfg.Webhook.SecretEnv)
-			}
-		}
-		tokens := gateway.Tokens{
-			Admin:         os.Getenv(cfg.AdminTokenEnv),
-			Agents:        map[string]string{},
-			WebhookSecret: webhookSecret,
-		}
-		for _, a := range cfg.Agents {
-			tokens.Agents[a.ID] = os.Getenv(a.TokenEnv)
+		tokens, err := gateway.LoadTokens(cfg)
+		if err != nil {
+			return err
 		}
 		handler, err := gateway.NewHTTPHandler(service, tokens)
 		if err != nil {
 			return err
 		}
-		return serveGateway(cmd, listen, handler)
+		handler.SetLogger(slog.New(slog.NewJSONHandler(cmd.ErrOrStderr(), nil)))
+		return serveGatewayTLS(cmd, listen, handler, tlsCert, tlsKey)
 	}}
 	serve.Flags().StringVar(&configPath, "config", "gateway.yaml", "Gateway configuration")
 	serve.Flags().StringVar(&dataPath, "data", ".circuit/gateway.db", "Durable state file")
 	serve.Flags().StringVar(&listen, "listen", "127.0.0.1:8080", "Listen address; keep on loopback or use an authenticated TLS deployment")
+	serve.Flags().StringVar(&tlsCert, "tls-cert", "", "TLS certificate PEM")
+	serve.Flags().StringVar(&tlsKey, "tls-key", "", "TLS private key PEM")
+	serve.Flags().BoolVar(&production, "production", false, "Enforce the GitHub-only production deployment profile (TLS, named operators, GitHub App)")
 	gatewayCmd.AddCommand(serve)
 	check := &cobra.Command{Use: "check [gateway.yaml]", Args: cobra.MaximumNArgs(1), Short: "Validate GitHub scope, limits, and combined policy rules", RunE: func(cmd *cobra.Command, args []string) error {
 		path := "gateway.yaml"
@@ -287,22 +292,46 @@ func init() {
 	gatewayCmd.AddCommand(demo)
 }
 func serveGateway(cmd *cobra.Command, address string, handler http.Handler) error {
+	return serveGatewayTLS(cmd, address, handler, "", "")
+}
+func serveGatewayTLS(cmd *cobra.Command, address string, handler http.Handler, cert, key string) error {
+	if (cert == "") != (key == "") {
+		return fmt.Errorf("both TLS certificate and key are required")
+	}
+	var tlsConfig *tls.Config
+	if cert != "" {
+		certificate, err := tls.LoadX509KeyPair(cert, key)
+		if err != nil {
+			return fmt.Errorf("cannot load TLS certificate and key")
+		}
+		tlsConfig = &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}}
+	}
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
 	defer listener.Close()
-	cmd.PrintErrf("Circuit GitHub gateway: http://%s\nApproval interface: / · MCP: /mcp\n", listener.Addr())
-	server := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 45 * time.Second, IdleTimeout: 60 * time.Second}
+	scheme := "http"
+	if tlsConfig != nil {
+		scheme = "https"
+		listener = tls.NewListener(listener, tlsConfig)
+	}
+	cmd.PrintErrf("Circuit gateway: %s://%s\nApproval interface: / · MCP: /mcp\n", scheme, listener.Addr())
+	server := &http.Server{Handler: handler, MaxHeaderBytes: 16 << 10, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 45 * time.Second, IdleTimeout: 60 * time.Second}
 	ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	shutdownDone := make(chan struct{})
 	go func() {
 		defer close(shutdownDone)
 		<-ctx.Done()
+		if drainable, ok := handler.(interface{ Drain() }); ok {
+			drainable.Drain()
+		}
 		shutdown, c := context.WithTimeout(context.Background(), 35*time.Second)
 		defer c()
-		server.Shutdown(shutdown)
+		if err := server.Shutdown(shutdown); err != nil {
+			server.Close()
+		}
 	}()
 
 	err = server.Serve(listener)

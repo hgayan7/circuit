@@ -97,7 +97,7 @@ Across these integrations, the roadmap includes:
 
 - **Agent and workflow allowances:** shared agent limits plus separate workflow budgets, expiring credentials, immediate revocation, and constrained delegation to other agents.
 - **Credential isolation:** secret-manager integration, short-lived provider tokens, rotation, and credentials kept outside agent environments.
-- **Team approvals:** individual reviewer accounts, SSO, roles, multiple-reviewer requirements, and notifications for pending decisions.
+- **Team approvals:** SSO/MFA, verified reviewer accounts, multiple-reviewer requirements, and notifications for pending decisions. Named bearer identities and roles are available today.
 - **Reliable execution:** provider-aware retry handling, webhook/status reconciliation, cancellation before dispatch, and clear recovery for uncertain outcomes. Compensation will be offered only where the provider supports it.
 - **Security and isolation:** integration with existing sandboxes and egress controls, plus prompt-injection signals and sensitive-data checks alongside deterministic action policies.
 - **Operations and evidence:** searchable audit history, policy simulation, usage dashboards, retention controls, protected backups, and support for multiple gateway instances.
@@ -115,7 +115,7 @@ Gateway tests cover the full simulated GitHub workflow, official SDK MCP connect
 
 The follow-up GitHub App pilot passed 44 checks with an isolated agent. Real signed repository webhook recovery passed 12 checks; the local CLI/REST/browser workflow passed 14 checks. Real PostgreSQL integration and official SDK MCP tests pass, with a dedicated PostgreSQL CI job now configured. See [validation status](docs/validation-status.md) for evidence, reproduction, compatibility changes, and remaining release gates.
 
-This remains a bounded pilot. Shell execution needs an external OS sandbox, SQL needs least-privilege database roles, and cloud/communication/payment adapters are simulation-only. The single-process bbolt store and shared operator token do not provide distributed operation or individual reviewer SSO. Circuit prevents automatic replay of claimed actions, not exactly-once delivery across network boundaries.
+This remains a bounded pilot. A [production-oriented GitHub deployment](docs/production-deployment.md) now includes TLS, named operator roles, restricted Docker containers, health/metrics, and verified backup/paused restore. A short Docker soak is not a multi-day production validation. The single-process bbolt store does not provide distributed operation; named tokens are not SSO/MFA. Shell execution needs an external OS sandbox, SQL needs least-privilege database roles, and cloud/communication/payment adapters are simulation-only. Circuit prevents automatic replay of claimed actions, not exactly-once delivery across network boundaries.
 
 ## License
 

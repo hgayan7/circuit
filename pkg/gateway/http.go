@@ -5,11 +5,14 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
+	"sync/atomic"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -19,31 +22,49 @@ var keyPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`)
 type Tokens struct {
 	Admin         string
 	Agents        map[string]string
+	Operators     map[string]string
 	WebhookSecret string
 }
 type principal struct {
-	Agent string
-	Admin bool
+	Agent    string
+	Admin    bool
+	Operator string
+	Role     string
 }
 type identityKey struct{}
 type HTTPHandler struct {
 	service       *Service
 	adminHash     [32]byte
+	legacyAdmin   bool
+	operators     map[string]operatorCredential
 	agents        map[string][32]byte
 	mcp           http.Handler
 	mux           *http.ServeMux
 	webhookPath   string
 	webhookSecret string
+	draining      atomic.Bool
+	requests      atomic.Uint64
+	errors        atomic.Uint64
+	logger        *slog.Logger
+	slots         chan struct{}
+}
+
+type operatorCredential struct {
+	hash [32]byte
+	role string
 }
 
 func NewHTTPHandler(s *Service, tokens Tokens) (*HTTPHandler, error) {
-	if len(tokens.Admin) < 32 {
+	if len(s.cfg.Operators) == 0 && len(tokens.Admin) < 32 {
 		return nil, fmt.Errorf("admin token must contain at least 32 characters")
 	}
 	h := &HTTPHandler{
 		service:       s,
 		adminHash:     sha256.Sum256([]byte(tokens.Admin)),
 		agents:        map[string][32]byte{},
+		operators:     map[string]operatorCredential{},
+		legacyAdmin:   len(s.cfg.Operators) == 0,
+		slots:         make(chan struct{}, 64),
 		webhookSecret: tokens.WebhookSecret,
 	}
 	webhookPath := "/webhooks/github"
@@ -51,7 +72,19 @@ func NewHTTPHandler(s *Service, tokens Tokens) (*HTTPHandler, error) {
 		webhookPath = s.cfg.Webhook.Path
 	}
 	h.webhookPath = webhookPath
-	used := map[[32]byte]bool{h.adminHash: true}
+	used := map[[32]byte]bool{}
+	if h.legacyAdmin {
+		used[h.adminHash] = true
+	}
+	for _, operator := range s.cfg.Operators {
+		token := tokens.Operators[operator.ID]
+		hash := sha256.Sum256([]byte(token))
+		if len(token) < 32 || used[hash] {
+			return nil, fmt.Errorf("operator %s needs a distinct token of at least 32 characters", operator.ID)
+		}
+		used[hash] = true
+		h.operators[operator.ID] = operatorCredential{hash: hash, role: operator.Role}
+	}
 	for _, a := range s.cfg.Agents {
 		token := tokens.Agents[a.ID]
 		hash := sha256.Sum256([]byte(token))
@@ -83,6 +116,11 @@ func NewHTTPHandler(s *Service, tokens Tokens) (*HTTPHandler, error) {
 	mux.HandleFunc("GET /v1/actions", h.list)
 	mux.HandleFunc("GET /v1/actions/{id}", h.get)
 	mux.HandleFunc("GET /admin/actions", h.list)
+	mux.HandleFunc("GET /admin/me", h.me)
+	mux.HandleFunc("GET /admin/metrics", h.metrics)
+	mux.HandleFunc("GET /admin/backup", h.backup)
+	mux.HandleFunc("GET /healthz", h.health)
+	mux.HandleFunc("GET /readyz", h.ready)
 	mux.HandleFunc("GET /admin/actions/{id}/events", h.events)
 	mux.HandleFunc("POST /admin/actions/{id}/decision", h.decide)
 	mux.HandleFunc("POST /admin/actions/{id}/reconcile", h.reconcile)
@@ -96,8 +134,13 @@ func (h *HTTPHandler) authenticate(r *http.Request) (principal, bool) {
 		return principal{}, false
 	}
 	hash := sha256.Sum256([]byte(token))
-	if subtle.ConstantTimeCompare(hash[:], h.adminHash[:]) == 1 {
-		return principal{Admin: true}, true
+	if h.legacyAdmin && subtle.ConstantTimeCompare(hash[:], h.adminHash[:]) == 1 {
+		return principal{Admin: true, Role: "admin"}, true
+	}
+	for id, operator := range h.operators {
+		if subtle.ConstantTimeCompare(hash[:], operator.hash[:]) == 1 {
+			return principal{Admin: true, Operator: id, Role: operator.role}, true
+		}
 	}
 	for id, expected := range h.agents {
 		if subtle.ConstantTimeCompare(hash[:], expected[:]) == 1 {
@@ -107,11 +150,18 @@ func (h *HTTPHandler) authenticate(r *http.Request) (principal, bool) {
 	return principal{}, false
 }
 func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.observe(w, r)
+}
+func (h *HTTPHandler) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
-	if r.URL.Path == "/" || r.URL.Path == "/ui.js" || (h.webhookPath != "" && r.URL.Path == h.webhookPath) {
+	if h.draining.Load() && r.URL.Path != "/healthz" && r.URL.Path != "/readyz" {
+		writeJSON(w, 503, map[string]string{"error": "Gateway is draining"})
+		return
+	}
+	if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || r.URL.Path == "/" || r.URL.Path == "/ui.js" || (h.webhookPath != "" && r.URL.Path == h.webhookPath) {
 		h.mux.ServeHTTP(w, r)
 		return
 	}
@@ -125,8 +175,14 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 403, map[string]string{"error": "Credential role cannot access this endpoint"})
 		return
 	}
+	if p.Admin && !operatorRouteAllowed(p.Role, r.Method, r.URL.Path) {
+		writeJSON(w, 403, map[string]string{"error": "Operator role cannot perform this operation"})
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 512<<10)
-	h.mux.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), identityKey{}, p)))
+	authenticated := r.WithContext(context.WithValue(r.Context(), identityKey{}, p))
+	h.mux.ServeHTTP(w, authenticated)
+	r.Pattern = authenticated.Pattern
 }
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -148,7 +204,11 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 }
 func respondAction(w http.ResponseWriter, a *Action, err error) {
 	if err != nil {
-		writeJSON(w, 409, map[string]string{"error": err.Error()})
+		status := 409
+		if errors.Is(err, ErrStorageUnavailable) || errors.Is(err, ErrRestorePending) {
+			status = 503
+		}
+		writeJSON(w, status, map[string]string{"error": err.Error()})
 		return
 	}
 	status := 200
@@ -207,7 +267,14 @@ func (h *HTTPHandler) decide(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	a, err := h.service.Decide(r.Context(), r.PathValue("id"), req.Digest, req.Decision)
+	p := r.Context().Value(identityKey{}).(principal)
+	var a *Action
+	var err error
+	if p.Operator == "" {
+		a, err = h.service.Decide(r.Context(), r.PathValue("id"), req.Digest, req.Decision)
+	} else {
+		a, err = h.service.DecideAs(r.Context(), r.PathValue("id"), req.Digest, req.Decision, p.Operator)
+	}
 	respondAction(w, a, err)
 }
 func (h *HTTPHandler) reconcile(w http.ResponseWriter, r *http.Request) {
@@ -219,7 +286,14 @@ func (h *HTTPHandler) reconcile(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	a, err := h.service.Reconcile(r.PathValue("id"), req.Digest, req.State, req.Note)
+	p := r.Context().Value(identityKey{}).(principal)
+	var a *Action
+	var err error
+	if p.Operator == "" {
+		a, err = h.service.Reconcile(r.PathValue("id"), req.Digest, req.State, req.Note)
+	} else {
+		a, err = h.service.ReconcileAs(r.PathValue("id"), req.Digest, req.State, req.Note, p.Operator)
+	}
 	respondAction(w, a, err)
 }
 func (h *HTTPHandler) webhook(w http.ResponseWriter, r *http.Request) {

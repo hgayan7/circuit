@@ -1,0 +1,92 @@
+services:
+  gateway:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      target: gateway
+    image: circuit-gateway:local
+    command:
+      - gateway
+      - serve
+      - --production
+      - --config
+      - /etc/circuit/gateway.yaml
+      - --data
+      - ${CIRCUIT_STATE_FILE:-/var/lib/circuit/gateway.db}
+      - --listen
+      - 0.0.0.0:8443
+      - --tls-cert
+      - /run/secrets/tls.crt
+      - --tls-key
+      - /run/secrets/tls.key
+    ports:
+      - "127.0.0.1:${CIRCUIT_BIND_PORT:-8443}:8443"
+    networks: [agent_only, upstream]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+    volumes:
+      - state:/var/lib/circuit
+      - ${CIRCUIT_DEPLOY_DIR:?set private deployment directory}/gateway.yaml:/etc/circuit/gateway.yaml:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/github-app.pem:/run/secrets/github-app.pem:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/admin-token:/run/secrets/admin-token:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/reviewer-token:/run/secrets/reviewer-token:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/observer-token:/run/secrets/observer-token:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/agent-token:/run/secrets/agent-token:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/tls.crt:/run/secrets/tls.crt:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/tls.key:/run/secrets/tls.key:ro
+    healthcheck:
+      test: [CMD, circuit, gateway, healthcheck, --url, "https://127.0.0.1:8443", --ca-cert, /run/secrets/tls.crt]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 45s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  agent:
+    profiles: [agent]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      target: agent
+    image: circuit-agent:local
+    command:
+      - --url
+      - https://gateway:8443
+      - --ca-cert
+      - /run/secrets/tls.crt
+      - --token-file
+      - /run/secrets/agent-token
+      - --key
+      - ${CIRCUIT_ACTION_KEY:-agent-example}
+    networks: [agent_only]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 32
+    mem_limit: 128m
+    cpus: 0.5
+    stdin_open: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=4m,mode=1777
+    volumes:
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/agent-token:/run/secrets/agent-token:ro
+      - ${CIRCUIT_DEPLOY_DIR}/secrets/tls.crt:/run/secrets/tls.crt:ro
+
+networks:
+  agent_only:
+    internal: true
+  upstream: {}
+volumes:
+  state: {}

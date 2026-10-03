@@ -40,6 +40,9 @@ func (s *Service) check(agent string, req Request) (config.ActionType, string) {
 	return action, reason
 }
 func (s *Service) Submit(ctx context.Context, agent, key string, req Request) (*Action, error) {
+	if s.store.restorePending.Load() {
+		return nil, ErrRestorePending
+	}
 	if !keyPattern.MatchString(key) {
 		return nil, fmt.Errorf("Idempotency-Key must contain 1–128 letters, digits, dots, colons, underscores, or hyphens")
 	}
@@ -62,7 +65,7 @@ func (s *Service) Submit(ctx context.Context, agent, key string, req Request) (*
 	}
 	digest := hashRequest(agent, req)
 	var a *Action
-	err = s.store.db.Update(func(tx *bolt.Tx) error {
+	err = s.store.update(func(tx *bolt.Tx) error {
 		lookup := []byte(agent + ":" + key)
 		if id := tx.Bucket(keysBucket).Get(lookup); id != nil {
 			var err error
@@ -134,11 +137,35 @@ func (s *Service) Submit(ctx context.Context, agent, key string, req Request) (*
 	return a, nil
 }
 func (s *Service) Decide(ctx context.Context, id, digest, decision string) (*Action, error) {
+	return s.decide(ctx, id, digest, decision, "operator")
+}
+
+func (s *Service) operator(id string, adminOnly bool) (string, error) {
+	for _, operator := range s.cfg.Operators {
+		if operator.ID == id && (operator.Role == "admin" || (!adminOnly && operator.Role == "reviewer")) {
+			return "operator:" + id, nil
+		}
+	}
+	return "", fmt.Errorf("operator is not authorized")
+}
+
+func (s *Service) DecideAs(ctx context.Context, id, digest, decision, operatorID string) (*Action, error) {
+	actor, err := s.operator(operatorID, false)
+	if err != nil {
+		return nil, err
+	}
+	return s.decide(ctx, id, digest, decision, actor)
+}
+
+func (s *Service) decide(ctx context.Context, id, digest, decision, actor string) (*Action, error) {
+	if decision == "approve" && s.store.restorePending.Load() {
+		return nil, ErrRestorePending
+	}
 	if decision != "approve" && decision != "reject" {
 		return nil, fmt.Errorf("decision must be approve or reject")
 	}
 	var a *Action
-	err := s.store.db.Update(func(tx *bolt.Tx) error {
+	err := s.store.update(func(tx *bolt.Tx) error {
 		var err error
 		a, err = getAction(tx, id)
 		if err != nil {
@@ -159,33 +186,33 @@ func (s *Service) Decide(ctx context.Context, id, digest, decision string) (*Act
 		if decision == "reject" {
 			a.State = "rejected"
 			a.Reason = "Rejected by operator"
-			a.ApprovedBy = "operator"
+			a.ApprovedBy = actor
 			a.Reservations = nil
-			return saveAction(tx, a, "operator")
+			return saveAction(tx, a, actor)
 		}
 		if a.PolicyDigest != s.cfg.digest {
 			a.State = "denied"
 			a.Reason = "Policy changed; submit a new action for review"
 			a.Reservations = nil
-			return saveAction(tx, a, "operator")
+			return saveAction(tx, a, actor)
 		}
 		verdict, reason := s.check(a.AgentID, a.Request)
 		if verdict == config.ActionDeny {
 			a.State = "denied"
 			a.Reason = reason
 			a.Reservations = nil
-			return saveAction(tx, a, "operator")
+			return saveAction(tx, a, actor)
 		}
 		if err := reserve(tx, s.cfg, a); err != nil {
 			a.State = "denied"
 			a.Reason = err.Error()
 			a.Reservations = nil
-			return saveAction(tx, a, "operator")
+			return saveAction(tx, a, actor)
 		}
 		a.State = "approved"
-		a.ApprovedBy = "operator"
+		a.ApprovedBy = actor
 		a.Reason = "Approved exact action"
-		return saveAction(tx, a, "operator")
+		return saveAction(tx, a, actor)
 	})
 	if err != nil {
 		return nil, err
@@ -196,9 +223,12 @@ func (s *Service) Decide(ctx context.Context, id, digest, decision string) (*Act
 	return a, nil
 }
 func (s *Service) Execute(ctx context.Context, id string) (*Action, error) {
+	if s.store.restorePending.Load() {
+		return nil, ErrRestorePending
+	}
 	var a *Action
 	claimed := false
-	err := s.store.db.Update(func(tx *bolt.Tx) error {
+	err := s.store.update(func(tx *bolt.Tx) error {
 		var err error
 		a, err = getAction(tx, id)
 		if err != nil {
@@ -217,7 +247,12 @@ func (s *Service) Execute(ctx context.Context, id string) (*Action, error) {
 			a.Reservations = nil
 			return saveAction(tx, a, "system")
 		}
-		if verdict == config.ActionRequireApproval && a.ApprovedBy != "operator" {
+		humanApproval := a.ApprovedBy == "operator" && len(s.cfg.Operators) == 0
+		if operatorID, ok := strings.CutPrefix(a.ApprovedBy, "operator:"); ok {
+			_, err := s.operator(operatorID, false)
+			humanApproval = err == nil
+		}
+		if verdict == config.ActionRequireApproval && !humanApproval {
 			a.State = "pending"
 			return saveAction(tx, a, "system")
 		}
@@ -248,7 +283,7 @@ func (s *Service) Execute(ctx context.Context, id string) (*Action, error) {
 			}
 		}
 	}
-	err = s.store.db.Update(func(tx *bolt.Tx) error {
+	err = s.store.update(func(tx *bolt.Tx) error {
 		current, err := getAction(tx, id)
 		if err != nil {
 			return err
@@ -271,11 +306,23 @@ func (s *Service) Execute(ctx context.Context, id string) (*Action, error) {
 	return a, err
 }
 func (s *Service) Reconcile(id, digest, state, note string) (*Action, error) {
+	return s.reconcile(id, digest, state, note, "operator")
+}
+
+func (s *Service) ReconcileAs(id, digest, state, note, operatorID string) (*Action, error) {
+	actor, err := s.operator(operatorID, true)
+	if err != nil {
+		return nil, err
+	}
+	return s.reconcile(id, digest, state, note, actor)
+}
+
+func (s *Service) reconcile(id, digest, state, note, actor string) (*Action, error) {
 	if (state != "succeeded" && state != "failed") || strings.TrimSpace(note) == "" || len(note) > 1000 {
 		return nil, fmt.Errorf("reconciliation needs succeeded/failed and a note of at most 1,000 characters")
 	}
 	var a *Action
-	err := s.store.db.Update(func(tx *bolt.Tx) error {
+	err := s.store.update(func(tx *bolt.Tx) error {
 		var err error
 		a, err = getAction(tx, id)
 		if err != nil {
@@ -286,7 +333,7 @@ func (s *Service) Reconcile(id, digest, state, note string) (*Action, error) {
 		}
 		a.State = state
 		a.Reason = "Operator reconciled: " + note
-		return saveAction(tx, a, "operator")
+		return saveAction(tx, a, actor)
 	})
 	return a, err
 }
