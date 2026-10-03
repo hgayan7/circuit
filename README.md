@@ -75,6 +75,33 @@ These provide HTTPS inspection for proxy-aware clients, heuristic prompt-injecti
 
 Read [the safety guide](docs/safety.md) for coverage and limitations. Those tools do not replace a sandbox, and their older first-match CEL policy semantics differ from the gateway's combined enforcement.
 
+## Roadmap
+
+**The full product vision is bounded autonomy across tools:** one place to define where agents can act, what they can do, how much they can do, and when they need human approval. GitHub is the first supported action adapter.
+
+The capabilities below describe planned support, not features available today. Each adapter will expose specific reviewed operations with its own permissions, approval rules, limits, and recovery behavior.
+
+| Area | Intended support |
+| --- | --- |
+| GitHub | GitHub App installations, repository-scoped permissions, short-lived credentials, and webhook reconciliation alongside branch, file, PR, merge, and issue actions. |
+| Cloud and deployments | Bounded deployment and infrastructure operations, scoped to projects and environments, with approval for production changes and destructive actions. |
+| Databases | Scoped queries and controlled writes, with limits on affected rows, execution time, and accessible data; review of consequential changes. |
+| Shell and files | Structured commands and file operations inside existing sandboxes, with workspace boundaries, resource limits, and review of destructive operations. |
+| Communication and work tools | Email, messaging, documents, and ticket actions with recipient/resource restrictions, volume limits, and approval before consequential sends or publication. |
+| Business and payment APIs | Explicit supported operations with transaction and cumulative spending limits, destination restrictions, and approval for financial commitments. |
+| Custom tools | A documented adapter interface and REST/MCP connections so teams can bring their own APIs under the same action controls. |
+
+Across these integrations, the roadmap includes:
+
+- **Agent and workflow allowances:** shared agent limits plus separate workflow budgets, expiring credentials, immediate revocation, and constrained delegation to other agents.
+- **Credential isolation:** secret-manager integration, short-lived provider tokens, rotation, and credentials kept outside agent environments.
+- **Team approvals:** individual reviewer accounts, SSO, roles, multiple-reviewer requirements, and notifications for pending decisions.
+- **Reliable execution:** provider-aware retry handling, webhook/status reconciliation, cancellation before dispatch, and clear recovery for uncertain outcomes. Compensation will be offered only where the provider supports it.
+- **Security and isolation:** integration with existing sandboxes and egress controls, plus prompt-injection signals and sensitive-data checks alongside deterministic action policies.
+- **Operations and evidence:** searchable audit history, policy simulation, usage dashboards, retention controls, protected backups, and support for multiple gateway instances.
+
+The governing principle stays the same: agents receive bounded permission to act through Circuit. Enforcement depends on isolating credentials and preventing alternative execution paths; detection alone cannot guarantee safe behavior.
+
 ## Validation and status
 
 ```sh
