@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/hgayan7/circuit/pkg/telemetry"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -22,6 +24,9 @@ func operatorRouteAllowed(role, method, path string) bool {
 
 func (h *HTTPHandler) SetLogger(logger *slog.Logger) { h.logger = logger }
 func (h *HTTPHandler) Drain()                        { h.draining.Store(true) }
+
+// SetTLSExpiry records the certificate actually loaded by the TLS listener.
+func (h *HTTPHandler) SetTLSExpiry(expiry time.Time) { h.tlsExpiry.Store(expiry.Unix()) }
 
 type observedResponse struct {
 	http.ResponseWriter
@@ -124,6 +129,11 @@ func (h *HTTPHandler) metrics(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	telemetry.Filesystem(w, h.service.store.db.Path(), "state")
+	telemetry.Filesystem(w, os.TempDir(), "snapshot_temp")
+	if expiry := h.tlsExpiry.Load(); expiry != 0 {
+		fmt.Fprintf(w, "circuit_tls_certificate_expiry_unix %d\n", expiry)
+	}
 	fmt.Fprintf(w, "# TYPE circuit_storage_unavailable gauge\ncircuit_storage_unavailable %d\n# TYPE circuit_restore_pending gauge\ncircuit_restore_pending %d\n", boolInt(h.service.store.unavailable.Load()), boolInt(h.service.store.restorePending.Load()))
 	fmt.Fprintf(w, "# TYPE circuit_http_requests_total counter\ncircuit_http_requests_total %d\n# TYPE circuit_http_errors_total counter\ncircuit_http_errors_total %d\n# TYPE circuit_draining gauge\ncircuit_draining %d\n# TYPE circuit_actions gauge\n", h.requests.Load(), h.errors.Load(), boolInt(h.draining.Load()))
 	for _, state := range []string{"pending", "approved", "executing", "uncertain", "succeeded", "failed", "denied", "rejected", "expired"} {

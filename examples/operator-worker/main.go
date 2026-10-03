@@ -24,6 +24,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/hgayan7/circuit/pkg/telemetry"
 )
 
 type report struct {
@@ -183,6 +185,10 @@ func main() {
 		defer mu.Unlock()
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		fmt.Fprintf(w, "circuit_worker_last_success_unix %d\ncircuit_worker_failures_total %d\ncircuit_worker_samples_total %d\ncircuit_worker_complete %d\n", r.LastSuccess, r.Failures, r.Samples, boolInt(r.Complete))
+		if *mode == "backup" {
+			telemetry.Filesystem(w, *directory, "backups")
+			telemetry.Filesystem(w, os.TempDir(), "backup_temp")
+		}
 	})
 	mux.HandleFunc("GET /report", func(w http.ResponseWriter, _ *http.Request) {
 		mu.Lock()

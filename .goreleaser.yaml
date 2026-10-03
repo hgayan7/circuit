@@ -2,10 +2,6 @@ version: 2
 
 project_name: circuit
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: circuit
     binary: circuit
@@ -15,7 +11,6 @@ builds:
     goos:
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
@@ -26,18 +21,19 @@ archives:
   - id: default
     formats:
       - tar.gz
-    format_overrides:
-      - goos: windows
-        formats:
-          - zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
       - LICENSE
       - circuit.yaml
+      - docs/**
+      - deploy/docker/**
 
 checksum:
   name_template: "checksums.txt"
+
+release:
+  prerelease: auto
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"

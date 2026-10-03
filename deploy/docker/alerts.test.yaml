@@ -1,0 +1,51 @@
+rule_files: [alerts.example.yaml]
+evaluation_interval: 10s
+tests:
+  - name: capacity and active certificate warnings
+    interval: 10s
+    input_series:
+      - series: 'circuit_filesystem_available_bytes{volume="state"}'
+        values: '10+0x20'
+      - series: 'circuit_filesystem_size_bytes{volume="state"}'
+        values: '1000+0x20'
+      - series: 'circuit_filesystem_probe_success{volume="backups"}'
+        values: '0+0x20'
+      - series: circuit_tls_certificate_expiry_unix
+        values: '3600+0x20'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: CircuitDiskCapacityLow
+        exp_alerts:
+          - exp_labels: {volume: state, severity: warning}
+            exp_annotations: {summary: Circuit filesystem capacity is below ten percent}
+      - eval_time: 2m
+        alertname: CircuitStateDiskReserveLow
+        exp_alerts:
+          - exp_labels: {volume: state, severity: warning}
+            exp_annotations: {summary: Circuit state or backup filesystem has less than 512 MiB available}
+      - eval_time: 2m
+        alertname: CircuitFilesystemProbeFailed
+        exp_alerts:
+          - exp_labels: {volume: backups, severity: warning}
+            exp_annotations: {summary: Circuit cannot inspect filesystem capacity}
+      - eval_time: 2m
+        alertname: CircuitCertificateExpiring
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {summary: The active gateway TLS certificate expires within seven days}
+  - name: healthy capacity and certificate
+    interval: 10s
+    input_series:
+      - series: 'circuit_filesystem_available_bytes{volume="state"}'
+        values: '1000000000+0x20'
+      - series: 'circuit_filesystem_size_bytes{volume="state"}'
+        values: '2000000000+0x20'
+      - series: 'circuit_filesystem_probe_success{volume="state"}'
+        values: '1+0x20'
+      - series: circuit_tls_certificate_expiry_unix
+        values: '1000000+0x20'
+    alert_rule_test:
+      - {eval_time: 2m, alertname: CircuitDiskCapacityLow, exp_alerts: []}
+      - {eval_time: 2m, alertname: CircuitStateDiskReserveLow, exp_alerts: []}
+      - {eval_time: 2m, alertname: CircuitFilesystemProbeFailed, exp_alerts: []}
+      - {eval_time: 2m, alertname: CircuitCertificateExpiring, exp_alerts: []}

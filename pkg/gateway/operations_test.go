@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	bolt "go.etcd.io/bbolt"
@@ -73,6 +74,7 @@ func TestHealthMetricsLogsAndDrain(t *testing.T) {
 	require.NoError(t, err)
 	var logs bytes.Buffer
 	h.SetLogger(slog.New(slog.NewJSONHandler(&logs, nil)))
+	h.SetTLSExpiry(time.Unix(1900000000, 0))
 	server := httptest.NewServer(h)
 	defer server.Close()
 	for _, path := range []string{"/healthz", "/readyz"} {
@@ -88,6 +90,8 @@ func TestHealthMetricsLogsAndDrain(t *testing.T) {
 	status, data := callHTTP(t, server.URL+"/admin/metrics", "GET", adminToken, "", nil)
 	require.Equal(t, 200, status)
 	require.Contains(t, string(data), `circuit_actions{state="succeeded"} 1`)
+	require.Contains(t, string(data), `circuit_filesystem_probe_success{volume="state"} 1`)
+	require.Contains(t, string(data), `circuit_tls_certificate_expiry_unix 1900000000`)
 	require.NotContains(t, string(data), "acme/app")
 	require.NotContains(t, logs.String(), agentToken)
 	require.NotContains(t, logs.String(), "SECRET_")

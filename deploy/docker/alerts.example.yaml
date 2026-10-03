@@ -86,3 +86,31 @@ groups:
           severity: warning
         annotations:
           summary: Remote archive upload or full readback verification failed
+      - alert: CircuitDiskCapacityLow
+        expr: circuit_filesystem_available_bytes / circuit_filesystem_size_bytes < 0.10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Circuit filesystem capacity is below ten percent
+      - alert: CircuitStateDiskReserveLow
+        expr: circuit_filesystem_available_bytes{volume=~"state|backups"} < 536870912
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Circuit state or backup filesystem has less than 512 MiB available
+      - alert: CircuitFilesystemProbeFailed
+        expr: circuit_filesystem_probe_success == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Circuit cannot inspect filesystem capacity
+      - alert: CircuitCertificateExpiring
+        expr: circuit_tls_certificate_expiry_unix - time() < 604800
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: The active gateway TLS certificate expires within seven days

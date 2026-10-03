@@ -37,6 +37,8 @@ The worker downloads a verified snapshot, encrypts it, then publishes a private 
 
 Defaults: hourly backups, 168 retained archives, alerts after two hours without success. `CIRCUIT_BACKUP_INTERVAL` and `CIRCUIT_BACKUP_RETAIN` configure cadence/count; adjust the stale rule with the cadence. Failure/age/worker-availability alerts are enabled. Prometheus retains seven days, capped at 256 MiB.
 
+Gateway and backup worker metrics report filesystem capacity available to their service UID, including snapshot tmpfs. Rules alert below ten percent free capacity, below 512 MiB on state/backup filesystems, and when capacity probing fails. Tune reserves for snapshot size and expected growth; these metrics do not prove physical host free space or storage-provider quotas. The gateway reports expiry of the certificate actually loaded by its TLS listener and warns within seven days. Rotate mounted certificates and restart the gateway in a controlled maintenance window; replacing files alone does not reload the active certificate. Collect host/infrastructure disk, inode, memory and remote-storage quota telemetry independently.
+
 ```bash
 circuit gateway restore --backup /private/archive.db.age \
   --identity-file /private/offline/backup-identity \

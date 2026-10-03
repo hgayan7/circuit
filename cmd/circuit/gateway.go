@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -308,6 +309,13 @@ func serveGatewayTLS(cmd *cobra.Command, address string, handler http.Handler, c
 			return fmt.Errorf("cannot load TLS certificate and key")
 		}
 		tlsConfig = &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}}
+		if observable, ok := handler.(interface{ SetTLSExpiry(time.Time) }); ok {
+			leaf, err := x509.ParseCertificate(certificate.Certificate[0])
+			if err != nil {
+				return fmt.Errorf("cannot parse active TLS certificate")
+			}
+			observable.SetTLSExpiry(leaf.NotAfter)
+		}
 	}
 	listener, err := net.Listen("tcp", address)
 	if err != nil {

@@ -45,6 +45,7 @@ type HTTPHandler struct {
 	draining      atomic.Bool
 	requests      atomic.Uint64
 	errors        atomic.Uint64
+	tlsExpiry     atomic.Int64
 	logger        *slog.Logger
 	slots         chan struct{}
 }
