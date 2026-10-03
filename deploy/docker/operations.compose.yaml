@@ -38,6 +38,8 @@ services:
     logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
 
   backup:
+    depends_on:
+      gateway: {condition: service_healthy}
     build: {context: ../.., dockerfile: deploy/docker/Dockerfile, target: operations}
     image: circuit-operations:local
     command: [--mode, backup, --token-file, /run/secrets/admin-token, --interval, "${CIRCUIT_BACKUP_INTERVAL:-1h}", --retain, "${CIRCUIT_BACKUP_RETAIN:-168}"]
@@ -58,6 +60,8 @@ services:
     logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
 
   soak:
+    depends_on:
+      gateway: {condition: service_healthy}
     profiles: [soak]
     image: circuit-operations:local
     command: [--mode, soak, --token-file, /run/secrets/agent-token, --interval, "${CIRCUIT_SOAK_INTERVAL:-60s}", --duration, "${CIRCUIT_SOAK_DURATION:-72h}", --repo, "${CIRCUIT_SOAK_REPO:-hgayan7/circuit-gateway-pilot-20261003}"]

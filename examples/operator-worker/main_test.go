@@ -1,12 +1,27 @@
 package main
 
 import (
+	"encoding/pem"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestSoakRejectsShortLivedCertificate(t *testing.T) {
+	server := httptest.NewTLSServer(nil)
+	defer server.Close()
+	certificate := server.Certificate()
+	data := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+	now := certificate.NotAfter.Add(-time.Hour)
+	require.NoError(t, validateSoakCertificate(data, now, 30*time.Minute))
+	require.Error(t, validateSoakCertificate(data, now, time.Hour))
+	require.Error(t, validateSoakCertificate(data, certificate.NotBefore.Add(-time.Second), time.Minute))
+	require.Error(t, validateSoakCertificate([]byte("invalid"), now, time.Minute))
+}
 
 func TestRetentionOnlyRemovesOwnedRegularArchives(t *testing.T) {
 	dir := t.TempDir()

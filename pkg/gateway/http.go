@@ -94,6 +94,20 @@ func NewHTTPHandler(s *Service, tokens Tokens) (*HTTPHandler, error) {
 		used[hash] = true
 		h.agents[a.ID] = hash
 	}
+	for _, plugin := range s.cfg.CustomTools {
+		if plugin.Protocol != PluginProtocol {
+			continue
+		}
+		secret, err := credential(plugin.TokenEnv, plugin.TokenFile)
+		if err != nil {
+			return nil, err
+		}
+		hash := sha256.Sum256([]byte(secret))
+		if len(secret) < 32 || used[hash] {
+			return nil, fmt.Errorf("plugin %s needs a distinct gateway-only credential", plugin.ID)
+		}
+		used[hash] = true
+	}
 	servers := map[string]*mcp.Server{}
 	for _, a := range s.cfg.Agents {
 		servers[a.ID] = h.mcpServer(a)

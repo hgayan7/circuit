@@ -11,9 +11,9 @@
     "Recovery email is delivered"
   ],
   "ports": {
-    "prometheus": 64071,
-    "alertmanager": 64072,
-    "mailpit": 64073
+    "prometheus": 64937,
+    "alertmanager": 64938,
+    "mailpit": 64939
   },
   "email_delivery": "local SMTP fixture only; production BYOK configuration required",
   "independent_review": "deferred by operator",

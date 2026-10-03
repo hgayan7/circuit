@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"io"
@@ -159,6 +160,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "invalid CA")
 		os.Exit(1)
 	}
+	if *mode == "soak" {
+		if err := validateSoakCertificate(pem, time.Now(), *duration); err != nil {
+			fmt.Fprintln(os.Stderr, "trusted certificate expires before soak completion")
+			os.Exit(1)
+		}
+	}
 	client := &http.Client{Timeout: 35 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS13, RootCAs: roots}}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -248,6 +255,29 @@ func boolInt(v bool) int {
 		return 1
 	}
 	return 0
+}
+
+func validateSoakCertificate(data []byte, now time.Time, duration time.Duration) error {
+	count := 0
+	for {
+		block, rest := pem.Decode(data)
+		if block == nil {
+			break
+		}
+		data = rest
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		certificate, err := x509.ParseCertificate(block.Bytes)
+		if err != nil || now.Before(certificate.NotBefore) || !certificate.NotAfter.After(now.Add(duration+time.Minute)) {
+			return fmt.Errorf("certificate does not cover the soak window")
+		}
+		count++
+	}
+	if count == 0 {
+		return fmt.Errorf("certificate required")
+	}
+	return nil
 }
 func saveReport(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {

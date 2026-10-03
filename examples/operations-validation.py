@@ -63,6 +63,17 @@ run(['go','build','-o',str(root/'bin/circuit'),'./cmd/circuit'],cwd=root)
 if not identity.exists():
     run([str(root/'bin/circuit'),'gateway','backup-keygen','--identity-out',str(identity),'--recipient-out',str(recipient)])
 recipient.chmod(0o444)
+renewed=False
+if args.start_soak and subprocess.run(['openssl','x509','-in',str(work/'secrets/tls.crt'),'-checkend','259260','-noout'],stdout=subprocess.DEVNULL).returncode:
+    # Only this operator-owned local fixture certificate is renewed, never system trust.
+    new_key=work/'secrets/tls.key.new'
+    new_cert=work/'secrets/tls.crt.new'
+    run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-days','7','-keyout',str(new_key),'-out',str(new_cert),
+         '-subj','/CN=localhost','-addext','subjectAltName=DNS:localhost,DNS:gateway,IP:127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    for source,target in [(new_key,work/'secrets/tls.key'),(new_cert,work/'secrets/tls.crt')]:
+        source.chmod(0o444)
+        source.replace(target)
+    renewed=True
 smtp='''global:
   smtp_smarthost: mailpit:1025
   smtp_from: circuit@localhost
@@ -93,7 +104,7 @@ try:
     dc('build','backup')
     dc('run','--rm','--no-deps','--entrypoint','/bin/promtool','prometheus','check','config','/etc/prometheus/prometheus.yaml')
     dc('run','--rm','--no-deps','--entrypoint','/bin/amtool','alertmanager','check-config','/etc/alertmanager/alertmanager.yaml')
-    dc('up','-d','gateway','prometheus','alertmanager','mailpit','backup')
+    dc('up','-d',*(['--force-recreate'] if renewed else []),'gateway','prometheus','alertmanager','mailpit','backup')
     wait(lambda: any(item['labels']['job']=='circuit' and item['health']=='up' for item in http('prometheus','/api/v1/targets')['data']['activeTargets']))
     check('Prometheus scrapes authenticated gateway over verified TLS',True)
     wait(lambda: report('backup')['samples']>=3)

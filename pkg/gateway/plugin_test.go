@@ -115,3 +115,11 @@ func TestPluginRejectsUnsafeConfiguration(t *testing.T) {
 		require.Error(t, validatePluginConfig(c))
 	}
 }
+
+func TestPluginCredentialCannotReuseAgentToken(t *testing.T) {
+	t.Setenv("PLUGIN_TOKEN", agentToken)
+	cfg := pluginConfig(t, "http://127.0.0.1:9001/execute")
+	s, _ := testService(t, cfg, pluginExecutor(t, cfg))
+	_, err := NewHTTPHandler(s, Tokens{Admin: adminToken, Agents: map[string]string{"agent": agentToken}})
+	require.ErrorContains(t, err, "distinct gateway-only credential")
+}
