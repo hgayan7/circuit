@@ -34,6 +34,19 @@ checksum:
 
 release:
   prerelease: auto
+  header: |
+    Circuit is a self-hosted BYOK gateway. This release includes policy enforcement,
+    durable approvals/audit, the GitHub App profile, REST/MCP and approval UI,
+    configurable email alerts, and encrypted backups with verified storage adapters.
+
+    Linux/macOS amd64/arm64 binaries and deployment templates are included.
+    For Docker builds and rehearsal scripts, use the source checkout for this tag.
+    Supply your own protected credentials; no production secrets are bundled.
+
+    Production qualification requires the full uninterrupted soak and operator
+    acceptance for the intended workload, email, storage, and separate-host recovery.
+    A prerelease is not a production-certification claim. Independent review was deferred.
+    See [the release checklist](https://github.com/hgayan7/circuit/blob/{{ .Tag }}/docs/release-checklist.md).
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
@@ -48,6 +61,7 @@ changelog:
 
 homebrew_casks:
   - name: circuit
+    skip_upload: auto
     repository:
       owner: hgayan7
       name: homebrew-circuit
