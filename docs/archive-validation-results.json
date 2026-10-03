@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": [
+    "Authenticated S3 upload, full readback, and recovery after disposable local state loss",
+    "Restored state retains reconciliation barrier; corrupt digest and oversized readback fail",
+    "Restricted archive worker publishes verified receipt",
+    "Invalid storage credentials fail closed and reset stale success evidence",
+    "Provider credential details are absent from errors and receipts"
+  ],
+  "backend": "authenticated local S3-compatible fixture",
+  "host_loss_scope": "disposable local state removal; not an actual remote host loss",
+  "production_storage_delivery": "operator BYOK configuration and separate-host recovery rehearsal required"
+}

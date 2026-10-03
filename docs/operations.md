@@ -45,7 +45,30 @@ circuit gateway restore --backup /private/archive.db.age \
 
 Decryption authenticates the complete stream before verified state publication. Restore still pauses dispatch for provider reconciliation. Wrong keys, truncation, tampering, existing destinations, and unsafe identity permissions fail closed.
 
-Local Docker volume retention is not disaster recovery. Copy encrypted archives to independently durable storage with an operator-owned uploader; keep the private key separate. Remote upload and restore-from-remote tests remain required for a deployment that promises host-loss recovery.
+Local Docker volume retention is not disaster recovery. Use independently durable storage and keep the private key separate.
+
+## Storage BYOK
+
+The optional `storage.compose.yaml` overlay runs a separate encrypted-archive uploader using pinned [rclone backend adapters](https://rclone.org/commands/rclone_copyto/). Its Go `archive.Backend` contract allows replacing the transport without changing gateway enforcement. S3-compatible storage has an automated authenticated fixture test; other rclone providers require their own conformance and recovery tests before support claims expand.
+
+Create an operator-owned rclone configuration outside the repository using `deploy/docker/storage.example.conf` as a template. Use a fixed named remote, bucket, and prefix. For S3 use an existing bucket with HTTPS and restrict credentials to reading/writing that prefix; no deletion privilege is needed. Configure bucket versioning, independent retention/object-lock policy, quota, and access auditing with your storage provider. Protect the config's parent directory and make the mounted file readable by UID 10001. Environment-based credentials are deliberately not inherited by the worker; configure supported credential files in the isolated service instead.
+
+```bash
+export CIRCUIT_STORAGE_CONFIG_FILE=/private/secrets/storage.conf
+export CIRCUIT_BACKUP_REMOTE=backup:my-bucket/circuit
+docker compose -p circuit-staging -f deploy/docker/compose.yaml \
+  -f deploy/docker/operations.compose.yaml -f deploy/docker/email.compose.yaml \
+  -f deploy/docker/storage.compose.yaml build archive
+docker compose -p circuit-staging -f deploy/docker/compose.yaml \
+  -f deploy/docker/operations.compose.yaml -f deploy/docker/email.compose.yaml \
+  -f deploy/docker/storage.compose.yaml up -d archive prometheus
+```
+
+The worker mounts local archives read-only and has no gateway token, provider key, or decryption identity. It accepts only bounded regular files with the owned archive name and age header. The backup producer verifies the database before encryption; the uploader does not have the private identity to authenticate ciphertext. Each hourly pass uploads immutable copies, downloads every remote object, and verifies its exact length and SHA-256 before publishing private receipts. It never deletes remote archives. Defaults assume the retained set can be fully checked within ten minutes; adjust workload/limits before increasing snapshot sizes. `CIRCUIT_ARCHIVE_INTERVAL` changes cadence; update stale alert thresholds to match. Restart clears success evidence until a new pass completes. `/metrics` and `/report` are internal-only; the overlay enables stale/failure/unavailable alerts.
+
+Run `python3 examples/archive-validation.py` after building the archive image. It uses a disposable authenticated S3-compatible fixture, removes disposable local state and its archive, retrieves the independent copy, and verifies encrypted restoration with the reconciliation barrier. [Storage evidence](archive-validation-results.json) does not prove a real provider's availability or actual separate-host disaster recovery.
+
+For your deployment, retrieve an archive on a separate recovery host using your configured backend, compare its full SHA-256 and length with the protected receipt, and use `gateway restore` with the offline identity and a new destination. Reconcile provider activity before acknowledging restore. Rehearse loss of the source host and record achieved RPO/RTO before promising disaster recovery. Keep independently accessible receipts and the offline identity; neither may depend solely on the lost host.
 
 ## Soak And Upgrade
 

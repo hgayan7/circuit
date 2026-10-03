@@ -83,6 +83,10 @@ jobs:
         run: docker build --target gateway -f deploy/docker/Dockerfile -t circuit-ci .
       - name: Build separate operator worker image
         run: docker build --target operations -f deploy/docker/Dockerfile -t circuit-operations-ci .
+      - name: Build replaceable storage backend image
+        run: docker build --target archive -f deploy/docker/Dockerfile -t circuit-archive-ci .
+      - name: Exercise authenticated S3 transfer and independent copy recovery
+        run: python3 examples/archive-validation.py --image circuit-archive-ci
       - name: Validate operational alert rules
         run: >-
           docker run --rm --network none --read-only --cap-drop ALL

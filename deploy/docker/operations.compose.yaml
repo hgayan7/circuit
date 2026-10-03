@@ -17,6 +17,7 @@ services:
       - prometheus:/prometheus
       - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
       - ./alerts.example.yaml:/etc/prometheus/alerts.yaml:ro
+      - ./archive-targets.empty.json:/etc/prometheus/archive-targets.json:ro
       - ${CIRCUIT_DEPLOY_DIR}/secrets/observer-token:/run/secrets/observer-token:ro
       - ${CIRCUIT_DEPLOY_DIR}/secrets/tls.crt:/run/secrets/tls.crt:ro
     logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}

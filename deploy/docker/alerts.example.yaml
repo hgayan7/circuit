@@ -66,3 +66,23 @@ groups:
           severity: warning
         annotations:
           summary: Fixture soak recorded a failed read or continuity gap
+      - alert: CircuitArchiveStale
+        expr: time() - circuit_archive_last_success_unix{job="circuit_archive"} > 7200
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Encrypted remote archive readback has not succeeded in two hours
+      - alert: CircuitArchiveUnavailable
+        expr: up{job="circuit_archive"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: The remote archive worker is unavailable
+      - alert: CircuitArchiveFailed
+        expr: increase(circuit_archive_failures_total{job="circuit_archive"}[1h]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Remote archive upload or full readback verification failed

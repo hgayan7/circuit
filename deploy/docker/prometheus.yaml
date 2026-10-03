@@ -23,3 +23,6 @@ scrape_configs:
   - job_name: circuit_soak
     static_configs:
       - targets: [soak:9091]
+  - job_name: circuit_archive
+    file_sd_configs:
+      - files: [/etc/prometheus/archive-targets.json]

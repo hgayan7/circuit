@@ -1,0 +1,23 @@
+services:
+  prometheus:
+    volumes:
+      - ./archive-targets.json:/etc/prometheus/archive-targets.json:ro
+  archive:
+    build: {context: ../.., dockerfile: deploy/docker/Dockerfile, target: archive}
+    image: circuit-archive:local
+    command: [--remote, "${CIRCUIT_BACKUP_REMOTE:?set named remote and fixed bucket/prefix}", --interval, "${CIRCUIT_ARCHIVE_INTERVAL:-1h}"]
+    networks: [monitoring, upstream]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    pids_limit: 32
+    restart: unless-stopped
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m,mode=1777"]
+    volumes:
+      - backups:/backups:ro
+      - archive-status:/var/lib/archive
+      - ${CIRCUIT_STORAGE_CONFIG_FILE:?set operator-owned rclone config file}:/run/secrets/storage.conf:ro
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+volumes:
+  archive-status: {}
