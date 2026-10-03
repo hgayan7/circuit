@@ -1,12 +1,13 @@
 package forward
 
 import (
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"github.com/hgayan7/circuit/pkg/config"
-	"github.com/hgayan7/circuit/pkg/policy"
 	"io"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,11 +16,45 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/hgayan7/circuit/pkg/config"
+	"github.com/hgayan7/circuit/pkg/policy"
 )
+
+// httptest's default TLS certificate is shared across servers. On Linux,
+// SystemCertPool can cache that certificate after SSL_CERT_FILE trusts it in
+// another test. Unique certificates keep independent origins independent.
+func newTLSOrigin(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	ca, err := NewCA()
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Hour),
+		IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, leaf, ca.Certificate.Leaf,
+		ca.Certificate.Leaf.PublicKey, ca.Certificate.PrivateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	origin := httptest.NewUnstartedServer(handler)
+	origin.TLS = &tls.Config{Certificates: []tls.Certificate{{
+		Certificate: [][]byte{der}, PrivateKey: ca.Certificate.PrivateKey,
+	}}}
+	origin.StartTLS()
+	t.Cleanup(origin.Close)
+	return origin
+}
 
 func TestHTTPSInspectionAndOriginalDestination(t *testing.T) {
 	var calls atomic.Int32
-	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	origin := newTLSOrigin(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		if r.Host == "" {
 			t.Error("host lost")
@@ -71,7 +106,7 @@ func TestHTTPSInspectionAndOriginalDestination(t *testing.T) {
 	}
 }
 func TestUntrustedUpstreamTLSRejected(t *testing.T) {
-	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Error("untrusted origin received request") }))
+	origin := newTLSOrigin(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Error("untrusted origin received request") }))
 	defer origin.Close()
 	pol, _ := config.ParsePolicy(strings.NewReader("name: tls-test"))
 	engine, _ := policy.NewEngine(pol)
