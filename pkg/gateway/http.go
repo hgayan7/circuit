@@ -17,8 +17,9 @@ import (
 var keyPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`)
 
 type Tokens struct {
-	Admin  string
-	Agents map[string]string
+	Admin         string
+	Agents        map[string]string
+	WebhookSecret string
 }
 type principal struct {
 	Agent string
@@ -26,18 +27,30 @@ type principal struct {
 }
 type identityKey struct{}
 type HTTPHandler struct {
-	service   *Service
-	adminHash [32]byte
-	agents    map[string][32]byte
-	mcp       http.Handler
-	mux       *http.ServeMux
+	service       *Service
+	adminHash     [32]byte
+	agents        map[string][32]byte
+	mcp           http.Handler
+	mux           *http.ServeMux
+	webhookPath   string
+	webhookSecret string
 }
 
 func NewHTTPHandler(s *Service, tokens Tokens) (*HTTPHandler, error) {
 	if len(tokens.Admin) < 32 {
 		return nil, fmt.Errorf("admin token must contain at least 32 characters")
 	}
-	h := &HTTPHandler{service: s, adminHash: sha256.Sum256([]byte(tokens.Admin)), agents: map[string][32]byte{}}
+	h := &HTTPHandler{
+		service:       s,
+		adminHash:     sha256.Sum256([]byte(tokens.Admin)),
+		agents:        map[string][32]byte{},
+		webhookSecret: tokens.WebhookSecret,
+	}
+	webhookPath := "/webhooks/github"
+	if s.cfg.Webhook != nil && s.cfg.Webhook.Path != "" {
+		webhookPath = s.cfg.Webhook.Path
+	}
+	h.webhookPath = webhookPath
 	used := map[[32]byte]bool{h.adminHash: true}
 	for _, a := range s.cfg.Agents {
 		token := tokens.Agents[a.ID]
@@ -73,6 +86,7 @@ func NewHTTPHandler(s *Service, tokens Tokens) (*HTTPHandler, error) {
 	mux.HandleFunc("GET /admin/actions/{id}/events", h.events)
 	mux.HandleFunc("POST /admin/actions/{id}/decision", h.decide)
 	mux.HandleFunc("POST /admin/actions/{id}/reconcile", h.reconcile)
+	mux.HandleFunc("POST "+h.webhookPath, h.webhook)
 	mux.Handle("/mcp", h.mcp)
 	return h, nil
 }
@@ -97,7 +111,7 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
-	if r.URL.Path == "/" || r.URL.Path == "/ui.js" {
+	if r.URL.Path == "/" || r.URL.Path == "/ui.js" || (h.webhookPath != "" && r.URL.Path == h.webhookPath) {
 		h.mux.ServeHTTP(w, r)
 		return
 	}
@@ -207,6 +221,33 @@ func (h *HTTPHandler) reconcile(w http.ResponseWriter, r *http.Request) {
 	}
 	a, err := h.service.Reconcile(r.PathValue("id"), req.Digest, req.State, req.Note)
 	respondAction(w, a, err)
+}
+func (h *HTTPHandler) webhook(w http.ResponseWriter, r *http.Request) {
+	if h.webhookSecret == "" {
+		writeJSON(w, 503, map[string]string{"error": "Webhook secret is not configured on the gateway"})
+		return
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
+	if err != nil {
+		writeJSON(w, 400, map[string]string{"error": "Payload exceeds 1 MiB or could not be read"})
+		return
+	}
+	sigHeader := r.Header.Get("X-Hub-Signature-256")
+	if !VerifyWebhookSignature(h.webhookSecret, sigHeader, body) {
+		writeJSON(w, 401, map[string]string{"error": "Invalid or missing X-Hub-Signature-256"})
+		return
+	}
+	event := r.Header.Get("X-GitHub-Event")
+	if event == "ping" {
+		writeJSON(w, 200, map[string]string{"message": "pong"})
+		return
+	}
+	result, err := h.service.ReconcileWebhook(r.Context(), event, body)
+	if err != nil {
+		writeJSON(w, 400, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, 200, result)
 }
 
 type toolInput struct {

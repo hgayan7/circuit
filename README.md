@@ -83,7 +83,7 @@ The capabilities below describe planned support, not features available today. E
 
 | Area | Intended support |
 | --- | --- |
-| GitHub | GitHub App installations, repository-scoped permissions, short-lived credentials, and webhook reconciliation alongside branch, file, PR, merge, and issue actions. |
+| GitHub | **Supported:** branch, file, PR, merge, and issue actions with approval and budgets; GitHub App installations with short-lived repository-scoped tokens and automated webhook reconciliation. |
 | Cloud and deployments | Bounded deployment and infrastructure operations, scoped to projects and environments, with approval for production changes and destructive actions. |
 | Databases | Scoped queries and controlled writes, with limits on affected rows, execution time, and accessible data; review of consequential changes. |
 | Shell and files | Structured commands and file operations inside existing sandboxes, with workspace boundaries, resource limits, and review of destructive operations. |
@@ -109,9 +109,9 @@ go test -race ./...
 go vet ./...
 ```
 
-Gateway tests cover the full simulated GitHub workflow, official SDK MCP connections, concurrent retries, persistent budgets, approval expiry, stale policies and commit SHAs, and uncertain-outcome recovery.
+Gateway tests cover the full simulated GitHub workflow, official SDK MCP connections, concurrent retries, persistent budgets, approval expiry, stale policies and commit SHAs, uncertain-outcome recovery, RSA key parsing, RS256 JWT minting, GitHub App short-lived token auto-refresh, HMAC-SHA256 webhook verification, and automated event reconciliation.
 
-This is an initial pilot implementation. A [live GitHub pilot](docs/github-pilot.md) passed 43 checks across private and protected public fixture repositories, including real merges, stale-SHA rejection, enforced branch protection, and restart persistence. It used an existing CLI OAuth credential; repository-scoped token and GitHub App permissions still need validation. A single private bbolt database provides durability; distributed operation and individual reviewer SSO are not implemented. Circuit prevents automatic replay of claimed actions, rather than promising exactly-once delivery across the GitHub network boundary.
+This is an initial pilot implementation. A [live GitHub pilot](docs/github-pilot.md) passed 43 checks across private and protected public fixture repositories, including real merges, stale-SHA rejection, enforced branch protection, and restart persistence. GitHub App installation tokens, repository-scoped permissions, and webhook reconciliation are now integrated into the gateway engine. A single private bbolt database provides durability; distributed operation and individual reviewer SSO are not implemented. Circuit prevents automatic replay of claimed actions, rather than promising exactly-once delivery across the GitHub network boundary.
 
 ## License
 

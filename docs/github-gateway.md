@@ -84,7 +84,7 @@ The server exposes Streamable HTTP MCP at `/mcp` using the official Go SDK. Conf
 
 Each GitHub tool takes `repository`, `args`, and `idempotency_key`. The tool description lists its operation-specific argument schema. An approval-required call returns a durable `pending` action immediately. The agent should poll `circuit_action_status` instead of generating new proposals. MCP sessions are stateless; authentication and identity are checked on every HTTP request.
 
-## Operator approval and reconciliation
+## Webhook reconciliation and operator review
 
 The web interface accepts the operator token and keeps it in tab memory, not browser storage. It shows up to 100 recent actions, payloads, commit SHAs, expiry, and event history. Reviewers can approve, reject, or reconcile uncertain outcomes. Agents cannot call operator endpoints.
 
@@ -95,7 +95,43 @@ Operator API:
 - `POST /admin/actions/{id}/decision` with `{"digest":"...","decision":"approve"}` or `reject`
 - `POST /admin/actions/{id}/reconcile` with `{"digest":"...","state":"succeeded","note":"Verified PR #42 exists"}` or `failed`
 
-Approval authorizes the exact stored request for its configured lifetime (default one hour, maximum 24 hours). The policy version must still match at approval and execution. Reconfiguration invalidates old pending approvals. Changes to a PR's head invalidate its approved merge. Operator attribution is currently one authenticated `operator` role; individual reviewers and SSO are future work.
+### Automated Webhook Reconciliation
+
+When configured with `webhook:` in `gateway.yaml`, Circuit listens for GitHub webhooks at `/webhooks/github` (or custom path) and validates incoming requests using constant-time HMAC-SHA256 signature verification (`X-Hub-Signature-256`):
+
+```yaml
+webhook:
+  secret_env: GITHUB_WEBHOOK_SECRET
+  path: /webhooks/github
+```
+
+When network failures, 5xx errors, or restarts leave an action in `uncertain` state, GitHub webhook events automatically reconcile the action:
+- `pull_request` (closed & merged): reconciles uncertain `merge_pr` proposals to `succeeded` with the merge commit SHA.
+- `pull_request` (closed & unmerged): reconciles uncertain `merge_pr` proposals to `failed`.
+- `pull_request` (opened): reconciles uncertain `create_pr` proposals to `succeeded`.
+- `create` / `push`: reconciles uncertain `create_branch` or `put_file` proposals to `succeeded`.
+- `issues` (opened, closed, edited): reconciles uncertain `create_issue` or `update_issue` proposals to `succeeded`.
+
+All automated reconciliations record an audit entry with `actor: "webhook"`.
+
+## Authentication options: Static Token vs. GitHub App
+
+Circuit supports two upstream authentication modes:
+
+1. **Static token (PAT or OAuth):**
+   ```yaml
+   github_token_env: GITHUB_TOKEN
+   ```
+   Uses a fine-grained personal access token or OAuth credential held only by the gateway.
+
+2. **GitHub App installation (Short-lived repository-scoped tokens):**
+   ```yaml
+   github_app:
+     app_id: 123456
+     private_key_env: GITHUB_APP_PRIVATE_KEY # or private_key_file: /path/to/key.pem
+     installation_id: 789012                # optional; auto-discovered per repo if omitted
+   ```
+   Circuit mints 10-minute RS256 JWTs using the App's RSA private key, exchanges them for 1-hour repository-scoped installation access tokens, and caches/auto-refreshes them safely in memory.
 
 ## Durability and retry semantics
 
@@ -103,12 +139,12 @@ A private bbolt database stores actions, atomic budget reservations, idempotency
 
 Before an upstream call, Circuit persists `executing`. Completed calls become `succeeded` or `failed`. Transport failures and ambiguous write responses become `uncertain`. On restart, any leftover `executing` action becomes `uncertain` and will not be replayed. Pending approvals and usage persist.
 
-GitHub does not offer a universal idempotency mechanism for all these operations. Therefore Circuit promises no automatic replay of a claimed action, not exactly-once delivery. A crash before dispatch can leave an action uncertain even if nothing happened. Verify the GitHub state and reconcile it through the operator interface before proposing a replacement. An operator reconciliation records the verified outcome; it does not retry the original operation.
+GitHub does not offer a universal idempotency mechanism for all these operations. Therefore Circuit promises no automatic replay of a claimed action, not exactly-once delivery. A crash before dispatch can leave an action uncertain even if nothing happened. When webhooks are enabled, incoming GitHub delivery events automatically reconcile uncertain actions; otherwise, operators reconcile them through the review interface.
 
 Optional prompt checks use the existing heuristic detector. If a completed action's returned content is blocked, the action remains succeeded with a warning and a withheld result; it is not mislabeled as a failed write. Detection limitations are documented in [safety.md](safety.md).
 
 ## Validation and current limits
 
-`go test -race ./...` covers real SDK MCP calls, the REST approval workflow, concurrent retries, multiple budgets, restart persistence, uncertain outcomes, payload integrity, stale policy/commit approvals, cross-agent access, and a full GitHub workflow against a local HTTP origin.
+`go test -race ./...` covers real SDK MCP calls, the REST approval workflow, concurrent retries, multiple budgets, restart persistence, uncertain outcomes, payload integrity, stale policy/commit approvals, cross-agent access, RSA key parsing, RS256 JWT generation, GitHub App token rotation, webhook HMAC signature verification, automatic webhook reconciliation, and a full GitHub workflow against a local HTTP origin.
 
-The [live GitHub pilot](github-pilot.md) passed 43 checks across private and protected public fixture repositories, including real merges, stale-SHA rejection, enforced required status checks, and restart persistence. It used an existing CLI OAuth credential; repository-scoped token and GitHub App permissions still need validation before unattended production deployment. History and budget queries scan retained records; this initial single-process implementation targets small pilots, not a multi-region control plane. There is no GitHub App installation flow, webhook reconciliation, retention management, distributed storage, notification integration, or sandbox provisioner yet.
+The [live GitHub pilot](github-pilot.md) passed 43 checks across private and protected public fixture repositories. GitHub App installation tokens, repository-scoped permissions, and webhook reconciliation are now implemented and tested in the gateway engine. Multi-reviewer quorum, notification delivery (Slack/email), and distributed storage remain future roadmap items.

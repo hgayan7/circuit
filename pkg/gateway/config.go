@@ -41,10 +41,24 @@ type Limit struct {
 	MaxCalls int      `yaml:"max_calls" json:"max_calls"`
 	duration time.Duration
 }
+type GitHubAppConfig struct {
+	AppID          int64  `yaml:"app_id" json:"app_id"`
+	PrivateKeyEnv  string `yaml:"private_key_env,omitempty" json:"private_key_env,omitempty"`
+	PrivateKeyFile string `yaml:"private_key_file,omitempty" json:"private_key_file,omitempty"`
+	InstallationID int64  `yaml:"installation_id,omitempty" json:"installation_id,omitempty"`
+}
+
+type WebhookConfig struct {
+	SecretEnv string `yaml:"secret_env,omitempty" json:"secret_env,omitempty"`
+	Path      string `yaml:"path,omitempty" json:"path,omitempty"`
+}
+
 type Config struct {
 	Name           string              `yaml:"name" json:"name"`
 	AdminTokenEnv  string              `yaml:"admin_token_env" json:"admin_token_env"`
-	GitHubTokenEnv string              `yaml:"github_token_env" json:"github_token_env"`
+	GitHubTokenEnv string              `yaml:"github_token_env,omitempty" json:"github_token_env,omitempty"`
+	GitHubApp      *GitHubAppConfig    `yaml:"github_app,omitempty" json:"github_app,omitempty"`
+	Webhook        *WebhookConfig      `yaml:"webhook,omitempty" json:"webhook,omitempty"`
 	ApprovalTTL    string              `yaml:"approval_ttl" json:"approval_ttl"`
 	Agents         []Agent             `yaml:"agents" json:"agents"`
 	Rules          []Rule              `yaml:"rules,omitempty" json:"rules,omitempty"`
@@ -87,8 +101,29 @@ func ParseConfig(r io.Reader) (*Config, error) {
 	if c.AdminTokenEnv == "" {
 		c.AdminTokenEnv = "CIRCUIT_ADMIN_TOKEN"
 	}
-	if c.GitHubTokenEnv == "" {
+	if c.GitHubApp != nil {
+		if c.GitHubApp.AppID <= 0 {
+			return nil, fmt.Errorf("github_app app_id must be a positive integer")
+		}
+		if c.GitHubApp.PrivateKeyEnv == "" && c.GitHubApp.PrivateKeyFile == "" {
+			return nil, fmt.Errorf("github_app requires either private_key_env or private_key_file")
+		}
+		if c.GitHubApp.InstallationID < 0 {
+			return nil, fmt.Errorf("github_app installation_id cannot be negative")
+		}
+	} else if c.GitHubTokenEnv == "" {
 		c.GitHubTokenEnv = "GITHUB_TOKEN"
+	}
+	if c.Webhook != nil {
+		if c.Webhook.SecretEnv == "" {
+			c.Webhook.SecretEnv = "GITHUB_WEBHOOK_SECRET"
+		}
+		if c.Webhook.Path == "" {
+			c.Webhook.Path = "/webhooks/github"
+		}
+		if !strings.HasPrefix(c.Webhook.Path, "/") {
+			return nil, fmt.Errorf("webhook path must start with /")
+		}
 	}
 	if c.ApprovalTTL == "" {
 		c.ApprovalTTL = "1h"

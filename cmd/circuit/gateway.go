@@ -55,9 +55,32 @@ func init() {
 		if err != nil {
 			return err
 		}
-		githubToken := os.Getenv(cfg.GitHubTokenEnv)
-		if githubToken == "" {
-			return fmt.Errorf("set %s to a scoped GitHub credential on the gateway only", cfg.GitHubTokenEnv)
+		var provider gateway.TokenProvider
+		if cfg.GitHubApp != nil {
+			var keyData []byte
+			if cfg.GitHubApp.PrivateKeyEnv != "" {
+				keyData = []byte(os.Getenv(cfg.GitHubApp.PrivateKeyEnv))
+				if len(keyData) == 0 {
+					return fmt.Errorf("set %s to the GitHub App private key PEM", cfg.GitHubApp.PrivateKeyEnv)
+				}
+			} else if cfg.GitHubApp.PrivateKeyFile != "" {
+				var err error
+				keyData, err = os.ReadFile(cfg.GitHubApp.PrivateKeyFile)
+				if err != nil {
+					return fmt.Errorf("reading GitHub App private key: %w", err)
+				}
+			}
+			appProvider, err := gateway.NewGitHubAppTokenProvider(cfg.GitHubApp.AppID, keyData, cfg.GitHubApp.InstallationID)
+			if err != nil {
+				return fmt.Errorf("initializing GitHub App authentication: %w", err)
+			}
+			provider = appProvider
+		} else {
+			githubToken := os.Getenv(cfg.GitHubTokenEnv)
+			if githubToken == "" {
+				return fmt.Errorf("set %s to a scoped GitHub credential on the gateway only", cfg.GitHubTokenEnv)
+			}
+			provider = gateway.NewStaticTokenProvider(githubToken)
 		}
 		if err := os.MkdirAll(filepath.Dir(dataPath), 0700); err != nil {
 			return err
@@ -67,11 +90,19 @@ func init() {
 			return err
 		}
 		defer store.Close()
-		service, err := gateway.NewService(cfg, store, gateway.NewGitHub(githubToken))
+		service, err := gateway.NewService(cfg, store, gateway.NewGitHubWithProvider(provider))
 		if err != nil {
 			return err
 		}
-		tokens := gateway.Tokens{Admin: os.Getenv(cfg.AdminTokenEnv), Agents: map[string]string{}}
+		var webhookSecret string
+		if cfg.Webhook != nil && cfg.Webhook.SecretEnv != "" {
+			webhookSecret = os.Getenv(cfg.Webhook.SecretEnv)
+		}
+		tokens := gateway.Tokens{
+			Admin:         os.Getenv(cfg.AdminTokenEnv),
+			Agents:        map[string]string{},
+			WebhookSecret: webhookSecret,
+		}
 		for _, a := range cfg.Agents {
 			tokens.Agents[a.ID] = os.Getenv(a.TokenEnv)
 		}
@@ -94,7 +125,15 @@ func init() {
 		if err != nil {
 			return err
 		}
-		cmd.Printf("Gateway %q validated: %d agents, %d rules, %d limits.\n", cfg.Name, len(cfg.Agents), len(cfg.Rules), len(cfg.Limits))
+		authMode := "token"
+		if cfg.GitHubApp != nil {
+			authMode = "github-app"
+		}
+		webhookMsg := "disabled"
+		if cfg.Webhook != nil {
+			webhookMsg = cfg.Webhook.Path
+		}
+		cmd.Printf("Gateway %q validated: auth=%s, webhook=%s, %d agents, %d rules, %d limits.\n", cfg.Name, authMode, webhookMsg, len(cfg.Agents), len(cfg.Rules), len(cfg.Limits))
 		return nil
 	}}
 	gatewayCmd.AddCommand(check)

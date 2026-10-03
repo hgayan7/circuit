@@ -31,13 +31,24 @@ type Executor interface {
 	Execute(context.Context, Request) Outcome
 }
 type GitHub struct {
-	token  string
-	base   string
-	client *http.Client
+	provider TokenProvider
+	base     string
+	client   *http.Client
 }
 
 func NewGitHub(token string) *GitHub {
-	return &GitHub{token: token, base: "https://api.github.com", client: &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	return NewGitHubWithProvider(NewStaticTokenProvider(token))
+}
+
+func NewGitHubWithProvider(provider TokenProvider) *GitHub {
+	return &GitHub{
+		provider: provider,
+		base:     "https://api.github.com",
+		client: &http.Client{
+			Timeout: 30 * time.Second,
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		},
+	}
 }
 
 var commitSHA = regexp.MustCompile(`^[a-fA-F0-9]{40}$`)
@@ -148,7 +159,7 @@ func escapedPath(p string) string {
 	}
 	return strings.Join(parts, "/")
 }
-func (g *GitHub) call(ctx context.Context, method, endpoint string, payload any) Outcome {
+func (g *GitHub) call(ctx context.Context, token, method, endpoint string, payload any) Outcome {
 	var body io.Reader
 	if payload != nil {
 		data, err := json.Marshal(payload)
@@ -161,7 +172,7 @@ func (g *GitHub) call(ctx context.Context, method, endpoint string, payload any)
 	if err != nil {
 		return Outcome{Error: "Invalid GitHub request"}
 	}
-	req.Header.Set("Authorization", "Bearer "+g.token)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
@@ -175,7 +186,9 @@ func (g *GitHub) call(ctx context.Context, method, endpoint string, payload any)
 		return Outcome{Status: resp.StatusCode, Error: "GitHub response could not be read", Uncertain: method != "GET"}
 	}
 	// Never expose the credential even if a misconfigured upstream echoes it.
-	data = []byte(strings.ReplaceAll(string(data), g.token, "[redacted]"))
+	if token != "" {
+		data = []byte(strings.ReplaceAll(string(data), token, "[redacted]"))
+	}
 	if !json.Valid(data) {
 		return Outcome{Status: resp.StatusCode, Error: "GitHub returned an invalid JSON response", Uncertain: method != "GET"}
 	}
@@ -187,14 +200,18 @@ func (g *GitHub) call(ctx context.Context, method, endpoint string, payload any)
 	return result
 }
 func (g *GitHub) Execute(ctx context.Context, r Request) Outcome {
+	token, err := g.provider.Token(ctx, r.Repository)
+	if err != nil {
+		return Outcome{Error: fmt.Sprintf("Authentication failed: %v", err)}
+	}
 	prefix := "/repos/" + r.Repository
 	switch r.Operation {
 	case "read_file":
-		return g.call(ctx, "GET", prefix+"/contents/"+escapedPath(text(r.Args, "path"))+"?ref="+url.QueryEscape(text(r.Args, "ref")), nil)
+		return g.call(ctx, token, "GET", prefix+"/contents/"+escapedPath(text(r.Args, "path"))+"?ref="+url.QueryEscape(text(r.Args, "ref")), nil)
 	case "get_pr":
-		return g.call(ctx, "GET", fmt.Sprintf("%s/pulls/%d", prefix, number(r.Args, "number")), nil)
+		return g.call(ctx, token, "GET", fmt.Sprintf("%s/pulls/%d", prefix, number(r.Args, "number")), nil)
 	case "create_branch":
-		return g.call(ctx, "POST", prefix+"/git/refs", map[string]any{"ref": "refs/heads/" + text(r.Args, "branch"), "sha": text(r.Args, "sha")})
+		return g.call(ctx, token, "POST", prefix+"/git/refs", map[string]any{"ref": "refs/heads/" + text(r.Args, "branch"), "sha": text(r.Args, "sha")})
 	case "put_file":
 		payload := map[string]any{}
 		for k, v := range r.Args {
@@ -202,11 +219,11 @@ func (g *GitHub) Execute(ctx context.Context, r Request) Outcome {
 				payload[k] = v
 			}
 		}
-		return g.call(ctx, "PUT", prefix+"/contents/"+escapedPath(text(r.Args, "path")), payload)
+		return g.call(ctx, token, "PUT", prefix+"/contents/"+escapedPath(text(r.Args, "path")), payload)
 	case "create_pr":
-		return g.call(ctx, "POST", prefix+"/pulls", r.Args)
+		return g.call(ctx, token, "POST", prefix+"/pulls", r.Args)
 	case "create_issue":
-		return g.call(ctx, "POST", prefix+"/issues", r.Args)
+		return g.call(ctx, token, "POST", prefix+"/issues", r.Args)
 	case "update_issue":
 		payload := map[string]any{}
 		for k, v := range r.Args {
@@ -214,9 +231,9 @@ func (g *GitHub) Execute(ctx context.Context, r Request) Outcome {
 				payload[k] = v
 			}
 		}
-		return g.call(ctx, "PATCH", fmt.Sprintf("%s/issues/%d", prefix, number(r.Args, "number")), payload)
+		return g.call(ctx, token, "PATCH", fmt.Sprintf("%s/issues/%d", prefix, number(r.Args, "number")), payload)
 	case "merge_pr":
-		current := g.call(ctx, "GET", fmt.Sprintf("%s/pulls/%d", prefix, number(r.Args, "number")), nil)
+		current := g.call(ctx, token, "GET", fmt.Sprintf("%s/pulls/%d", prefix, number(r.Args, "number")), nil)
 		if current.Error != "" {
 			return current
 		}
@@ -230,7 +247,7 @@ func (g *GitHub) Execute(ctx context.Context, r Request) Outcome {
 		}
 		// Check every changed file, then use GitHub's SHA precondition on the write.
 		for page := 1; page <= 10; page++ {
-			res := g.call(ctx, "GET", fmt.Sprintf("%s/pulls/%d/files?per_page=100&page=%d", prefix, number(r.Args, "number"), page), nil)
+			res := g.call(ctx, token, "GET", fmt.Sprintf("%s/pulls/%d/files?per_page=100&page=%d", prefix, number(r.Args, "number"), page), nil)
 			if res.Error != "" {
 				return res
 			}
@@ -252,14 +269,14 @@ func (g *GitHub) Execute(ctx context.Context, r Request) Outcome {
 					payload["merge_method"] = method
 				}
 				// Recheck the head after listing files, then pin it again on the write.
-				latest := g.call(ctx, "GET", fmt.Sprintf("%s/pulls/%d", prefix, number(r.Args, "number")), nil)
+				latest := g.call(ctx, token, "GET", fmt.Sprintf("%s/pulls/%d", prefix, number(r.Args, "number")), nil)
 				if latest.Error != "" {
 					return latest
 				}
 				if json.Unmarshal(latest.Body, &pr) != nil || !strings.EqualFold(pr.Head.SHA, text(r.Args, "sha")) {
 					return Outcome{Error: "PR head changed during review; propose a new merge"}
 				}
-				merged := g.call(ctx, "PUT", fmt.Sprintf("%s/pulls/%d/merge", prefix, number(r.Args, "number")), payload)
+				merged := g.call(ctx, token, "PUT", fmt.Sprintf("%s/pulls/%d/merge", prefix, number(r.Args, "number")), payload)
 				if merged.Error == "" {
 					var result struct {
 						Merged bool `json:"merged"`
