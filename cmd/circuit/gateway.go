@@ -55,7 +55,18 @@ func init() {
 		if err != nil {
 			return err
 		}
-		var provider gateway.TokenProvider
+		// Setup workspace executors
+		wsExecutors := map[string]*gateway.ShellExecutor{}
+		for _, wsCfg := range cfg.Workspaces {
+			ws, err := gateway.NewWorkspace(wsCfg.ID, wsCfg.Path, wsCfg.ReadOnly, wsCfg.Timeout())
+			if err != nil {
+				return fmt.Errorf("initializing workspace %s: %w", wsCfg.ID, err)
+			}
+			wsExecutors[wsCfg.ID] = gateway.NewShellExecutor(ws)
+		}
+
+		var githubExecutor gateway.Executor
+		githubToken := os.Getenv(cfg.GitHubTokenEnv)
 		if cfg.GitHubApp != nil {
 			var keyData []byte
 			if cfg.GitHubApp.PrivateKeyEnv != "" {
@@ -74,14 +85,15 @@ func init() {
 			if err != nil {
 				return fmt.Errorf("initializing GitHub App authentication: %w", err)
 			}
-			provider = appProvider
-		} else {
-			githubToken := os.Getenv(cfg.GitHubTokenEnv)
-			if githubToken == "" {
-				return fmt.Errorf("set %s to a scoped GitHub credential on the gateway only", cfg.GitHubTokenEnv)
-			}
-			provider = gateway.NewStaticTokenProvider(githubToken)
+			githubExecutor = gateway.NewGitHubWithProvider(appProvider)
+		} else if githubToken != "" {
+			githubExecutor = gateway.NewGitHub(githubToken)
 		}
+
+		if githubExecutor == nil && len(wsExecutors) == 0 {
+			return fmt.Errorf("gateway requires either GitHub credentials (%s / github_app) or at least one workspace configured", cfg.GitHubTokenEnv)
+		}
+
 		if err := os.MkdirAll(filepath.Dir(dataPath), 0700); err != nil {
 			return err
 		}
@@ -90,7 +102,7 @@ func init() {
 			return err
 		}
 		defer store.Close()
-		service, err := gateway.NewService(cfg, store, gateway.NewGitHubWithProvider(provider))
+		service, err := gateway.NewService(cfg, store, gateway.NewRouterExecutor(githubExecutor, wsExecutors))
 		if err != nil {
 			return err
 		}
@@ -128,12 +140,14 @@ func init() {
 		authMode := "token"
 		if cfg.GitHubApp != nil {
 			authMode = "github-app"
+		} else if cfg.GitHubTokenEnv == "" {
+			authMode = "none"
 		}
 		webhookMsg := "disabled"
 		if cfg.Webhook != nil {
 			webhookMsg = cfg.Webhook.Path
 		}
-		cmd.Printf("Gateway %q validated: auth=%s, webhook=%s, %d agents, %d rules, %d limits.\n", cfg.Name, authMode, webhookMsg, len(cfg.Agents), len(cfg.Rules), len(cfg.Limits))
+		cmd.Printf("Gateway %q validated: auth=%s, webhook=%s, %d workspaces, %d agents, %d rules, %d limits.\n", cfg.Name, authMode, webhookMsg, len(cfg.Workspaces), len(cfg.Agents), len(cfg.Rules), len(cfg.Limits))
 		return nil
 	}}
 	gatewayCmd.AddCommand(check)

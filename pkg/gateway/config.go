@@ -17,12 +17,25 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type WorkspaceConfig struct {
+	ID         string `yaml:"id" json:"id"`
+	Path       string `yaml:"path" json:"path"`
+	ReadOnly   bool   `yaml:"read_only,omitempty" json:"read_only,omitempty"`
+	MaxTimeout string `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
+	timeout    time.Duration
+}
+
+func (w *WorkspaceConfig) Timeout() time.Duration {
+	return w.timeout
+}
+
 type Agent struct {
 	ID           string   `yaml:"id" json:"id"`
 	TokenEnv     string   `yaml:"token_env" json:"token_env"`
-	Repositories []string `yaml:"repositories" json:"repositories"`
+	Repositories []string `yaml:"repositories,omitempty" json:"repositories,omitempty"`
+	Workspaces   []string `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
 	Actions      []string `yaml:"actions" json:"actions"`
-	BranchPrefix string   `yaml:"branch_prefix" json:"branch_prefix"`
+	BranchPrefix string   `yaml:"branch_prefix,omitempty" json:"branch_prefix,omitempty"`
 }
 type Rule struct {
 	ID           string            `yaml:"id" json:"id"`
@@ -59,6 +72,7 @@ type Config struct {
 	GitHubTokenEnv string              `yaml:"github_token_env,omitempty" json:"github_token_env,omitempty"`
 	GitHubApp      *GitHubAppConfig    `yaml:"github_app,omitempty" json:"github_app,omitempty"`
 	Webhook        *WebhookConfig      `yaml:"webhook,omitempty" json:"webhook,omitempty"`
+	Workspaces     []WorkspaceConfig   `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
 	ApprovalTTL    string              `yaml:"approval_ttl" json:"approval_ttl"`
 	Agents         []Agent             `yaml:"agents" json:"agents"`
 	Rules          []Rule              `yaml:"rules,omitempty" json:"rules,omitempty"`
@@ -70,7 +84,11 @@ type Config struct {
 
 var repoPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$`)
 var identifier = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
-var operations = map[string]bool{"read_file": true, "get_pr": true, "create_branch": true, "put_file": true, "create_pr": true, "merge_pr": true, "create_issue": true, "update_issue": true}
+var operations = map[string]bool{
+	"read_file": true, "get_pr": true, "create_branch": true, "put_file": true,
+	"create_pr": true, "merge_pr": true, "create_issue": true, "update_issue": true,
+	"exec_cmd": true, "write_file": true, "delete_file": true, "list_dir": true,
+}
 
 func member(items []string, item string) bool {
 	for _, v := range items {
@@ -125,6 +143,25 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			return nil, fmt.Errorf("webhook path must start with /")
 		}
 	}
+	wsIDs := map[string]bool{}
+	for j := range c.Workspaces {
+		ws := &c.Workspaces[j]
+		if !identifier.MatchString(ws.ID) || wsIDs[ws.ID] {
+			return nil, fmt.Errorf("workspaces need unique valid IDs")
+		}
+		wsIDs[ws.ID] = true
+		if ws.Path == "" {
+			return nil, fmt.Errorf("workspace %s path is required", ws.ID)
+		}
+		if ws.MaxTimeout == "" {
+			ws.MaxTimeout = "60s"
+		}
+		to, err := time.ParseDuration(ws.MaxTimeout)
+		if err != nil || to <= 0 {
+			return nil, fmt.Errorf("invalid max_timeout for workspace %s", ws.ID)
+		}
+		ws.timeout = to
+	}
 	if c.ApprovalTTL == "" {
 		c.ApprovalTTL = "1h"
 	}
@@ -143,8 +180,11 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			return nil, fmt.Errorf("agents need unique valid IDs and token_env")
 		}
 		ids[a.ID] = true
-		if len(a.Repositories) == 0 || len(a.Actions) == 0 {
-			return nil, fmt.Errorf("agent %s needs repositories and actions", a.ID)
+		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 {
+			return nil, fmt.Errorf("agent %s needs repositories or workspaces", a.ID)
+		}
+		if len(a.Actions) == 0 {
+			return nil, fmt.Errorf("agent %s needs actions", a.ID)
 		}
 		for k, repo := range a.Repositories {
 			if !repoPattern.MatchString(repo) {
@@ -152,19 +192,32 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			}
 			a.Repositories[k] = strings.ToLower(repo)
 		}
+		for _, ws := range a.Workspaces {
+			if !identifier.MatchString(ws) {
+				return nil, fmt.Errorf("invalid workspace %q for agent %s", ws, a.ID)
+			}
+		}
 		for _, op := range a.Actions {
 			if !operations[op] {
 				return nil, fmt.Errorf("unsupported action %q", op)
 			}
 		}
-		if a.BranchPrefix == "" {
+		if len(a.Repositories) > 0 && a.BranchPrefix == "" {
 			a.BranchPrefix = "circuit/"
 		}
-		if !validRef(strings.TrimSuffix(a.BranchPrefix, "/")) || !strings.HasSuffix(a.BranchPrefix, "/") {
-			return nil, fmt.Errorf("branch_prefix must be a valid prefix ending in /")
+		if a.BranchPrefix != "" {
+			if !validRef(strings.TrimSuffix(a.BranchPrefix, "/")) || !strings.HasSuffix(a.BranchPrefix, "/") {
+				return nil, fmt.Errorf("branch_prefix must be a valid prefix ending in /")
+			}
 		}
 	}
-	env, err := cel.NewEnv(cel.Variable("args", cel.MapType(cel.StringType, cel.DynType)), cel.Variable("action", cel.StringType), cel.Variable("repository", cel.StringType), cel.Variable("agent_id", cel.StringType))
+	env, err := cel.NewEnv(
+		cel.Variable("args", cel.MapType(cel.StringType, cel.DynType)),
+		cel.Variable("action", cel.StringType),
+		cel.Variable("repository", cel.StringType),
+		cel.Variable("workspace", cel.StringType),
+		cel.Variable("agent_id", cel.StringType),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +261,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		ids[limit.ID] = true
 		switch limit.Scope {
-		case "global", "agent", "repository", "agent_repository":
+		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace":
 		default:
 			return nil, fmt.Errorf("invalid budget scope %q", limit.Scope)
 		}
@@ -237,8 +290,21 @@ func (c *Config) agent(id string) *Agent {
 }
 func (c *Config) evaluate(agentID string, req Request) (config.ActionType, string, error) {
 	agent := c.agent(agentID)
-	if agent == nil || !member(agent.Repositories, req.Repository) || !member(agent.Actions, req.Operation) {
-		return config.ActionDeny, "Agent is not permitted to use this action or repository", nil
+	if agent == nil || !member(agent.Actions, req.Operation) {
+		return config.ActionDeny, "Agent is not permitted to use this action", nil
+	}
+	if isWorkspaceOperation(req) {
+		wsID := req.Workspace
+		if wsID == "" {
+			wsID = "default"
+		}
+		if !member(agent.Workspaces, wsID) {
+			return config.ActionDeny, fmt.Sprintf("Agent is not permitted to access workspace %q", wsID), nil
+		}
+	} else {
+		if !member(agent.Repositories, req.Repository) {
+			return config.ActionDeny, "Agent is not permitted to access this repository", nil
+		}
 	}
 	if err := validateScope(agent, req); err != nil {
 		return config.ActionDeny, err.Error(), nil
@@ -248,13 +314,33 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 	if req.Operation == "merge_pr" {
 		verdict = config.ActionRequireApproval
 		reason = "Merge requires approval of the exact head commit"
+	} else if req.Operation == "delete_file" {
+		verdict = config.ActionRequireApproval
+		reason = "Deleting files requires operator approval"
+	} else if req.Operation == "write_file" {
+		if ow, ok := req.Args["overwrite"].(bool); ok && ow {
+			verdict = config.ActionRequireApproval
+			reason = "Overwriting existing files requires operator approval"
+		}
+	} else if req.Operation == "exec_cmd" {
+		cmdStr := text(req.Args, "command")
+		if isDestructive, r := IsDestructiveCommand(cmdStr); isDestructive {
+			verdict = config.ActionRequireApproval
+			reason = r
+		}
 	}
 	for _, rule := range c.Rules {
 		if !member(rule.Actions, req.Operation) || (len(rule.Repositories) > 0 && !member(rule.Repositories, req.Repository)) {
 			continue
 		}
 		if rule.program != nil {
-			out, _, err := rule.program.Eval(map[string]any{"args": req.Args, "action": req.Operation, "repository": req.Repository, "agent_id": agentID})
+			out, _, err := rule.program.Eval(map[string]any{
+				"args":       req.Args,
+				"action":     req.Operation,
+				"repository": req.Repository,
+				"workspace":  req.Workspace,
+				"agent_id":   agentID,
+			})
 			if err != nil {
 				return config.ActionDeny, "Policy evaluation failed", err
 			}

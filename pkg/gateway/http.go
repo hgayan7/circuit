@@ -251,16 +251,25 @@ func (h *HTTPHandler) webhook(w http.ResponseWriter, r *http.Request) {
 }
 
 type toolInput struct {
-	Repository     string         `json:"repository" jsonschema:"Allowed owner/repository name"`
+	Repository     string         `json:"repository,omitempty" jsonschema:"Allowed owner/repository name (for GitHub actions)"`
+	Workspace      string         `json:"workspace,omitempty" jsonschema:"Allowed workspace ID (for shell/file actions)"`
 	Args           map[string]any `json:"args" jsonschema:"Operation-specific arguments"`
 	IdempotencyKey string         `json:"idempotency_key" jsonschema:"Stable unique key. Reuse this exact key when retrying the same action"`
 }
 
 var descriptions = map[string]string{
-	"read_file": "Read a repository file. Args: path, ref.", "get_pr": "Read a pull request. Args: number.", "create_branch": "Create an agent branch. Args: branch, sha (full commit SHA).",
-	"put_file":  "Create/update one file on an agent branch. Args: path, branch, content (base64), message, optional sha (existing blob SHA). Workflow/action files are forbidden.",
-	"create_pr": "Open a PR from an agent branch. Args: title, head, base, optional body and draft.", "merge_pr": "Request a merge with mandatory operator approval. Args: number, sha (exact full head SHA), optional merge_method. Poll circuit_action_status; do not submit another key while pending or uncertain.",
-	"create_issue": "Create an issue. Args: title, optional body.", "update_issue": "Update an issue. Args: number and at least one of title, body, state.",
+	"read_file":     "Read a repository or workspace file. Args: path, ref (for GitHub).",
+	"get_pr":        "Read a pull request. Args: number.",
+	"create_branch": "Create an agent branch. Args: branch, sha (full commit SHA).",
+	"put_file":      "Create/update one file on an agent branch. Args: path, branch, content (base64), message, optional sha (existing blob SHA). Workflow/action files are forbidden.",
+	"create_pr":     "Open a PR from an agent branch. Args: title, head, base, optional body and draft.",
+	"merge_pr":      "Request a merge with mandatory operator approval. Args: number, sha (exact full head SHA), optional merge_method. Poll circuit_action_status; do not submit another key while pending or uncertain.",
+	"create_issue":  "Create an issue. Args: title, optional body.",
+	"update_issue":  "Update an issue. Args: number and at least one of title, body, state.",
+	"exec_cmd":      "Execute a shell command within the agent workspace boundary. Destructive commands require operator review. Args: command, optional cwd (relative), optional timeout_sec.",
+	"write_file":    "Create or write a file in the workspace. Overwriting an existing file requires operator review. Args: path, content, optional encoding (base64 or text), optional overwrite (bool).",
+	"delete_file":   "Delete a file or directory in the workspace with mandatory operator review. Args: path, optional recursive (bool).",
+	"list_dir":      "List entries in a workspace directory. Args: path (relative).",
 }
 
 func toolResult(a *Action) *mcp.CallToolResult {
@@ -268,16 +277,40 @@ func toolResult(a *Action) *mcp.CallToolResult {
 	return &mcp.CallToolResult{IsError: a.State == "denied" || a.State == "rejected" || a.State == "failed" || a.State == "expired", Content: []mcp.Content{&mcp.TextContent{Text: string(data)}}}
 }
 func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "circuit-github", Version: "0.1.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "circuit-actions", Version: "0.2.0"}, nil)
 	for _, operation := range agent.Actions {
 		op := operation
-		mcp.AddTool(server, &mcp.Tool{Name: "github_" + op, Description: descriptions[op]}, func(ctx context.Context, req *mcp.CallToolRequest, in toolInput) (*mcp.CallToolResult, any, error) {
-			a, err := h.service.Submit(ctx, agent.ID, in.IdempotencyKey, Request{Operation: op, Repository: in.Repository, Args: in.Args})
-			if err != nil {
-				return nil, nil, err
+		names := []string{"github_" + op}
+		switch op {
+		case "exec_cmd":
+			names = []string{"shell_exec_cmd"}
+		case "write_file":
+			names = []string{"file_write"}
+		case "delete_file":
+			names = []string{"file_delete"}
+		case "list_dir":
+			names = []string{"file_list_dir"}
+		case "read_file":
+			if len(agent.Workspaces) > 0 && len(agent.Repositories) == 0 {
+				names = []string{"file_read"}
+			} else if len(agent.Workspaces) > 0 && len(agent.Repositories) > 0 {
+				names = []string{"github_read_file", "file_read"}
 			}
-			return toolResult(a), nil, nil
-		})
+		}
+		for _, name := range names {
+			tName := name
+			mcp.AddTool(server, &mcp.Tool{Name: tName, Description: descriptions[op]}, func(ctx context.Context, req *mcp.CallToolRequest, in toolInput) (*mcp.CallToolResult, any, error) {
+				reqPayload := Request{Operation: op, Repository: in.Repository, Workspace: in.Workspace, Args: in.Args}
+				if tName == "file_read" && reqPayload.Workspace == "" && len(agent.Workspaces) > 0 {
+					reqPayload.Workspace = agent.Workspaces[0]
+				}
+				a, err := h.service.Submit(ctx, agent.ID, in.IdempotencyKey, reqPayload)
+				if err != nil {
+					return nil, nil, err
+				}
+				return toolResult(a), nil, nil
+			})
+		}
 	}
 	mcp.AddTool(server, &mcp.Tool{Name: "circuit_action_status", Description: "Poll a submitted action by ID. Pending means await operator approval. Uncertain means stop and request reconciliation."}, func(ctx context.Context, req *mcp.CallToolRequest, in struct {
 		ID string `json:"id"`

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -17,7 +18,8 @@ import (
 
 type Request struct {
 	Operation  string         `json:"operation"`
-	Repository string         `json:"repository"`
+	Repository string         `json:"repository,omitempty"`
+	Workspace  string         `json:"workspace,omitempty"`
 	Args       map[string]any `json:"args"`
 }
 type Outcome struct {
@@ -69,8 +71,47 @@ func forbiddenPath(p string) bool {
 	return p == ".github/workflows" || strings.HasPrefix(p, ".github/workflows/") || p == ".github/actions" || strings.HasPrefix(p, ".github/actions/") || p == ".git" || strings.HasPrefix(p, ".git/")
 }
 func validateRequest(req *Request) error {
+	if !operations[req.Operation] {
+		return fmt.Errorf("unsupported operation %q", req.Operation)
+	}
+	if isWorkspaceOperation(*req) {
+		if req.Workspace == "" {
+			req.Workspace = "default"
+		}
+		if !identifier.MatchString(req.Workspace) {
+			return fmt.Errorf("invalid workspace identifier %q", req.Workspace)
+		}
+		wsFields := map[string][]string{
+			"exec_cmd":    {"command", "cwd", "timeout_sec"},
+			"read_file":   {"path"},
+			"write_file":  {"path", "content", "encoding", "overwrite"},
+			"delete_file": {"path", "recursive"},
+			"list_dir":    {"path"},
+		}
+		for k := range req.Args {
+			if !member(wsFields[req.Operation], k) {
+				return fmt.Errorf("unexpected argument %q for %s", k, req.Operation)
+			}
+		}
+		if req.Operation == "exec_cmd" {
+			if text(req.Args, "command") == "" {
+				return fmt.Errorf("command is required")
+			}
+		} else {
+			if req.Operation != "list_dir" && text(req.Args, "path") == "" {
+				return fmt.Errorf("path is required")
+			}
+		}
+		if p := text(req.Args, "path"); p != "" {
+			if filepath.IsAbs(p) || strings.HasPrefix(p, "/") || strings.HasPrefix(p, "\\") || strings.Contains(p, "\x00") {
+				return fmt.Errorf("path must be a relative path without null bytes")
+			}
+		}
+		return nil
+	}
+
 	req.Repository = strings.ToLower(req.Repository)
-	if !repoPattern.MatchString(req.Repository) || !operations[req.Operation] {
+	if !repoPattern.MatchString(req.Repository) {
 		return fmt.Errorf("unsupported operation or invalid repository")
 	}
 	fields := map[string][]string{
@@ -139,6 +180,16 @@ func validateRequest(req *Request) error {
 	return nil
 }
 func validateScope(agent *Agent, req Request) error {
+	if isWorkspaceOperation(req) {
+		wsID := req.Workspace
+		if wsID == "" {
+			wsID = "default"
+		}
+		if !member(agent.Workspaces, wsID) {
+			return fmt.Errorf("Access to workspace %q is not permitted for this agent", wsID)
+		}
+		return nil
+	}
 	if req.Operation == "put_file" && forbiddenPath(text(req.Args, "path")) {
 		return fmt.Errorf("Changes to workflow/action configuration are forbidden")
 	}
