@@ -93,6 +93,8 @@ Cloud, communication, and payment configurations require explicit `simulation: t
 
 See [the validation report](docs/validation-status.md) for evidence, reproduction, compatibility changes, and remaining release limits.
 
+Circuit's [extension contract](docs/plugin-contract.md) keeps policy, approvals, budgets, and audit in the trusted core while provider plugins run as separate services. [Operational extensions](docs/operations.md) supply replaceable notifications (email BYOK), encrypted backups/retention, monitoring, and fixture soak workers.
+
 Across these integrations, the roadmap includes:
 
 - **Agent and workflow allowances:** shared agent limits plus separate workflow budgets, expiring credentials, immediate revocation, and constrained delegation to other agents.

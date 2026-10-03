@@ -1,6 +1,6 @@
 # Single-Instance GitHub Deployment
 
-Production-oriented foundation, not production certification. The first deployment profile supports one gateway process, GitHub App authentication, named operator tokens, TLS, and an independently isolated agent. [Docker validation](production-validation-results.json) passed 23 checks and a 60-second soak. A multi-day soak and independent security review remain release gates.
+Production-oriented foundation, not production certification. The first deployment profile supports one gateway process, GitHub App authentication, named operator tokens, TLS, and an independently isolated agent. [Docker validation](production-validation-results.json) passed 23 checks and a 60-second soak. The [operations layer](operations.md) adds tested email delivery, encrypted retention, image upgrade/rollback evidence, and a running multi-day fixture soak. Independent review was deferred by the operator, not completed.
 
 ## Local Docker
 
@@ -51,7 +51,7 @@ For App keys: add a new key, replace the gateway-only mount, recreate, verify a 
 - `/admin/metrics`: operator-authenticated Prometheus counters and state/storage/restore/drain gauges. Request counters reset on restart; action gauges use durable state.
 - JSON request logs contain normalized method/route, status, and duration, not raw URLs, headers, bodies, tokens, or provider responses. Sensitive payloads still exist in protected state.
 
-Scrape with a dedicated observer token file. `deploy/docker/alerts.example.yaml` supplies sample rules; connect them to your own monitoring/notifications. Prometheus and alert delivery are not installed here. Monitor disk space, certificate expiry, backup age, and restarts externally. Provider failures can arrive in HTTP-200 action records: monitor failed/uncertain gauges, not only HTTP 5xx.
+Scrape with a dedicated observer token file. The optional [operations overlay](operations.md) connects Prometheus and Alertmanager with tested local SMTP delivery and a BYOK production email template. Monitor disk space, certificate expiry, and restarts externally. Provider failures can arrive in HTTP-200 action records: monitor failed/uncertain gauges, not only HTTP 5xx.
 
 ## Backup And Restore
 
@@ -99,6 +99,6 @@ The completed foundation includes roles/attribution, TLS 1.3, mounted credential
 
 The updated runtime/dependencies pass `govulncheck` with no reported reachable Go vulnerabilities. The initially reported dependency advisories were addressed by security updates. This is not an independent audit or complete container-image scan.
 
-Before production release: a 72-hour soak with the intended real agent workload, operator recovery rehearsals, connected monitoring/alerts and protected backup retention, cross-version migration tests, and independent security review. Broader organizations may also require SSO/MFA, reviewer quorum, identity-specific repository scopes, and distributed storage.
+Before an actual deployment release: finish the 72-hour soak and test the intended real agent workload, configure and rehearse BYOK email, copy encrypted backups to independently durable storage and test host-loss recovery, and monitor disk/certificate capacity. Upgrade/rollback was rehearsed for the recorded images on current GitHub state, not arbitrary future schemas. Independent review was explicitly deferred. Broader organizations may also require SSO/MFA, reviewer quorum, identity-specific repository scopes, and distributed storage.
 
-`--duration-seconds 259200` runs the longer read-only fixture exercise with periodic isolated GitHub reads and health/metrics sampling. Reports claim multi-day completion only after the full duration passes. Keep the host awake and use a sufficiently long-lived certificate. No background scheduler or multi-day automation has been started.
+`--duration-seconds 259200` runs the original long fixture exercise. The operations overlay also supplies a persistent Docker soak worker with periodic isolated GitHub reads. Reports claim multi-day completion only after the full duration passes without failures or continuity gaps. Keep the host awake and use a sufficiently long-lived certificate. The worker is started by the operations/upgrade rehearsal scripts, not a Codex scheduler.

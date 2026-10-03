@@ -272,6 +272,7 @@ func (s *Service) Execute(ctx context.Context, id string) (*Action, error) {
 	}
 	callCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancel()
+	callCtx = context.WithValue(callCtx, executionIDKey{}, a.ID)
 	outcome := s.executor.Execute(callCtx, a.Request)
 	if outcome.Error == "" && s.inspector.InspectResponses() {
 		var value any

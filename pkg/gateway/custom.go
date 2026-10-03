@@ -28,6 +28,8 @@ type CustomToolTarget struct {
 	callHistory []map[string]any
 	callSeq     int
 	httpClient  *http.Client
+	plugin      *CustomToolConfig
+	pluginToken string
 }
 
 // NewCustomToolTarget creates a CustomToolTarget.
@@ -78,6 +80,9 @@ func NewCustomToolExecutor(target *CustomToolTarget) *CustomToolExecutor {
 
 // Execute executes an action request on the custom tool target.
 func (e *CustomToolExecutor) Execute(ctx context.Context, r Request) Outcome {
+	if e.target.plugin != nil {
+		return e.executePlugin(ctx, r)
+	}
 	if e.target.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, e.target.Timeout)

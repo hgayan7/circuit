@@ -175,6 +175,9 @@ func init() {
 			if err != nil {
 				return fmt.Errorf("initializing custom tool %s: %w", ctCfg.ID, err)
 			}
+			if err := target.ConfigurePlugin(ctCfg); err != nil {
+				return fmt.Errorf("initializing plugin %s: %w", ctCfg.ID, err)
+			}
 			customExecutors[ctCfg.ID] = gateway.NewCustomToolExecutor(target)
 		}
 
