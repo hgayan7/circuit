@@ -191,7 +191,7 @@ default_action: DENY    # block everything not explicitly allowed
 
 ## Complete examples
 
-### OpenAI — spend cap + audit
+### OpenAI — action cap
 
 ```yaml
 name: openai-guard
@@ -199,16 +199,17 @@ version: "1.0"
 default_action: ALLOW
 
 rules:
-  - id: cap-openai-spend
-    description: Limit OpenAI spend to $2/hour
+  - id: cap-openai-actions
+    description: Limit OpenAI requests to 50/hour
     match:
       endpoint: "POST /v1/chat/completions"
     action: ALLOW
     budget:
       window: 1h
       max_calls: 50
-      max_amount: 2.00
 ```
+
+Monetary limits require a valid `amount_field`. Token-based OpenAI cost accounting is not implemented.
 
 ### Postgres MCP — block destructive SQL
 
@@ -287,3 +288,7 @@ circuit check
 
 CEL syntax errors are caught at compile time — not at runtime when your
 agent is already running.
+
+## Optional safety layer
+
+See [the safety guide](./safety.md) for HTTPS inspection, request/result injection checks, and parser-based shell/SQL guards. These checks run before first-match CEL action selection. Match fields are combined with AND; `host` is also available for HTTP traffic.

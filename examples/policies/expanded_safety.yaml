@@ -1,0 +1,20 @@
+version: v1alpha1
+name: expanded-safety
+default_action: ALLOW
+
+# Opt-in checks run before CEL policy rules, even when default_action is ALLOW.
+safety:
+  prompt_injection: true
+  shell: true
+  sql: true
+  shell_fields: [command, cmd, script]
+  sql_fields: [sql, query]
+  allowed_commands: [echo, printf, pwd, whoami, ls, cat, head, tail, wc, true, false]
+  allowed_sql_functions: [count, sum, avg, min, max, lower, upper, length, coalesce, abs, round]
+
+rules:
+  - id: block-user-deletion
+    match:
+      endpoint: DELETE /v1/users
+    action: DENY
+    reason: User deletion is forbidden

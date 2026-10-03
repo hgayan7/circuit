@@ -3,10 +3,13 @@ package runner_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os/exec"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -63,4 +66,28 @@ rules:
 	output := stdout.String()
 	assert.Contains(t, output, "HTTP_PROXY=http://127.0.0.1:")
 	assert.Contains(t, output, "HTTPS_PROXY=http://127.0.0.1:")
+}
+
+// Exercise a real proxy-aware child, not merely the presence of env variables.
+func TestRunner_ForwardProxyEnforcesChildHTTP(t *testing.T) {
+	if _, err := exec.LookPath("curl"); err != nil {
+		t.Skip("curl unavailable")
+	}
+	var calls atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); fmt.Fprint(w, "ok") }))
+	defer origin.Close()
+	pol, err := config.ParsePolicy(strings.NewReader("name: child-forward\nrules:\n- id: block\n  match:\n    endpoint: GET /blocked\n  action: DENY\n"))
+	require.NoError(t, err)
+	engine, err := policy.NewEngine(pol)
+	require.NoError(t, err)
+	r := runner.New(engine)
+	var stdout, stderr bytes.Buffer
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	require.NoError(t, r.RunCommand(ctx, strings.NewReader(""), &stdout, &stderr, "curl", "--silent", "--show-error", "--fail", "--max-time", "5", origin.URL+"/allowed"))
+	assert.Equal(t, "ok", stdout.String())
+	stdout.Reset()
+	stderr.Reset()
+	require.Error(t, r.RunCommand(ctx, strings.NewReader(""), &stdout, &stderr, "curl", "--silent", "--show-error", "--fail", "--max-time", "5", origin.URL+"/blocked"))
+	assert.EqualValues(t, 1, calls.Load())
 }

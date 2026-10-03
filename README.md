@@ -1,201 +1,91 @@
-<p align="center">
-  <img src="assets/logo.jpg" alt="Circuit Proxy Logo" width="120" />
-</p>
+<p align="center"><img src="assets/logo.jpg" alt="Circuit" width="120" /></p>
 
-<h1 align="center">Circuit Proxy</h1>
+# Circuit
 
-<p align="center">
-  <strong>The Governance &amp; Safety Proxy for AI Agents</strong><br/>
-  <em>Trip the breaker before an agent burns down production.</em>
-</p>
+**A bounded allowance for autonomous agents to act.**
 
-<p align="center">
-  <a href="https://github.com/hgayan7/circuit/actions/workflows/ci.yml"><img src="https://github.com/hgayan7/circuit/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
-  <a href="https://github.com/hgayan7/circuit/releases/latest"><img src="https://img.shields.io/github/v/release/hgayan7/circuit?color=F59E0B&label=release" alt="Latest Release"/></a>
-  <a href="https://pkg.go.dev/github.com/hgayan7/circuit"><img src="https://pkg.go.dev/badge/github.com/hgayan7/circuit.svg" alt="Go Reference"/></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/></a>
-  <a href="#benchmarks"><img src="https://img.shields.io/badge/Evaluation%20Overhead-%3C%2085%C2%B5s-brightgreen.svg" alt="Latency"/></a>
-  <a href="https://circuitproxy.com"><img src="https://img.shields.io/badge/Web-circuitproxy.com-F59E0B.svg" alt="Web"/></a>
-</p>
+Circuit is a self-hosted GitHub action gateway for unattended engineering agents. Give an agent permission to work in selected repositories, enforce cumulative action limits, and require approval of consequential changes.
 
----
+For example: let an agent open five PRs per hour in two repositories, restrict its writes to `circuit/` branches, forbid workflow-file changes, and require approval before merging an exact commit.
 
-## Why Circuit?
+## Try it
 
-Autonomous agents are probabilistic, non-deterministic reasoning engines. Giving them direct access to production APIs, databases, and MCP servers creates critical vulnerabilities:
-
-1. **The Blast-Radius Dilemma:** An agent compromised via indirect prompt injection or hallucination makes calls with legitimate tokens. To an API gateway like Kong or AWS, wiping 5,000 customers looks like a normal migration.
-2. **Traditional Rate Limits Fail Agents:** Gateways rate-limit on *requests per second*. A runaway agent only needs **1 bad request** to execute `DELETE /users` or cycle 10 x $500 refunds over 30 minutes.
-3. **LLM Guardrails Miss Mutations:** Text guardrails (NeMo, Guardrails AI) scan prompts for strings, but cannot calculate real-world side effects once an action enters the execution domain.
-4. **All-or-Nothing Bearer Tokens:** If you hand an agent a live GitHub or Stripe credential, its blast radius is whatever that key allows.
-
-**Circuit acts as an electrical circuit breaker on the network and stdio wire:**  
-It intercepts tool calls, evaluates semantic arguments using Google Common Expression Language (CEL), enforces cumulative financial and action budgets, virtualizes credentials, and parks high-risk transactions for human sign-off without dropping agent state.
-
----
-
-## Architecture
-
-```
-                      [ AGENT RUNTIME ]
-         (Cursor, Claude Desktop, Python, LangGraph, Node.js)
-                          │
-            ┌─────────────┴─────────────┐
-            │                           │
-    [ MCP stdio / SSE ]          [ HTTP / REST ]
-    (circuit mcp wrap)          (circuit run / serve)
-            │                           │
-            ▼                           ▼
-  ┌────────────────────────────────────────────────────────┐
-  │                    CIRCUIT GATEWAY                     │
-  │                                                        │
-  │  • CEL Policy Engine (Google Common Expression)        │
-  │  • Cumulative Action & Spend Budgets (Rolling Window)  │
-  │  • Zero-Trust Token Virtualization (Ephemeral Vault)   │
-  │  • Stateful Transaction Parking (Asynchronous HITL)    │
-  │  • Tamper-Evident NDJSON Audit Ledger                  │
-  └───────────────────────────┬────────────────────────────┘
-                              │ (Only when ALLOWED or APPROVED)
-            ┌─────────────────┴─────────────────┐
-            ▼                                   ▼
-  [ Downstream MCP Server ]            [ External REST API ]
- (Postgres, Git, Filesystem)         (Stripe, GitHub, Cloud)
+```sh
+go build -o bin/circuit ./cmd/circuit
+bin/circuit gateway demo
 ```
 
----
+Open http://127.0.0.1:8080 and enter the public demo operator token printed by the command. In another terminal:
 
-## 🚀 Quickstart
-
-### 1. Installation
-
-**Via Homebrew (macOS & Linux):**
-```bash
-brew install hgayan7/circuit/circuit
+```sh
+python3 examples/github-agent.py --demo
 ```
 
-**Via Pre-Built Binary:**
-Download the latest pre-compiled binary for macOS, Linux, or Windows from [GitHub Releases](https://github.com/hgayan7/circuit/releases).
+Review the file-write and merge proposals in the interface. This simulation never contacts GitHub and needs no real credentials.
 
-**From Source:**
-```bash
-go install github.com/hgayan7/circuit/cmd/circuit@latest
+## What the gateway does
+
+- **Scoped agent access:** explicit repository and operation allowlists, separate Circuit bearer identities, and upstream credentials held by the gateway.
+- **Combined enforcement:** DENY overrides ALLOW; approval requirements and all matching budgets apply together.
+- **Durable limits:** atomic reservations persist through restarts and are rechecked before execution.
+- **Exact-action approvals:** approve a stored payload and digest, with expiry and policy-version checks; merges also use GitHub's head-SHA precondition.
+- **Retry protection:** stable idempotency keys return the original action. Claimed actions are never automatically replayed after ambiguous failures or restarts.
+- **Accountable execution:** a web review queue and persisted history show proposals, decisions, operator attribution, and upstream outcomes.
+- **REST and MCP:** structured GitHub actions over authenticated REST or Streamable HTTP MCP using the official Go SDK.
+
+```text
+Agent in an existing sandbox
+          │ Circuit agent credential
+          ▼
+Circuit action gateway ─── Operator review interface
+  scopes · limits · approvals · durable state
+          │ scoped GitHub credential
+          ▼
+        GitHub
 ```
 
-### 2. Automatic Proxy Injection (`circuit run`)
+Circuit integrates with existing sandboxes and model gateways. It does not provide model routing or OS isolation. To rely on its controls, agents must lack independent GitHub credentials and unrestricted alternative execution paths.
 
-Run any agent script without changing code or configuring ports. Circuit spins up an ephemeral proxy, injects `HTTP_PROXY` into the child environment, enforces policy, and tears down cleanly when done:
+## Use a real repository
 
-```bash
-circuit run --policy ./circuit.yaml -- python agent.py
+```sh
+bin/circuit gateway init --repo your-org/your-repo
+bin/circuit gateway check gateway.yaml
+export CIRCUIT_ADMIN_TOKEN="$(bin/circuit gateway token)"
+export CIRCUIT_AGENT_TOKEN="$(bin/circuit gateway token)"
+# Set a scoped GITHUB_TOKEN securely on the gateway only.
+bin/circuit gateway serve --config gateway.yaml --data .circuit/gateway.db
 ```
 
-### 3. Wrap an MCP Server (`circuit mcp wrap`)
+See the [GitHub gateway guide](docs/github-gateway.md) for configuration, agent/MCP connections, approvals, retry semantics, and deployment limits.
 
-Protect local developer tools (Cursor, Claude Desktop, Antigravity) from accidental `DROP TABLE` or destructive commands:
+## Supporting inspection tools
 
-```bash
-circuit mcp wrap \
-  --policy ./circuit.yaml \
-  --prefix postgres \
-  --audit ./mcp-audit.log \
-  -- npx -y @modelcontextprotocol/server-postgres "postgresql://user:pass@localhost:5432/mydb"
+The earlier generic inspection tools remain available:
+
+```sh
+circuit run --policy examples/policies/expanded_safety.yaml -- python agent.py
+circuit mcp wrap --policy circuit.yaml -- your-mcp-server
+circuit inspect --kind prompt
+circuit inspect --kind shell
+circuit inspect --kind sql
 ```
 
-In your `claude_desktop_config.json`:
+These provide HTTPS inspection for proxy-aware clients, heuristic prompt-injection checks, and conservative parser-based shell/SQL restrictions. They use `circuit.yaml`, separately from the action gateway's `gateway.yaml`.
 
-```json
-{
-  "mcpServers": {
-    "postgres": {
-      "command": "circuit",
-      "args": [
-        "mcp", "wrap",
-        "--policy", "/path/to/circuit.yaml",
-        "--prefix", "postgres",
-        "--",
-        "npx", "-y", "@modelcontextprotocol/server-postgres", "postgresql://..."
-      ]
-    }
-  }
-}
+Read [the safety guide](docs/safety.md) for coverage and limitations. Those tools do not replace a sandbox, and their older first-match CEL policy semantics differ from the gateway's combined enforcement.
+
+## Validation and status
+
+```sh
+go test -race ./...
+go vet ./...
 ```
 
-### 4. Standalone Reverse Proxy Daemon (`circuit serve`)
+Gateway tests cover the full simulated GitHub workflow, official SDK MCP connections, concurrent retries, persistent budgets, approval expiry, stale policies and commit SHAs, and uncertain-outcome recovery.
 
-Run Circuit in production or Kubernetes in front of critical APIs:
-
-```bash
-circuit serve \
-  --policy ./circuit.yaml \
-  --target "https://api.stripe.com" \
-  --port 8080 \
-  --inject-token "$STRIPE_LIVE_KEY" \
-  --audit ./stripe-audit.log
-```
-
----
-
-## Declarative Policy (`circuit.yaml`)
-
-Policies use simple YAML with Google CEL expressions:
-
-```yaml
-version: "v1alpha1"
-name: "prod-safety-circuit"
-default_action: ALLOW
-
-rules:
-  # 1. MCP Database Guard: Block destructive DDL statements
-  - id: "block-database-ddl"
-    description: "Prevent DROP, TRUNCATE, and ALTER TABLE"
-    match:
-      tool: "postgres.query"
-    condition: "args.sql.matches(r'(?i)(DROP\\s+TABLE|TRUNCATE|ALTER\\s+TABLE)')"
-    action: DENY
-    reason: "Destructive DDL operations are forbidden by Circuit policy"
-
-  # 2. Cumulative Spend Budget: Cap refunds across a rolling 1-hour window
-  - id: "hourly-spend-cap"
-    match:
-      endpoint: "POST /v1/refunds"
-    budget:
-      window: "1h"
-      max_amount: 500.00
-      amount_field: "args.amount / 100.0" # Stripe amount in cents
-    action: ALLOW
-
-  # 3. Micro-Approval Escalation: Park transactions > $100 for human review
-  - id: "escalate-high-refund"
-    match:
-      endpoint: "POST /v1/refunds"
-    condition: "args.amount > 10000"
-    action: REQUIRE_APPROVAL
-    reason: "Single refund exceeds $100 threshold"
-    escalation:
-      channel: "terminal"
-      target: "operator"
-```
-
-Validate your rules at any time:
-```bash
-circuit check circuit.yaml
-# ✅ Policy 'prod-safety-circuit' (version v1alpha1) compiled successfully with 3 rule(s).
-```
-
----
-
-## Benchmarks
-
-Benchmarked on Apple M2 Pro (`darwin/arm64`):
-
-```
-BenchmarkEngine_Evaluate-12    14791    80604 ns/op (0.08ms per evaluation)
-```
-
-Policy validation and CEL AST evaluation incur less than **0.1ms overhead**, making Circuit practically invisible in the critical path.
-
----
+This is an initial pilot implementation. A [live GitHub pilot](docs/github-pilot.md) passed 43 checks across private and protected public fixture repositories, including real merges, stale-SHA rejection, enforced branch protection, and restart persistence. It used an existing CLI OAuth credential; repository-scoped token and GitHub App permissions still need validation. A single private bbolt database provides durability; distributed operation and individual reviewer SSO are not implemented. Circuit prevents automatic replay of claimed actions, rather than promising exactly-once delivery across the GitHub network boundary.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).

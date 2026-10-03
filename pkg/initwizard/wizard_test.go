@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hgayan7/circuit/pkg/config"
 	"github.com/hgayan7/circuit/pkg/initwizard"
+	"github.com/hgayan7/circuit/pkg/policy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,10 +37,10 @@ func TestWizard_OpenAI_WithBudget(t *testing.T) {
 
 	content := string(data)
 	assert.Contains(t, content, "openai")
-	assert.Contains(t, content, "max_actions: 100")
-	assert.Contains(t, content, "max_spend: 5")
+	assert.Contains(t, content, "max_calls: 100")
+	assert.Contains(t, content, "Token-based monetary accounting is not implemented")
 	assert.Contains(t, content, "circuit.audit.ndjson")
-	assert.NotContains(t, content, "require_approval: true")
+	assert.NotContains(t, content, "REQUIRE_APPROVAL")
 
 	// Stdout must show next-step instructions
 	out := stdout.String()
@@ -60,7 +62,7 @@ func TestWizard_MCP_Postgres_WithHITL(t *testing.T) {
 
 	content := string(data)
 	assert.Contains(t, content, "postgres")
-	assert.Contains(t, content, "require_approval: true")
+	assert.Contains(t, content, "REQUIRE_APPROVAL")
 	assert.NotContains(t, content, "max_actions")
 
 	out := stdout.String()
@@ -81,7 +83,7 @@ func TestWizard_CustomHTTP_NoOptionals(t *testing.T) {
 
 	content := string(data)
 	// Should have a minimal catch-all allow rule
-	assert.Contains(t, content, "allow")
+	assert.Contains(t, content, "ALLOW")
 }
 
 func TestWizard_InvalidModeInput_ReturnsError(t *testing.T) {
@@ -105,4 +107,17 @@ func TestWizard_DoesNotOverwriteExisting(t *testing.T) {
 	data, _ := os.ReadFile(existing)
 	assert.Equal(t, "original", string(data))
 	assert.Contains(t, stdout.String(), "already exists")
+}
+
+func TestEveryWizardPresetCompiles(t *testing.T) {
+	for _, stack := range []string{"1", "2", "3", "4", "5"} {
+		t.Run(stack, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, initwizard.Run(strings.NewReader("1\n"+stack+"\ny\n10\n5\ny\ny\n"), &bytes.Buffer{}, dir))
+			pol, err := config.LoadPolicyFile(filepath.Join(dir, "circuit.yaml"))
+			require.NoError(t, err)
+			_, err = policy.NewEngine(pol)
+			require.NoError(t, err)
+		})
+	}
 }

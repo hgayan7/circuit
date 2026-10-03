@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/hgayan7/circuit/pkg/approval"
 	"github.com/hgayan7/circuit/pkg/audit"
 	"github.com/hgayan7/circuit/pkg/config"
 	"github.com/hgayan7/circuit/pkg/policy"
+	"github.com/hgayan7/circuit/pkg/safety"
 )
 
 // HandlerOption configures the HTTP proxy handler.
@@ -61,6 +63,9 @@ func NewHandler(engine *policy.Engine, targetURL *url.URL, opts ...HandlerOption
 		opt(h)
 	}
 
+	if targetURL == nil {
+		return h
+	}
 	h.reverseProxy = httputil.NewSingleHostReverseProxy(targetURL)
 	originalDirector := h.reverseProxy.Director
 	h.reverseProxy.Director = func(req *http.Request) {
@@ -71,10 +76,18 @@ func NewHandler(engine *policy.Engine, targetURL *url.URL, opts ...HandlerOption
 		}
 	}
 
+	h.reverseProxy.ModifyResponse = h.InspectResponse
 	return h
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h.Authorize(w, r) {
+		h.reverseProxy.ServeHTTP(w, r)
+	}
+}
+
+// Authorize enforces policy without forwarding; also used by the forward proxy.
+func (h *Handler) Authorize(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 
 	// Read and buffer request body for payload evaluation
@@ -83,9 +96,45 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if r.Body != nil {
 		var err error
-		bodyBytes, err = io.ReadAll(r.Body)
-		if err == nil && len(bodyBytes) > 0 {
-			_ = json.Unmarshal(bodyBytes, &args)
+		bodyBytes, err = io.ReadAll(io.LimitReader(r.Body, safety.MaxInspectionBytes+1))
+		if err != nil || len(bodyBytes) > safety.MaxInspectionBytes {
+			h.writeError(w, http.StatusRequestEntityTooLarge, "InspectionError", "Request body unreadable or exceeds 2 MiB", "")
+			return false
+		}
+		if len(bodyBytes) > 0 {
+			contentType := r.Header.Get("Content-Type")
+			switch {
+			case strings.HasPrefix(contentType, "application/x-www-form-urlencoded"):
+				values, parseErr := url.ParseQuery(string(bodyBytes))
+				if parseErr != nil {
+					h.writeError(w, 400, "InvalidPayload", parseErr.Error(), "")
+					return false
+				}
+				args = map[string]any{}
+				for key, vs := range values {
+					if len(vs) == 1 {
+						args[key] = vs[0]
+					} else {
+						items := make([]any, len(vs))
+						for j, v := range vs {
+							items[j] = v
+						}
+						args[key] = items
+					}
+				}
+			case strings.HasPrefix(contentType, "application/json") || contentType == "":
+				if err := json.Unmarshal(bodyBytes, &args); err != nil {
+					h.writeError(w, 400, "InvalidPayload", "Expected a JSON object", "")
+					return false
+				}
+			case strings.HasPrefix(contentType, "text/"):
+				args = map[string]any{"text": string(bodyBytes)}
+			default:
+				if h.engine.InspectionEnabled() {
+					h.writeError(w, 415, "UnsupportedPayload", "Inspection supports JSON objects, form data, and text", "")
+					return false
+				}
+			}
 		}
 		// Restore body for downstream forwarding
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
@@ -96,6 +145,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	agentID := r.Header.Get("X-Agent-ID")
 
 	evalCtx := &policy.EvaluationContext{
+		Host:      r.URL.Hostname(),
 		Endpoint:  endpoint,
 		Method:    r.Method,
 		Path:      r.URL.Path,
@@ -105,12 +155,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Timestamp: startTime,
 	}
 
+	if evalCtx.Host == "" {
+		evalCtx.Host = r.Host
+	}
 	evalRes, err := h.engine.Evaluate(r.Context(), evalCtx)
 	duration := time.Since(startTime)
 
 	if err != nil {
 		h.writeError(w, http.StatusInternalServerError, "EvaluationError", err.Error(), "")
-		return
+		return false
 	}
 
 	// 1. Action: DENY
@@ -132,14 +185,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		h.writeError(w, http.StatusForbidden, "PolicyViolation", evalRes.Reason, evalRes.RuleID)
-		return
+		return false
 	}
 
 	// 2. Action: REQUIRE_APPROVAL
 	if evalRes.Action == config.ActionRequireApproval {
 		if h.approver == nil {
 			h.writeError(w, http.StatusForbidden, "ApprovalRequired", "No approver configured to authorize this action", evalRes.RuleID)
-			return
+			return false
 		}
 
 		reqID := fmt.Sprintf("appr_http_%d", time.Now().UnixNano())
@@ -176,7 +229,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				})
 			}
 			h.writeError(w, http.StatusForbidden, "ApprovalRejected", reason, evalRes.RuleID)
-			return
+			return false
 		}
 
 		// Approved!
@@ -217,7 +270,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	h.reverseProxy.ServeHTTP(w, r)
+	return true
 }
 
 func (h *Handler) writeError(w http.ResponseWriter, statusCode int, errType, reason, ruleID string) {
@@ -228,4 +281,69 @@ func (h *Handler) writeError(w http.ResponseWriter, statusCode int, errType, rea
 		"reason":  reason,
 		"rule_id": ruleID,
 	})
+}
+
+// InspectResponse buffers inspectable responses before any content reaches the client.
+func (h *Handler) InspectResponse(resp *http.Response) error {
+	if !h.engine.InspectResponses() || resp.Body == nil || resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotModified || (resp.Request != nil && resp.Request.Method == http.MethodHead) {
+		return nil
+	}
+	originalBody := resp.Body
+	defer originalBody.Close()
+	ct := resp.Header.Get("Content-Type")
+	if strings.Contains(ct, "text/event-stream") || resp.StatusCode == http.StatusSwitchingProtocols {
+		return fmt.Errorf("streaming responses are unsupported while prompt inspection is enabled")
+	}
+	if enc := resp.Header.Get("Content-Encoding"); enc != "" && enc != "identity" {
+		return fmt.Errorf("encoded responses cannot be inspected")
+	}
+	if ct != "" && !strings.HasPrefix(ct, "text/") && !strings.Contains(ct, "json") && !strings.Contains(ct, "xml") {
+		return fmt.Errorf("unsupported response content type for prompt inspection")
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, safety.MaxInspectionBytes+1))
+	if err != nil {
+		return fmt.Errorf("response inspection read failed: %w", err)
+	}
+	if len(data) > safety.MaxInspectionBytes {
+		return fmt.Errorf("response exceeds 2 MiB inspection limit")
+	}
+	var content any
+	if strings.Contains(ct, "json") {
+		if err := json.Unmarshal(data, &content); err != nil {
+			return fmt.Errorf("invalid JSON response")
+		}
+	}
+	var check func(any) error
+	check = func(v any) error {
+		switch x := v.(type) {
+		case string:
+			if finding := h.engine.InspectText(x); finding != nil {
+				return fmt.Errorf("%s", finding.Reason)
+			}
+		case map[string]any:
+			for _, val := range x {
+				if err := check(val); err != nil {
+					return err
+				}
+			}
+		case []any:
+			for _, val := range x {
+				if err := check(val); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	if content != nil {
+		if err := check(content); err != nil {
+			return err
+		}
+	} else if finding := h.engine.InspectText(string(data)); finding != nil {
+		return fmt.Errorf("%s", finding.Reason)
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(data))
+	resp.ContentLength = int64(len(data))
+	resp.Header.Set("Content-Length", fmt.Sprint(len(data)))
+	return nil
 }

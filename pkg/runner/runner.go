@@ -13,8 +13,10 @@ import (
 
 	"github.com/hgayan7/circuit/pkg/approval"
 	"github.com/hgayan7/circuit/pkg/audit"
+	"github.com/hgayan7/circuit/pkg/interceptor/forward"
 	"github.com/hgayan7/circuit/pkg/interceptor/proxy"
 	"github.com/hgayan7/circuit/pkg/policy"
+	"strings"
 )
 
 // Option configures runner execution settings.
@@ -89,13 +91,33 @@ func (r *Runner) RunCommand(ctx context.Context, stdin io.Reader, stdout, stderr
 		proxyOpts = append(proxyOpts, proxy.WithInjectedToken(r.injectedToken))
 	}
 
-	target := r.targetURL
-	if target == nil {
-		target, _ = url.Parse("http://127.0.0.1")
+	var handler http.Handler
+	var trustPath string
+	if r.targetURL == nil {
+		if r.injectedToken != "" {
+			return fmt.Errorf("credential injection requires a fixed --target")
+		}
+		ca, err := forward.NewCA()
+		if err != nil {
+			return err
+		}
+		tempDir, err := os.MkdirTemp("", "circuit-ca-")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(tempDir)
+		trustPath, err = ca.WriteBundle(tempDir)
+		if err != nil {
+			return err
+		}
+		handler, err = forward.NewHandler(r.engine, ca, proxyOpts...)
+		if err != nil {
+			return err
+		}
+	} else {
+		handler = proxy.NewHandler(r.engine, r.targetURL, proxyOpts...)
 	}
-
-	handler := proxy.NewHandler(r.engine, target, proxyOpts...)
-	server := &http.Server{Handler: handler}
+	server := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 
 	serverErrCh := make(chan error, 1)
 	go func() {
@@ -110,13 +132,24 @@ func (r *Runner) RunCommand(ctx context.Context, stdin io.Reader, stdout, stderr
 	cmd.Stderr = stderr
 
 	// Inject proxy environment variables into child process
-	cmd.Env = append(os.Environ(),
-		"HTTP_PROXY="+proxyAddr,
-		"HTTPS_PROXY="+proxyAddr,
-		"http_proxy="+proxyAddr,
-		"https_proxy="+proxyAddr,
-		"ALL_PROXY="+proxyAddr,
-	)
+	env := map[string]string{
+		"HTTP_PROXY": proxyAddr, "HTTPS_PROXY": proxyAddr, "http_proxy": proxyAddr, "https_proxy": proxyAddr, "ALL_PROXY": proxyAddr,
+		"NO_PROXY": "", "no_proxy": "",
+	}
+	if trustPath != "" {
+		for _, key := range []string{"SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "NODE_EXTRA_CA_CERTS", "GRPC_DEFAULT_SSL_ROOTS_FILE_PATH"} {
+			env[key] = trustPath
+		}
+	}
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		if _, overridden := env[key]; !overridden {
+			cmd.Env = append(cmd.Env, entry)
+		}
+	}
+	for key, val := range env {
+		cmd.Env = append(cmd.Env, key+"="+val)
+	}
 
 	cmdErr := cmd.Run()
 

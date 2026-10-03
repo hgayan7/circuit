@@ -15,6 +15,7 @@ import (
 	"github.com/hgayan7/circuit/pkg/audit"
 	"github.com/hgayan7/circuit/pkg/config"
 	"github.com/hgayan7/circuit/pkg/policy"
+	"github.com/hgayan7/circuit/pkg/safety"
 )
 
 // JSONRPCMessage is a standard JSON-RPC 2.0 message frame.
@@ -101,6 +102,7 @@ func (p *Pipe) Run(ctx context.Context, clientIn io.Reader, clientOut io.Writer,
 		return err
 	}
 
+	errors := make(chan error, 2)
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -108,19 +110,46 @@ func (p *Pipe) Run(ctx context.Context, clientIn io.Reader, clientOut io.Writer,
 	go func() {
 		defer wg.Done()
 		scanner := bufio.NewScanner(downstreamOut)
+		scanner.Buffer(make([]byte, 4096), safety.MaxInspectionBytes)
 		for scanner.Scan() {
 			line := scanner.Bytes()
+			if p.engine.InspectResponses() {
+				var msg JSONRPCMessage
+				if err := json.Unmarshal(line, &msg); err != nil {
+					errors <- fmt.Errorf("invalid downstream JSON-RPC: %w", err)
+					return
+				}
+				var value any
+				if err := json.Unmarshal(line, &value); err != nil {
+					errors <- err
+					return
+				}
+				if finding := p.engine.InspectResponseValue(value); finding != nil {
+					p.sendRPCError(writeToClient, msg.ID, -32000, finding.Reason)
+					continue
+				}
+			}
 			payload := append(line, '\n')
 			if err := writeToClient(payload); err != nil {
+				errors <- err
 				return
 			}
+		}
+		if err := scanner.Err(); err != nil {
+			errors <- err
 		}
 	}()
 
 	// 2. Intercept and evaluate client requests before passing downstream
 	go func() {
 		defer wg.Done()
+		defer func() {
+			if closer, ok := downstreamIn.(io.Closer); ok {
+				closer.Close()
+			}
+		}()
 		scanner := bufio.NewScanner(clientIn)
+		scanner.Buffer(make([]byte, 4096), safety.MaxInspectionBytes)
 		for scanner.Scan() {
 			line := scanner.Bytes()
 			if len(line) == 0 {
@@ -129,6 +158,10 @@ func (p *Pipe) Run(ctx context.Context, clientIn io.Reader, clientOut io.Writer,
 
 			var msg JSONRPCMessage
 			if err := json.Unmarshal(line, &msg); err != nil {
+				if p.engine.InspectionEnabled() {
+					p.sendRPCError(writeToClient, nil, -32600, "Invalid JSON-RPC request")
+					continue
+				}
 				payload := append(line, '\n')
 				if err := writeToDownstream(payload); err != nil {
 					return
@@ -270,6 +303,9 @@ func (p *Pipe) Run(ctx context.Context, clientIn io.Reader, clientOut io.Writer,
 				}
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			errors <- err
+		}
 	}()
 
 	done := make(chan struct{})
@@ -281,8 +317,15 @@ func (p *Pipe) Run(ctx context.Context, clientIn io.Reader, clientOut io.Writer,
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
+	case err := <-errors:
+		return err
 	case <-done:
-		return nil
+		select {
+		case err := <-errors:
+			return err
+		default:
+			return nil
+		}
 	}
 }
 
@@ -302,7 +345,9 @@ func (p *Pipe) sendRPCError(writeFn func([]byte) error, id any, code int, messag
 
 // WrapSubprocess launches the downstream command and wraps its stdio with the Pipe.
 func (p *Pipe) WrapSubprocess(ctx context.Context, stdin io.Reader, stdout io.Writer, command string, args ...string) error {
-	cmd := exec.CommandContext(ctx, command, args...)
+	childCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	cmd := exec.CommandContext(childCtx, command, args...)
 
 	downstreamIn, err := cmd.StdinPipe()
 	if err != nil {
@@ -319,6 +364,7 @@ func (p *Pipe) WrapSubprocess(ctx context.Context, stdin io.Reader, stdout io.Wr
 	}
 
 	pipeErr := p.Run(ctx, stdin, stdout, downstreamOut, downstreamIn)
+	cancel()
 
 	_ = downstreamIn.Close()
 	_ = cmd.Wait()

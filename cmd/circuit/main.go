@@ -39,15 +39,21 @@ func main() {
 
 var rootCmd = &cobra.Command{
 	Use:   "circuit",
-	Short: "Circuit Proxy — The Governance & Safety Proxy for AI Agents",
-	Long: `Circuit Proxy enforces policies, budgets, and approvals on every
-outbound call your AI agent makes — with zero changes to your agent code.
+	Short: "Circuit — bounded GitHub actions for autonomous agents",
+	Long: `Circuit gives agents scoped GitHub access with durable action limits,
+exact-action approvals, and an execution history.
 
-Examples:
-  circuit init                                       generate circuit.yaml interactively
-  circuit run -- python agent.py                     wrap an HTTP-based agent
-  circuit mcp wrap -- npx -y @my/mcp-server          wrap an MCP stdio server
-  circuit serve --target https://api.openai.com      run as a persistent proxy daemon`,
+Start with a local simulation:
+  circuit gateway demo
+
+Configure a GitHub workflow:
+  circuit gateway init --repo owner/repository
+  circuit gateway serve
+
+Additional inspection tools:
+  circuit run --policy circuit.yaml -- python agent.py
+  circuit mcp wrap -- npx -y @my/mcp-server
+  circuit serve --target https://api.openai.com`,
 }
 
 var initCmd = &cobra.Command{
@@ -65,7 +71,6 @@ a tailored circuit.yaml with sensible default rules, budgets, and audit settings
 		return initwizard.Run(os.Stdin, cmd.OutOrStdout(), cwd)
 	},
 }
-
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
@@ -209,8 +214,10 @@ being forwarded. Works with Claude Desktop, Cursor, and any MCP-compatible host.
 			opts = append(opts, mcp.WithToolPrefix(toolPrefix))
 		}
 
-		cliApprover := approval.NewCLIProvider(os.Stdin, os.Stderr)
-		opts = append(opts, mcp.WithApprovalProvider(cliApprover))
+		if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+			defer tty.Close()
+			opts = append(opts, mcp.WithApprovalProvider(approval.NewCLIProvider(tty, tty)))
+		}
 
 		if auditPath != "" {
 			recorder, err := audit.NewFileRecorder(auditPath)

@@ -17,3 +17,11 @@ coverage.out
 *.log
 tmp/
 .freebuff/
+
+# Gateway state and credentials
+.circuit/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc

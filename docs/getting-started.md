@@ -43,7 +43,7 @@ Add spending/action budgets? [y/N]: y
   Max actions per hour [100]: 50
   Max spend per hour in USD [5.00]: 2.00
 
-Enable tamper-evident audit log? [y/N]: y
+Enable audit log? [y/N]: y
 Require human approval for sensitive actions? [y/N]: n
 
 ✅ Created ./circuit.yaml
@@ -71,8 +71,9 @@ circuit run -- go run ./agent
 ```
 
 Circuit starts an ephemeral proxy and injects `HTTP_PROXY` into your agent's
-environment automatically. Every outbound HTTP call is intercepted — no SDK,
-no import, no code change.
+environment automatically. Proxy-aware HTTP clients are intercepted. Common CA trust variables are injected
+for HTTPS inspection; clients with custom trust or proxy behavior need configuration.
+See [the safety guide](./safety.md) for coverage limits.
 
 ```
 Agent process              Circuit proxy           Upstream API
@@ -135,7 +136,7 @@ circuit serve --target https://api.openai.com --port 8080
 Point your agent at it:
 
 ```bash
-HTTP_PROXY=http://localhost:8080 python agent.py
+# Configure your SDK base URL to http://localhost:8080 (preserving its API path).
 ```
 
 Docker Compose example:
@@ -151,7 +152,7 @@ services:
   agent:
     build: .
     environment:
-      HTTP_PROXY: http://circuit:8080
+      API_BASE_URL: http://circuit:8080 # wire this into your SDK base URL
     depends_on: [circuit]
 ```
 
@@ -161,4 +162,4 @@ services:
 
 - **[How the policy YAML works →](./policy.md)**
 - **[Example policies →](../examples/policies/)**
-- **[CLI reference →](./cli.md)**
+- **[Safety commands and configuration →](./safety.md)**

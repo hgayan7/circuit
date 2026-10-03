@@ -34,6 +34,7 @@ func (a ActionType) IsValid() bool {
 
 // MatchCriteria defines conditions for intercepting a tool or endpoint.
 type MatchCriteria struct {
+	Host     string `yaml:"host,omitempty"`
 	Tool     string `yaml:"tool,omitempty"`
 	Endpoint string `yaml:"endpoint,omitempty"`
 	Method   string `yaml:"method,omitempty"`
@@ -69,19 +70,32 @@ type Rule struct {
 	Budget      *BudgetConfig     `yaml:"budget,omitempty"`
 }
 
+// SafetyConfig enables bounded inspection of content and executable arguments.
+type SafetyConfig struct {
+	PromptInjection     bool     `yaml:"prompt_injection,omitempty"`
+	Shell               bool     `yaml:"shell,omitempty"`
+	SQL                 bool     `yaml:"sql,omitempty"`
+	ShellFields         []string `yaml:"shell_fields,omitempty"`
+	SQLFields           []string `yaml:"sql_fields,omitempty"`
+	AllowedCommands     []string `yaml:"allowed_commands,omitempty"`
+	AllowedSQLFunctions []string `yaml:"allowed_sql_functions,omitempty"`
+}
+
 // Policy defines the complete governance specification.
 type Policy struct {
-	Version       string     `yaml:"version,omitempty"`
-	Name          string     `yaml:"name"`
-	Description   string     `yaml:"description,omitempty"`
-	DefaultAction ActionType `yaml:"default_action,omitempty"`
-	Rules         []Rule     `yaml:"rules"`
+	Safety        SafetyConfig `yaml:"safety,omitempty"`
+	Version       string       `yaml:"version,omitempty"`
+	Name          string       `yaml:"name"`
+	Description   string       `yaml:"description,omitempty"`
+	DefaultAction ActionType   `yaml:"default_action,omitempty"`
+	Rules         []Rule       `yaml:"rules"`
 }
 
 // ParsePolicy parses and validates a policy from an io.Reader.
 func ParsePolicy(r io.Reader) (*Policy, error) {
 	var policy Policy
 	decoder := yaml.NewDecoder(r)
+	decoder.KnownFields(true)
 	if err := decoder.Decode(&policy); err != nil {
 		return nil, fmt.Errorf("failed to parse yaml policy: %w", err)
 	}
@@ -104,7 +118,7 @@ func ParsePolicy(r io.Reader) (*Policy, error) {
 		if !rule.Action.IsValid() {
 			return nil, fmt.Errorf("invalid action '%s' in rule '%s'", rule.Action, rule.ID)
 		}
-		if rule.Match.Tool == "" && rule.Match.Endpoint == "" && (rule.Match.Method == "" || rule.Match.Path == "") {
+		if rule.Match.Host == "" && rule.Match.Tool == "" && rule.Match.Endpoint == "" && (rule.Match.Method == "" || rule.Match.Path == "") {
 			return nil, fmt.Errorf("rule '%s' must specify at least match.tool, match.endpoint, or match.method+path", rule.ID)
 		}
 

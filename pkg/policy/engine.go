@@ -10,10 +10,12 @@ import (
 	"cel.dev/cel-go/cel"
 	"github.com/hgayan7/circuit/pkg/budget"
 	"github.com/hgayan7/circuit/pkg/config"
+	"github.com/hgayan7/circuit/pkg/safety"
 )
 
 // EvaluationContext contains the runtime details of the intercepted request.
 type EvaluationContext struct {
+	Host      string         `json:"host,omitempty"`
 	Tool      string         `json:"tool,omitempty"`
 	Endpoint  string         `json:"endpoint,omitempty"`
 	Method    string         `json:"method,omitempty"`
@@ -46,6 +48,7 @@ type Engine struct {
 	compiledRules []compiledRule
 	celEnv        *cel.Env
 	budgeter      budget.Budgeter
+	inspector     *safety.Inspector
 }
 
 // Option allows configuring optional Engine settings.
@@ -66,6 +69,7 @@ func NewEngine(pol *config.Policy, opts ...Option) (*Engine, error) {
 
 	// Declare standard variables accessible in CEL expressions
 	env, err := cel.NewEnv(
+		cel.Variable("host", cel.StringType),
 		cel.Variable("args", cel.MapType(cel.StringType, cel.DynType)),
 		cel.Variable("tool", cel.StringType),
 		cel.Variable("endpoint", cel.StringType),
@@ -113,6 +117,7 @@ func NewEngine(pol *config.Policy, opts ...Option) (*Engine, error) {
 		compiledRules: compiled,
 		celEnv:        env,
 		budgeter:      budget.NewMemoryBudgeter(),
+		inspector:     safety.New(pol.Safety),
 	}
 
 	for _, opt := range opts {
@@ -124,47 +129,37 @@ func NewEngine(pol *config.Policy, opts ...Option) (*Engine, error) {
 
 // matches checks whether an evaluation context matches a rule's match criteria.
 func (e *Engine) matches(rule *config.Rule, ctx *EvaluationContext) bool {
-	match := rule.Match
-
-	// 1. Tool Matching (MCP or function calls)
-	if match.Tool != "" && ctx.Tool != "" {
-		if match.Tool == ctx.Tool {
+	m := rule.Match
+	glob := func(pattern, value string) bool {
+		if pattern == "*" {
+			return value != ""
+		}
+		if pattern == value {
 			return true
 		}
-		if ok, _ := filepath.Match(match.Tool, ctx.Tool); ok {
-			return true
-		}
+		ok, _ := filepath.Match(pattern, value)
+		return ok
 	}
-
-	// 2. Endpoint Matching (e.g. "POST /v1/refunds")
-	if match.Endpoint != "" {
-		targetEndpoint := ctx.Endpoint
-		if targetEndpoint == "" && ctx.Method != "" && ctx.Path != "" {
-			targetEndpoint = ctx.Method + " " + ctx.Path
-		}
-		if targetEndpoint != "" {
-			if match.Endpoint == targetEndpoint {
-				return true
-			}
-			if ok, _ := filepath.Match(match.Endpoint, targetEndpoint); ok {
-				return true
-			}
-		}
+	endpoint := ctx.Endpoint
+	if endpoint == "" && ctx.Method != "" && ctx.Path != "" {
+		endpoint = ctx.Method + " " + ctx.Path
 	}
-
-	// 3. Method & Path Matching
-	if match.Method != "" && match.Path != "" && ctx.Method != "" && ctx.Path != "" {
-		if strings.EqualFold(match.Method, ctx.Method) {
-			if match.Path == ctx.Path {
-				return true
-			}
-			if ok, _ := filepath.Match(match.Path, ctx.Path); ok {
-				return true
-			}
-		}
+	if m.Host != "" && !glob(strings.ToLower(m.Host), strings.ToLower(ctx.Host)) {
+		return false
 	}
-
-	return false
+	if m.Tool != "" && !glob(m.Tool, ctx.Tool) {
+		return false
+	}
+	if m.Endpoint != "" && !glob(m.Endpoint, endpoint) {
+		return false
+	}
+	if m.Method != "" && !strings.EqualFold(m.Method, ctx.Method) {
+		return false
+	}
+	if m.Path != "" && !glob(m.Path, ctx.Path) {
+		return false
+	}
+	return m.Host != "" || m.Tool != "" || m.Endpoint != "" || m.Method != "" || m.Path != ""
 }
 
 func toFloat64(val any) (float64, error) {
@@ -194,12 +189,16 @@ func (e *Engine) Evaluate(ctx context.Context, evalCtx *EvaluationContext) (*Eva
 		return nil, fmt.Errorf("evaluation context cannot be nil")
 	}
 
+	if finding := e.inspector.Arguments(evalCtx.Args); finding != nil {
+		return &EvaluationResult{Action: config.ActionDeny, RuleID: "safety." + finding.Kind, Reason: finding.Reason}, nil
+	}
 	args := evalCtx.Args
 	if args == nil {
 		args = make(map[string]any)
 	}
 
 	activation := map[string]any{
+		"host":       evalCtx.Host,
 		"args":       args,
 		"tool":       evalCtx.Tool,
 		"endpoint":   evalCtx.Endpoint,
@@ -280,3 +279,11 @@ func (e *Engine) Evaluate(ctx context.Context, evalCtx *EvaluationContext) (*Eva
 		Reason: "Default policy action applied",
 	}, nil
 }
+
+// InspectText evaluates untrusted text returned by upstream services.
+func (e *Engine) InspectText(text string) *safety.Finding { return e.inspector.Text(text) }
+func (e *Engine) InspectResponses() bool                  { return e.inspector.InspectResponses() }
+
+func (e *Engine) InspectResponseValue(v any) *safety.Finding { return e.inspector.ResponseValue(v) }
+
+func (e *Engine) InspectionEnabled() bool { return e.inspector.Enabled() }
