@@ -20,6 +20,7 @@ type Request struct {
 	Operation  string         `json:"operation"`
 	Repository string         `json:"repository,omitempty"`
 	Workspace  string         `json:"workspace,omitempty"`
+	Database   string         `json:"database,omitempty"`
 	Args       map[string]any `json:"args"`
 }
 type Outcome struct {
@@ -110,6 +111,36 @@ func validateRequest(req *Request) error {
 		return nil
 	}
 
+	if isDatabaseOperation(*req) {
+		if req.Database == "" {
+			req.Database = "default"
+		}
+		if !identifier.MatchString(req.Database) {
+			return fmt.Errorf("invalid database identifier %q", req.Database)
+		}
+		dbFields := map[string][]string{
+			"query_sql":      {"query", "max_rows", "timeout_sec"},
+			"exec_sql":       {"query", "timeout_sec", "max_affected_rows"},
+			"list_tables":    {"schema"},
+			"describe_table": {"table", "schema"},
+		}
+		for k := range req.Args {
+			if !member(dbFields[req.Operation], k) {
+				return fmt.Errorf("unexpected argument %q for %s", k, req.Operation)
+			}
+		}
+		if req.Operation == "query_sql" || req.Operation == "exec_sql" {
+			if text(req.Args, "query") == "" {
+				return fmt.Errorf("query is required")
+			}
+		} else if req.Operation == "describe_table" {
+			if text(req.Args, "table") == "" {
+				return fmt.Errorf("table is required")
+			}
+		}
+		return nil
+	}
+
 	req.Repository = strings.ToLower(req.Repository)
 	if !repoPattern.MatchString(req.Repository) {
 		return fmt.Errorf("unsupported operation or invalid repository")
@@ -180,6 +211,16 @@ func validateRequest(req *Request) error {
 	return nil
 }
 func validateScope(agent *Agent, req Request) error {
+	if isDatabaseOperation(req) {
+		dbID := req.Database
+		if dbID == "" {
+			dbID = "default"
+		}
+		if !member(agent.Databases, dbID) {
+			return fmt.Errorf("Access to database %q is not permitted for this agent", dbID)
+		}
+		return nil
+	}
 	if isWorkspaceOperation(req) {
 		wsID := req.Workspace
 		if wsID == "" {

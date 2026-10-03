@@ -236,6 +236,10 @@ func limitKey(l Limit, a *Action) string {
 		key += "/ws/" + a.Request.Workspace
 	case "agent_workspace":
 		key += "/agent/" + a.AgentID + "/ws/" + a.Request.Workspace
+	case "database":
+		key += "/db/" + a.Request.Database
+	case "agent_database":
+		key += "/agent/" + a.AgentID + "/db/" + a.Request.Database
 	}
 	return key
 }

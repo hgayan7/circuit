@@ -85,8 +85,8 @@ The capabilities below describe planned support, not features available today. E
 | --- | --- |
 | GitHub | **Supported:** branch, file, PR, merge, and issue actions with approval and budgets; GitHub App installations with short-lived repository-scoped tokens and automated webhook reconciliation. |
 | Cloud and deployments | Bounded deployment and infrastructure operations, scoped to projects and environments, with approval for production changes and destructive actions. |
-| Databases | Scoped queries and controlled writes, with limits on affected rows, execution time, and accessible data; review of consequential changes. |
-| Shell and files | **Supported:** structured commands (`exec_cmd`), file reads (`read_file`), atomic writes (`write_file`), directory listings (`list_dir`), and deletes (`delete_file`) inside workspace boundaries with execution timeouts, output buffers, and approval for destructive operations. |
+| Databases | **Supported:** scoped queries (`query_sql`) and mutations (`exec_sql`) with SQL AST safety analysis, table allow/denylists, affected-row bounds, transaction rollback, and human approval for destructive operations (`DROP`, `TRUNCATE`, `ALTER`, `UPDATE`/`DELETE` without `WHERE`). See [Database gateway guide](docs/database-gateway.md). |
+| Shell and files | **Supported:** structured commands (`exec_cmd`), file reads (`read_file`), atomic writes (`write_file`), directory listings (`list_dir`), and deletes (`delete_file`) inside workspace boundaries with execution timeouts, output buffers, and approval for destructive operations. See [Workspace gateway guide](docs/workspace-gateway.md). |
 | Communication and work tools | Email, messaging, documents, and ticket actions with recipient/resource restrictions, volume limits, and approval before consequential sends or publication. |
 | Business and payment APIs | Explicit supported operations with transaction and cumulative spending limits, destination restrictions, and approval for financial commitments. |
 | Custom tools | A documented adapter interface and REST/MCP connections so teams can bring their own APIs under the same action controls. |

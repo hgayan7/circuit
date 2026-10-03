@@ -29,11 +29,29 @@ func (w *WorkspaceConfig) Timeout() time.Duration {
 	return w.timeout
 }
 
+type DatabaseConfig struct {
+	ID          string        `yaml:"id" json:"id"`
+	Driver      string        `yaml:"driver,omitempty" json:"driver,omitempty"`
+	DSN         string        `yaml:"dsn,omitempty" json:"dsn,omitempty"`
+	DSNEnv      string        `yaml:"dsn_env,omitempty" json:"dsn_env,omitempty"`
+	ReadOnly    bool          `yaml:"read_only,omitempty" json:"read_only,omitempty"`
+	MaxRows     int           `yaml:"max_rows,omitempty" json:"max_rows,omitempty"`
+	MaxTimeout  string        `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
+	AllowTables []string      `yaml:"allow_tables,omitempty" json:"allow_tables,omitempty"`
+	DenyTables  []string      `yaml:"deny_tables,omitempty" json:"deny_tables,omitempty"`
+	timeout     time.Duration
+}
+
+func (d *DatabaseConfig) Timeout() time.Duration {
+	return d.timeout
+}
+
 type Agent struct {
 	ID           string   `yaml:"id" json:"id"`
 	TokenEnv     string   `yaml:"token_env" json:"token_env"`
 	Repositories []string `yaml:"repositories,omitempty" json:"repositories,omitempty"`
 	Workspaces   []string `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
+	Databases    []string `yaml:"databases,omitempty" json:"databases,omitempty"`
 	Actions      []string `yaml:"actions" json:"actions"`
 	BranchPrefix string   `yaml:"branch_prefix,omitempty" json:"branch_prefix,omitempty"`
 }
@@ -73,6 +91,7 @@ type Config struct {
 	GitHubApp      *GitHubAppConfig    `yaml:"github_app,omitempty" json:"github_app,omitempty"`
 	Webhook        *WebhookConfig      `yaml:"webhook,omitempty" json:"webhook,omitempty"`
 	Workspaces     []WorkspaceConfig   `yaml:"workspaces,omitempty" json:"workspaces,omitempty"`
+	Databases      []DatabaseConfig    `yaml:"databases,omitempty" json:"databases,omitempty"`
 	ApprovalTTL    string              `yaml:"approval_ttl" json:"approval_ttl"`
 	Agents         []Agent             `yaml:"agents" json:"agents"`
 	Rules          []Rule              `yaml:"rules,omitempty" json:"rules,omitempty"`
@@ -88,6 +107,7 @@ var operations = map[string]bool{
 	"read_file": true, "get_pr": true, "create_branch": true, "put_file": true,
 	"create_pr": true, "merge_pr": true, "create_issue": true, "update_issue": true,
 	"exec_cmd": true, "write_file": true, "delete_file": true, "list_dir": true,
+	"query_sql": true, "exec_sql": true, "list_tables": true, "describe_table": true,
 }
 
 func member(items []string, item string) bool {
@@ -162,6 +182,28 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		ws.timeout = to
 	}
+	dbIDs := map[string]bool{}
+	for j := range c.Databases {
+		db := &c.Databases[j]
+		if !identifier.MatchString(db.ID) || dbIDs[db.ID] {
+			return nil, fmt.Errorf("databases need unique valid IDs")
+		}
+		dbIDs[db.ID] = true
+		if db.Driver == "" {
+			db.Driver = "postgres"
+		}
+		if db.MaxRows <= 0 {
+			db.MaxRows = 500
+		}
+		if db.MaxTimeout == "" {
+			db.MaxTimeout = "15s"
+		}
+		to, err := time.ParseDuration(db.MaxTimeout)
+		if err != nil || to <= 0 {
+			return nil, fmt.Errorf("invalid max_timeout for database %s", db.ID)
+		}
+		db.timeout = to
+	}
 	if c.ApprovalTTL == "" {
 		c.ApprovalTTL = "1h"
 	}
@@ -180,8 +222,8 @@ func ParseConfig(r io.Reader) (*Config, error) {
 			return nil, fmt.Errorf("agents need unique valid IDs and token_env")
 		}
 		ids[a.ID] = true
-		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 {
-			return nil, fmt.Errorf("agent %s needs repositories or workspaces", a.ID)
+		if len(a.Repositories) == 0 && len(a.Workspaces) == 0 && len(a.Databases) == 0 {
+			return nil, fmt.Errorf("agent %s needs repositories, workspaces, or databases", a.ID)
 		}
 		if len(a.Actions) == 0 {
 			return nil, fmt.Errorf("agent %s needs actions", a.ID)
@@ -195,6 +237,11 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		for _, ws := range a.Workspaces {
 			if !identifier.MatchString(ws) {
 				return nil, fmt.Errorf("invalid workspace %q for agent %s", ws, a.ID)
+			}
+		}
+		for _, dbID := range a.Databases {
+			if !identifier.MatchString(dbID) {
+				return nil, fmt.Errorf("invalid database %q for agent %s", dbID, a.ID)
 			}
 		}
 		for _, op := range a.Actions {
@@ -216,6 +263,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		cel.Variable("action", cel.StringType),
 		cel.Variable("repository", cel.StringType),
 		cel.Variable("workspace", cel.StringType),
+		cel.Variable("database", cel.StringType),
 		cel.Variable("agent_id", cel.StringType),
 	)
 	if err != nil {
@@ -261,7 +309,7 @@ func ParseConfig(r io.Reader) (*Config, error) {
 		}
 		ids[limit.ID] = true
 		switch limit.Scope {
-		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace":
+		case "global", "agent", "repository", "agent_repository", "workspace", "agent_workspace", "database", "agent_database":
 		default:
 			return nil, fmt.Errorf("invalid budget scope %q", limit.Scope)
 		}
@@ -293,7 +341,15 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 	if agent == nil || !member(agent.Actions, req.Operation) {
 		return config.ActionDeny, "Agent is not permitted to use this action", nil
 	}
-	if isWorkspaceOperation(req) {
+	if isDatabaseOperation(req) {
+		dbID := req.Database
+		if dbID == "" {
+			dbID = "default"
+		}
+		if !member(agent.Databases, dbID) {
+			return config.ActionDeny, fmt.Sprintf("Agent is not permitted to access database %q", dbID), nil
+		}
+	} else if isWorkspaceOperation(req) {
 		wsID := req.Workspace
 		if wsID == "" {
 			wsID = "default"
@@ -328,6 +384,12 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 			verdict = config.ActionRequireApproval
 			reason = r
 		}
+	} else if req.Operation == "exec_sql" {
+		queryStr := text(req.Args, "query")
+		if analysis, err := AnalyzeSQL(queryStr); err == nil && analysis.IsDestructive {
+			verdict = config.ActionRequireApproval
+			reason = analysis.Reason
+		}
 	}
 	for _, rule := range c.Rules {
 		if !member(rule.Actions, req.Operation) || (len(rule.Repositories) > 0 && !member(rule.Repositories, req.Repository)) {
@@ -339,6 +401,7 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 				"action":     req.Operation,
 				"repository": req.Repository,
 				"workspace":  req.Workspace,
+				"database":   req.Database,
 				"agent_id":   agentID,
 			})
 			if err != nil {
