@@ -55,184 +55,8 @@ func init() {
 	gatewayCmd.AddCommand(initCmd)
 	var configPath, dataPath, listen, tlsCert, tlsKey string
 	var production bool
-	serve := &cobra.Command{Use: "serve", Short: "Serve the GitHub action API, MCP endpoint, and approval interface", RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := gateway.LoadConfig(configPath)
-		if err != nil {
-			return err
-		}
-		// Setup workspace executors
-		if production {
-			if err := cfg.ValidateProduction(); err != nil {
-				return err
-			}
-			if tlsCert == "" || tlsKey == "" {
-				return fmt.Errorf("production profile requires --tls-cert and --tls-key")
-			}
-		}
-		wsExecutors := map[string]*gateway.ShellExecutor{}
-		for _, wsCfg := range cfg.Workspaces {
-			ws, err := gateway.NewWorkspace(wsCfg.ID, wsCfg.Path, wsCfg.ReadOnly, wsCfg.Timeout())
-			if err != nil {
-				return fmt.Errorf("initializing workspace %s: %w", wsCfg.ID, err)
-			}
-			wsExecutors[wsCfg.ID] = gateway.NewShellExecutor(ws)
-			defer ws.Close()
-		}
-
-		// Setup database executors
-		dbExecutors := map[string]*gateway.DatabaseExecutor{}
-		for _, dbCfg := range cfg.Databases {
-			dsn := dbCfg.DSN
-			if dsn == "" && dbCfg.DSNEnv != "" {
-				dsn = os.Getenv(dbCfg.DSNEnv)
-			}
-			target, err := gateway.NewDatabaseTarget(
-				dbCfg.ID,
-				dbCfg.Driver,
-				dsn,
-				dbCfg.ReadOnly,
-				dbCfg.MaxRows,
-				dbCfg.Timeout(),
-				dbCfg.AllowTables,
-				dbCfg.DenyTables,
-			)
-			if err != nil {
-				return fmt.Errorf("initializing database %s: %w", dbCfg.ID, err)
-			}
-			dbExecutors[dbCfg.ID] = gateway.NewDatabaseExecutor(target)
-			if target.DB != nil {
-				defer target.DB.Close()
-			}
-		}
-
-		// Setup cloud environment executors
-		cloudExecutors := map[string]*gateway.CloudExecutor{}
-		for _, envCfg := range cfg.Environments {
-			env, err := gateway.NewCloudEnvironment(
-				envCfg.ID,
-				envCfg.Name,
-				envCfg.Production,
-				envCfg.AllowedServices,
-				envCfg.MinReplicas,
-				envCfg.MaxReplicas,
-				envCfg.Timeout(),
-			)
-			if err != nil {
-				return fmt.Errorf("initializing cloud environment %s: %w", envCfg.ID, err)
-			}
-			cloudExecutors[envCfg.ID] = gateway.NewCloudExecutor(env)
-		}
-
-		// Setup communication executors
-		commExecutors := map[string]*gateway.CommExecutor{}
-		for _, commCfg := range cfg.Communications {
-			target, err := gateway.NewCommTarget(
-				commCfg.ID,
-				commCfg.Kind,
-				commCfg.AllowedChannels,
-				commCfg.InternalDomains,
-				commCfg.MaxRecipients,
-				commCfg.RequireApprovalForExternal,
-			)
-			if err != nil {
-				return fmt.Errorf("initializing communication target %s: %w", commCfg.ID, err)
-			}
-			commExecutors[commCfg.ID] = gateway.NewCommExecutor(target)
-		}
-
-		// Setup payment executors
-		paymentExecutors := map[string]*gateway.PaymentExecutor{}
-		for _, payCfg := range cfg.PaymentAccounts {
-			acc, err := gateway.NewPaymentAccount(
-				payCfg.ID,
-				payCfg.Name,
-				payCfg.Currency,
-				payCfg.AllowedDestinations,
-				payCfg.MaxTransactionAmount,
-				payCfg.AutoApprovalThreshold,
-				payCfg.RequireApprovalForRefunds,
-				payCfg.InitialBalance,
-				payCfg.Timeout(),
-			)
-			if err != nil {
-				return fmt.Errorf("initializing payment account %s: %w", payCfg.ID, err)
-			}
-			paymentExecutors[payCfg.ID] = gateway.NewPaymentExecutor(acc)
-		}
-
-		// Setup custom tool executors
-		customExecutors := map[string]*gateway.CustomToolExecutor{}
-		for _, ctCfg := range cfg.CustomTools {
-			target, err := gateway.NewCustomToolTarget(
-				ctCfg.ID,
-				ctCfg.Name,
-				ctCfg.Endpoint,
-				ctCfg.Method,
-				ctCfg.Headers,
-				ctCfg.Operations,
-				ctCfg.RequireApproval,
-				ctCfg.Timeout(),
-			)
-			if err != nil {
-				return fmt.Errorf("initializing custom tool %s: %w", ctCfg.ID, err)
-			}
-			if err := target.ConfigurePlugin(ctCfg); err != nil {
-				return fmt.Errorf("initializing plugin %s: %w", ctCfg.ID, err)
-			}
-			customExecutors[ctCfg.ID] = gateway.NewCustomToolExecutor(target)
-		}
-
-		var githubExecutor gateway.Executor
-		githubToken := os.Getenv(cfg.GitHubTokenEnv)
-		if cfg.GitHubApp != nil {
-			var keyData []byte
-			if cfg.GitHubApp.PrivateKeyEnv != "" {
-				keyData = []byte(os.Getenv(cfg.GitHubApp.PrivateKeyEnv))
-				if len(keyData) == 0 {
-					return fmt.Errorf("set %s to the GitHub App private key PEM", cfg.GitHubApp.PrivateKeyEnv)
-				}
-			} else if cfg.GitHubApp.PrivateKeyFile != "" {
-				var err error
-				keyData, err = os.ReadFile(cfg.GitHubApp.PrivateKeyFile)
-				if err != nil {
-					return fmt.Errorf("reading GitHub App private key: %w", err)
-				}
-			}
-			appProvider, err := gateway.NewGitHubAppTokenProvider(cfg.GitHubApp.AppID, keyData, cfg.GitHubApp.InstallationID)
-			if err != nil {
-				return fmt.Errorf("initializing GitHub App authentication: %w", err)
-			}
-			githubExecutor = gateway.NewGitHubWithProvider(appProvider)
-		} else if githubToken != "" {
-			githubExecutor = gateway.NewGitHub(githubToken)
-		}
-
-		if githubExecutor == nil && len(wsExecutors) == 0 && len(dbExecutors) == 0 && len(cloudExecutors) == 0 && len(commExecutors) == 0 && len(paymentExecutors) == 0 && len(customExecutors) == 0 {
-			return fmt.Errorf("gateway requires either GitHub credentials (%s / github_app), at least one workspace, at least one database, at least one cloud environment, at least one communication target, at least one payment account, or at least one custom tool configured", cfg.GitHubTokenEnv)
-		}
-
-		if err := os.MkdirAll(filepath.Dir(dataPath), 0700); err != nil {
-			return err
-		}
-		store, err := gateway.OpenStore(dataPath)
-		if err != nil {
-			return err
-		}
-		defer store.Close()
-		service, err := gateway.NewService(cfg, store, gateway.NewRouterExecutor(githubExecutor, wsExecutors, dbExecutors, cloudExecutors, commExecutors, paymentExecutors, customExecutors))
-		if err != nil {
-			return err
-		}
-		tokens, err := gateway.LoadTokens(cfg)
-		if err != nil {
-			return err
-		}
-		handler, err := gateway.NewHTTPHandler(service, tokens)
-		if err != nil {
-			return err
-		}
-		handler.SetLogger(slog.New(slog.NewJSONHandler(cmd.ErrOrStderr(), nil)))
-		return serveGatewayTLS(cmd, listen, handler, tlsCert, tlsKey)
+	serve := &cobra.Command{Use: "serve", Short: "Serve the action API, MCP endpoint, and approval interface", RunE: func(cmd *cobra.Command, args []string) error {
+		return runGateway(cmd, configPath, dataPath, listen, tlsCert, tlsKey, production)
 	}}
 	serve.Flags().StringVar(&configPath, "config", "gateway.yaml", "Gateway configuration")
 	serve.Flags().StringVar(&dataPath, "data", ".circuit/gateway.db", "Durable state file")
@@ -295,6 +119,186 @@ func init() {
 	demo.Flags().StringVar(&demoListen, "listen", "127.0.0.1:8080", "Local demo listen address")
 	gatewayCmd.AddCommand(demo)
 }
+func runGateway(cmd *cobra.Command, configPath, dataPath, listen, tlsCert, tlsKey string, production bool) error {
+	cfg, err := gateway.LoadConfig(configPath)
+	if err != nil {
+		return err
+	}
+	// Setup workspace executors
+	if production {
+		if err := cfg.ValidateProduction(); err != nil {
+			return err
+		}
+		if tlsCert == "" || tlsKey == "" {
+			return fmt.Errorf("production profile requires --tls-cert and --tls-key")
+		}
+	}
+	wsExecutors := map[string]*gateway.ShellExecutor{}
+	for _, wsCfg := range cfg.Workspaces {
+		ws, err := gateway.NewWorkspace(wsCfg.ID, wsCfg.Path, wsCfg.ReadOnly, wsCfg.Timeout())
+		if err != nil {
+			return fmt.Errorf("initializing workspace %s: %w", wsCfg.ID, err)
+		}
+		wsExecutors[wsCfg.ID] = gateway.NewShellExecutor(ws)
+		defer ws.Close()
+	}
+
+	// Setup database executors
+	dbExecutors := map[string]*gateway.DatabaseExecutor{}
+	for _, dbCfg := range cfg.Databases {
+		dsn := dbCfg.DSN
+		if dsn == "" && dbCfg.DSNEnv != "" {
+			dsn = os.Getenv(dbCfg.DSNEnv)
+		}
+		target, err := gateway.NewDatabaseTarget(
+			dbCfg.ID,
+			dbCfg.Driver,
+			dsn,
+			dbCfg.ReadOnly,
+			dbCfg.MaxRows,
+			dbCfg.Timeout(),
+			dbCfg.AllowTables,
+			dbCfg.DenyTables,
+		)
+		if err != nil {
+			return fmt.Errorf("initializing database %s: %w", dbCfg.ID, err)
+		}
+		dbExecutors[dbCfg.ID] = gateway.NewDatabaseExecutor(target)
+		if target.DB != nil {
+			defer target.DB.Close()
+		}
+	}
+
+	// Setup cloud environment executors
+	cloudExecutors := map[string]*gateway.CloudExecutor{}
+	for _, envCfg := range cfg.Environments {
+		env, err := gateway.NewCloudEnvironment(
+			envCfg.ID,
+			envCfg.Name,
+			envCfg.Production,
+			envCfg.AllowedServices,
+			envCfg.MinReplicas,
+			envCfg.MaxReplicas,
+			envCfg.Timeout(),
+		)
+		if err != nil {
+			return fmt.Errorf("initializing cloud environment %s: %w", envCfg.ID, err)
+		}
+		cloudExecutors[envCfg.ID] = gateway.NewCloudExecutor(env)
+	}
+
+	// Setup communication executors
+	commExecutors := map[string]*gateway.CommExecutor{}
+	for _, commCfg := range cfg.Communications {
+		target, err := gateway.NewCommTarget(
+			commCfg.ID,
+			commCfg.Kind,
+			commCfg.AllowedChannels,
+			commCfg.InternalDomains,
+			commCfg.MaxRecipients,
+			commCfg.RequireApprovalForExternal,
+		)
+		if err != nil {
+			return fmt.Errorf("initializing communication target %s: %w", commCfg.ID, err)
+		}
+		commExecutors[commCfg.ID] = gateway.NewCommExecutor(target)
+	}
+
+	// Setup payment executors
+	paymentExecutors := map[string]*gateway.PaymentExecutor{}
+	for _, payCfg := range cfg.PaymentAccounts {
+		acc, err := gateway.NewPaymentAccount(
+			payCfg.ID,
+			payCfg.Name,
+			payCfg.Currency,
+			payCfg.AllowedDestinations,
+			payCfg.MaxTransactionAmount,
+			payCfg.AutoApprovalThreshold,
+			payCfg.RequireApprovalForRefunds,
+			payCfg.InitialBalance,
+			payCfg.Timeout(),
+		)
+		if err != nil {
+			return fmt.Errorf("initializing payment account %s: %w", payCfg.ID, err)
+		}
+		paymentExecutors[payCfg.ID] = gateway.NewPaymentExecutor(acc)
+	}
+
+	// Setup custom tool executors
+	customExecutors := map[string]*gateway.CustomToolExecutor{}
+	for _, ctCfg := range cfg.CustomTools {
+		target, err := gateway.NewCustomToolTarget(
+			ctCfg.ID,
+			ctCfg.Name,
+			ctCfg.Endpoint,
+			ctCfg.Method,
+			ctCfg.Headers,
+			ctCfg.Operations,
+			ctCfg.RequireApproval,
+			ctCfg.Timeout(),
+		)
+		if err != nil {
+			return fmt.Errorf("initializing custom tool %s: %w", ctCfg.ID, err)
+		}
+		if err := target.ConfigurePlugin(ctCfg); err != nil {
+			return fmt.Errorf("initializing plugin %s: %w", ctCfg.ID, err)
+		}
+		customExecutors[ctCfg.ID] = gateway.NewCustomToolExecutor(target)
+	}
+
+	var githubExecutor gateway.Executor
+	githubToken := os.Getenv(cfg.GitHubTokenEnv)
+	if cfg.GitHubApp != nil {
+		var keyData []byte
+		if cfg.GitHubApp.PrivateKeyEnv != "" {
+			keyData = []byte(os.Getenv(cfg.GitHubApp.PrivateKeyEnv))
+			if len(keyData) == 0 {
+				return fmt.Errorf("set %s to the GitHub App private key PEM", cfg.GitHubApp.PrivateKeyEnv)
+			}
+		} else if cfg.GitHubApp.PrivateKeyFile != "" {
+			var err error
+			keyData, err = os.ReadFile(cfg.GitHubApp.PrivateKeyFile)
+			if err != nil {
+				return fmt.Errorf("reading GitHub App private key: %w", err)
+			}
+		}
+		appProvider, err := gateway.NewGitHubAppTokenProvider(cfg.GitHubApp.AppID, keyData, cfg.GitHubApp.InstallationID)
+		if err != nil {
+			return fmt.Errorf("initializing GitHub App authentication: %w", err)
+		}
+		githubExecutor = gateway.NewGitHubWithProvider(appProvider)
+	} else if githubToken != "" {
+		githubExecutor = gateway.NewGitHub(githubToken)
+	}
+
+	if githubExecutor == nil && len(wsExecutors) == 0 && len(dbExecutors) == 0 && len(cloudExecutors) == 0 && len(commExecutors) == 0 && len(paymentExecutors) == 0 && len(customExecutors) == 0 {
+		return fmt.Errorf("gateway requires either GitHub credentials (%s / github_app), at least one workspace, at least one database, at least one cloud environment, at least one communication target, at least one payment account, or at least one custom tool configured", cfg.GitHubTokenEnv)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dataPath), 0700); err != nil {
+		return err
+	}
+	store, err := gateway.OpenStore(dataPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	service, err := gateway.NewService(cfg, store, gateway.NewRouterExecutor(githubExecutor, wsExecutors, dbExecutors, cloudExecutors, commExecutors, paymentExecutors, customExecutors))
+	if err != nil {
+		return err
+	}
+	tokens, err := gateway.LoadTokens(cfg)
+	if err != nil {
+		return err
+	}
+	handler, err := gateway.NewHTTPHandler(service, tokens)
+	if err != nil {
+		return err
+	}
+	handler.SetLogger(slog.New(slog.NewJSONHandler(cmd.ErrOrStderr(), nil)))
+	return serveGatewayTLS(cmd, listen, handler, tlsCert, tlsKey)
+}
+
 func serveGateway(cmd *cobra.Command, address string, handler http.Handler) error {
 	return serveGatewayTLS(cmd, address, handler, "", "")
 }
