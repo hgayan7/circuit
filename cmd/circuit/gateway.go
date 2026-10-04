@@ -64,7 +64,7 @@ func init() {
 	serve.Flags().StringVar(&listen, "listen", "127.0.0.1:8080", "Listen address; keep on loopback or use an authenticated TLS deployment")
 	serve.Flags().StringVar(&tlsCert, "tls-cert", "", "TLS certificate PEM")
 	serve.Flags().StringVar(&tlsKey, "tls-key", "", "TLS private key PEM")
-	serve.Flags().BoolVar(&production, "production", false, "Enforce the GitHub-only production deployment profile (TLS, named operators, GitHub App)")
+	serve.Flags().BoolVar(&production, "production", false, "Require TLS, named operators, and governed GitHub/MCP/REST/plugin targets; not an isolation certificate")
 	gatewayCmd.AddCommand(serve)
 	check := &cobra.Command{Use: "check [gateway.yaml]", Args: cobra.MaximumNArgs(1), Short: "Validate GitHub scope, limits, and combined policy rules", RunE: func(cmd *cobra.Command, args []string) error {
 		path := "gateway.yaml"

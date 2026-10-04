@@ -41,7 +41,7 @@ func TestMiddlewareSetupImportsOnlyReviewedTargets(t *testing.T) {
 		require.Equal(t, []string{"lookup", "change"}, cfg.Rules[0].Actions)
 		require.NoError(t, CheckCredentials(cfg))
 		require.NoError(t, CheckTokens(cfg))
-		require.Error(t, cfg.ValidateProduction())
+		require.NoError(t, cfg.ValidateProduction())
 		for _, name := range []string{"mcp.json", "agent-connection.json", "gateway.yaml"} {
 			data, err := os.ReadFile(filepath.Join(o.Directory, name))
 			require.NoError(t, err)

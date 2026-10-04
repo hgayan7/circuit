@@ -57,12 +57,17 @@ func LoadTokens(c *Config) (Tokens, error) {
 	return tokens, nil
 }
 
-// ValidateProduction gates the first supported production profile: GitHub only.
+// ValidateProduction excludes simulation, host executors, and legacy transports.
 // It cannot prove external agent isolation, which deployment must enforce.
 func (c *Config) ValidateProduction() error {
-	if c.Simulation || c.GitHubApp == nil || len(c.Operators) == 0 ||
-		len(c.Workspaces)+len(c.Databases)+len(c.Environments)+len(c.Communications)+len(c.PaymentAccounts)+len(c.CustomTools) != 0 {
-		return fmt.Errorf("production profile requires GitHub App authentication, named operators, and only real GitHub targets")
+	if c.Simulation || len(c.Operators) == 0 ||
+		len(c.Workspaces)+len(c.Databases)+len(c.Environments)+len(c.Communications)+len(c.PaymentAccounts) != 0 {
+		return fmt.Errorf("production profile requires named operators and only GitHub App or governed MCP/REST/plugin targets; host executors and simulation are excluded")
+	}
+	for _, tool := range c.CustomTools {
+		if !governedCustomProtocol(tool.Protocol) {
+			return fmt.Errorf("production profile excludes legacy custom HTTP; migrate to rest-routes-v1")
+		}
 	}
 	hasAdmin := false
 	for _, operator := range c.Operators {
@@ -72,14 +77,19 @@ func (c *Config) ValidateProduction() error {
 		return fmt.Errorf("production profile requires a named admin for recovery")
 	}
 	for _, agent := range c.Agents {
-		if len(agent.Repositories) == 0 || len(agent.Workspaces)+len(agent.Databases)+len(agent.Environments)+len(agent.Channels)+len(agent.Accounts)+len(agent.CustomTools) != 0 {
-			return fmt.Errorf("production profile agents must have only GitHub repository targets")
+		if len(agent.Repositories)+len(agent.CustomTools) == 0 || len(agent.Workspaces)+len(agent.Databases)+len(agent.Environments)+len(agent.Channels)+len(agent.Accounts) != 0 {
+			return fmt.Errorf("production profile agents must have GitHub or governed custom targets only")
+		}
+		if len(agent.Repositories) > 0 && c.GitHubApp == nil {
+			return fmt.Errorf("production GitHub targets require GitHub App authentication")
 		}
 		for _, operation := range agent.Actions {
 			switch operation {
 			case "read_file", "get_pr", "create_branch", "put_file", "create_pr", "merge_pr", "create_issue", "update_issue":
 			default:
-				return fmt.Errorf("production profile allows only GitHub actions")
+				if !c.isCustomOperation(operation) {
+					return fmt.Errorf("production profile action must be a GitHub or declared custom operation")
+				}
 			}
 		}
 	}

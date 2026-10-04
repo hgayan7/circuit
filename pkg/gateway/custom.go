@@ -58,7 +58,8 @@ func NewCustomToolTarget(id, name, endpoint, method string, headers map[string]s
 		Timeout:         timeout,
 		callHistory:     make([]map[string]any, 0),
 		httpClient: &http.Client{
-			Timeout: timeout,
+			Timeout:       timeout,
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 	}, nil
 }
@@ -129,11 +130,8 @@ func (e *CustomToolExecutor) Execute(ctx context.Context, r Request) Outcome {
 	endpoint := e.target.Endpoint
 	method := e.target.Method
 
-	if m := text(r.Args, "method"); m != "" {
-		method = strings.ToUpper(m)
-	}
-	if subPath := text(r.Args, "endpoint"); subPath != "" {
-		endpoint = strings.TrimRight(endpoint, "/") + "/" + strings.TrimLeft(subPath, "/")
+	if text(r.Args, "method") != "" || text(r.Args, "endpoint") != "" {
+		return Outcome{Status: 400, Error: "agent-controlled method/endpoint overrides are disabled; configure fixed REST routes instead"}
 	}
 
 	var reqBody io.Reader
@@ -173,7 +171,7 @@ func (e *CustomToolExecutor) Execute(ctx context.Context, r Request) Outcome {
 		return Outcome{Status: resp.StatusCode, Error: fmt.Sprintf("reading response: %v", err), Uncertain: method != "GET" && method != "HEAD"}
 	}
 
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode >= 300 {
 		return Outcome{
 			Status:    resp.StatusCode,
 			Body:      respData,

@@ -250,7 +250,7 @@ func newStartCommand() *cobra.Command {
 		if err := onboarding.CheckTokens(cfg); err != nil {
 			return err
 		}
-		return runGateway(cmd, s.Config, s.State, s.Listen, s.TLSCert, s.TLSKey, s.Integration == "github")
+		return runGateway(cmd, s.Config, s.State, s.Listen, s.TLSCert, s.TLSKey, s.Integration == "github" || s.Integration == "middleware" || s.Integration == "plugin")
 	}}
 	cmd.Flags().StringVar(&dir, "dir", onboarding.DefaultDirectory(), "Setup directory")
 	return cmd
