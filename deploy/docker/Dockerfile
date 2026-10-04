@@ -20,6 +20,11 @@ VOLUME /var/lib/circuit
 EXPOSE 8443
 ENTRYPOINT ["circuit"]
 
+FROM alpine:3.22 AS boundary
+RUN apk add --no-cache iptables
+COPY deploy/docker/boundary.sh /usr/local/bin/circuit-boundary
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/circuit-boundary"]
+
 FROM runtime AS agent
 COPY --from=build /out/pilot-agent /usr/local/bin/pilot-agent
 ENTRYPOINT ["pilot-agent"]

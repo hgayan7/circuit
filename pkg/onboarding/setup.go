@@ -167,24 +167,31 @@ func BuildConfig(o Options, dir string) (*gateway.Config, error) {
 		if o.Preset != "read-only" && o.Preset != "review-writes" {
 			return nil, fmt.Errorf("middleware presets: read-only, review-writes")
 		}
-		target, err := loadUpstreamManifest(o.UpstreamManifest)
+		targets, err := loadUpstreamManifest(o.UpstreamManifest)
 		if err != nil {
 			return nil, err
 		}
-		ops := target.Operations
-		if o.Preset == "read-only" {
-			ops = target.ReadOnlyOperations
-		}
-		if len(ops) == 0 {
-			return nil, fmt.Errorf("manifest has no explicitly classified read-only operations; review it or choose review-writes")
-		}
-		c.CustomTools = []gateway.CustomToolConfig{*target}
-		a.CustomTools = []string{target.ID}
-		a.Actions = append([]string(nil), ops...)
-		for _, op := range ops {
-			if !contains(target.ReadOnlyOperations, op) {
-				writes = append(writes, op)
+		c.CustomTools = targets
+		for _, target := range targets {
+			ops := target.Operations
+			if o.Preset == "read-only" {
+				ops = target.ReadOnlyOperations
 			}
+			if len(ops) == 0 {
+				continue
+			}
+			a.CustomTools = append(a.CustomTools, target.ID)
+			for _, op := range ops {
+				if !contains(a.Actions, op) {
+					a.Actions = append(a.Actions, op)
+				}
+				if !contains(target.ReadOnlyOperations, op) && !contains(writes, op) {
+					writes = append(writes, op)
+				}
+			}
+		}
+		if len(a.Actions) == 0 {
+			return nil, fmt.Errorf("manifest has no explicitly classified read-only operations; review it or choose review-writes")
 		}
 	case "plugin":
 		if o.Preset != "read-only" && o.Preset != "review-writes" {
@@ -415,7 +422,7 @@ func certificate(certPath, keyPath string) error {
 		return err
 	}
 	now := time.Now()
-	template := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "Circuit local setup"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(30 * 24 * time.Hour), DNSNames: []string{"localhost"}, IPAddresses: []net.IP{net.ParseIP("127.0.0.1")}, KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, BasicConstraintsValid: true, IsCA: true}
+	template := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: "Circuit local setup"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(30 * 24 * time.Hour), DNSNames: []string{"localhost", "gateway"}, IPAddresses: []net.IP{net.ParseIP("127.0.0.1")}, KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, BasicConstraintsValid: true, IsCA: true}
 	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	if err != nil {
 		return err

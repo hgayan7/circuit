@@ -71,7 +71,7 @@ func SandboxArgs(o SandboxOptions, staged string) ([]string, error) {
 		mount += ",readonly"
 	}
 	args = append(args, "--mount", mount)
-	args = append(args, "--env", "CIRCUIT_GATEWAY_URL="+o.GatewayURL, "--env", "CIRCUIT_TOKEN_FILE=/run/circuit/agent-token", "--env", "CIRCUIT_CA_CERT=/run/circuit/ca.crt", "--env", "CIRCUIT_MCP_CONFIG=/run/circuit/mcp.json", "--entrypoint", o.Command[0], o.Image)
+	args = append(args, "--env", "CIRCUIT_GATEWAY_URL="+o.GatewayURL, "--env", "CIRCUIT_TOKEN_FILE=/run/circuit/agent-token", "--env", "CIRCUIT_CA_CERT=/run/circuit/ca.crt", "--env", "NODE_EXTRA_CA_CERTS=/run/circuit/ca.crt", "--env", "SSL_CERT_FILE=/run/circuit/ca.crt", "--env", "REQUESTS_CA_BUNDLE=/run/circuit/ca.crt", "--env", "CIRCUIT_MCP_CONFIG=/run/circuit/mcp.json", "--entrypoint", o.Command[0], o.Image)
 	return append(args, o.Command[1:]...), nil
 }
 

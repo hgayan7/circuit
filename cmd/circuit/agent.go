@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -18,15 +19,37 @@ import (
 )
 
 func init() {
-	agent := &cobra.Command{Use: "agent", Short: "Optional sandbox execution; the gateway also works with your own sandbox"}
+	agent := &cobra.Command{Use: "agent", Short: "Run isolated agents with gateway-only egress, or use a legacy restricted runner"}
 	agent.AddCommand(newAgentRunCommand())
 	rootCmd.AddCommand(agent)
 }
 func newAgentRunCommand() *cobra.Command {
 	var o onboarding.SandboxOptions
 	var dryRun bool
+	var dir, boundaryImage string
 	cmd := &cobra.Command{Use: "run [flags] -- command [args...]", Short: "Run an agent in a restricted Docker container on an existing internal gateway network", Args: cobra.MinimumNArgs(1), RunE: func(cmd *cobra.Command, args []string) (result error) {
 		o.Command = args
+		var deployment *onboarding.Deployment
+		if dir != "" {
+			s, err := onboarding.Load(dir)
+			if err != nil {
+				return err
+			}
+			deployment, err = onboarding.LoadDeployment(dir)
+			if err != nil {
+				return err
+			}
+			if err := onboarding.CheckWorkspaceIsolation(s, o.Workspace); err != nil {
+				return err
+			}
+			o.Connection, o.Network, o.GatewayURL = s.Connection, deployment.Network, "https://gateway:8443"
+			if o.Writable {
+				return fmt.Errorf("isolated deployment disallows writable host mounts")
+			}
+			if o.Runtime != "" {
+				return fmt.Errorf("isolated deployment uses the qualified runc network path; alternative runtimes require separate validation")
+			}
+		}
 		if _, err := onboarding.SandboxArgs(o, "/private/staged-agent-files"); err != nil {
 			return err
 		}
@@ -64,6 +87,7 @@ func newAgentRunCommand() *cobra.Command {
 			return err
 		}
 		name := "circuit-agent-" + hex.EncodeToString(random[:])
+		boundary := name + "-boundary"
 		plan = append([]string{plan[0], "--name", name}, plan[1:]...)
 		defer func() {
 			cleanup, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -72,18 +96,47 @@ func newAgentRunCommand() *cobra.Command {
 			if err != nil && !strings.Contains(strings.ToLower(string(output)), "no such container") {
 				result = fmt.Errorf("sandbox cleanup could not be confirmed; remove container %s before discarding its scoped credential", name)
 			}
+			if deployment != nil {
+				output, err = exec.CommandContext(cleanup, "docker", "rm", "--force", boundary).CombinedOutput()
+				if err != nil && !strings.Contains(strings.ToLower(string(output)), "no such container") {
+					result = fmt.Errorf("network boundary cleanup failed; remove container %s", boundary)
+				}
+			}
 		}()
+		if deployment != nil {
+			ip, err := onboarding.GatewayAddress(ctx, deployment)
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(staged, "hosts"), []byte("127.0.0.1 localhost\n"+ip+" gateway\n"), 0444); err != nil {
+				return err
+			}
+			if err := onboarding.StartBoundary(ctx, deployment, boundaryImage, boundary, ip); err != nil {
+				return err
+			}
+			plan, err = onboarding.NamespacedArgs(o, staged, boundary)
+			if err != nil {
+				return err
+			}
+			plan = append([]string{plan[0], "--name", name}, plan[1:]...)
+		}
 		process := exec.CommandContext(ctx, "docker", plan...)
 		process.Stdin = cmd.InOrStdin()
 		process.Stdout = cmd.OutOrStdout()
 		process.Stderr = cmd.ErrOrStderr()
-		cmd.PrintErrln("Restricted Docker agent: no provider/operator credentials or Docker socket mounted. Tool calls must use Circuit; model access needs a separately governed broker. Container images must include your agent and the Circuit connector if using the generated MCP configuration.")
+		if deployment != nil {
+			cmd.PrintErrln("Isolated agent: only gateway TCP/8443 allowed; IPv6, DNS, public and host-network egress denied. Model and tool calls must use declared Circuit routes. No provider/operator credentials mounted.")
+		} else {
+			cmd.PrintErrln("Legacy restricted runner: internal Docker network only, no per-agent firewall. Use --dir with circuit up for enforced gateway-only egress.")
+		}
 		if err := process.Run(); err != nil {
 			return fmt.Errorf("sandbox command failed or was interrupted; inspect agent output and gateway action history")
 		}
 		return nil
 	}}
 	f := cmd.Flags()
+	f.StringVar(&dir, "dir", "", "Use a circuit up deployment; automatically configure credentials/network and enforce gateway-only egress")
+	f.StringVar(&boundaryImage, "boundary-image", "circuit-boundary:local", "Trusted firewall image built from deploy/docker/Dockerfile target boundary")
 	f.StringVar(&o.Image, "image", "", "Trusted agent image; pin a digest for reproducible deployment")
 	f.StringVar(&o.Network, "network", "", "Existing internal Docker network shared with the gateway")
 	f.StringVar(&o.Workspace, "workspace", "", "Explicit workspace directory; mounted read-only by default")

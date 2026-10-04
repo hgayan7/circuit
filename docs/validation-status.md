@@ -4,6 +4,8 @@ Validated locally on 2026-10-03. Circuit is ready for a bounded pilot of the rea
 
 ## Evidence
 
+Current main (newer than rc.2) additionally includes a generated Docker deployment with a dedicated gateway-only namespace firewall, OpenAPI wire bindings and safety-aware TypeScript/Python/Go clients. See [isolated agents](isolated-agents.md) and their reproducible validation scripts. `--production` now accepts governed MCP/REST/plugin transports as well as GitHub App targets; this configuration gate is not universal provider certification or a completed soak. Legacy method/path overrides are disabled and legacy custom HTTP is excluded from that profile.
+
 | Surface | Verified | Evidence |
 | --- | --- | --- |
 | GitHub App + isolated agent | 44 checks: branches, approved files, reads, PRs, merges, issues, stale-head rejection, branch protection, scope denial, budgets, idempotency, restart persistence. Agent had no upstream credentials, credential files, or upstream network egress. | [App pilot report](github-app-pilot-results.json) |

@@ -12,6 +12,8 @@ Agent -> Circuit MCP / REST action API -> Shared enforcement core
 
 Both ingress protocols use identity, scope, policy, atomic budgets, exact approvals, durable claims, and audit. This is not a transparent network proxy or automatic interception of all agent activity. Standard MCP clients can connect, but Circuit's tool envelopes expose pending approvals and uncertain outcomes explicitly.
 
+For an enforced deployment, follow [isolated agents and generated clients](isolated-agents.md): `setup -> up -> agent run --dir`. Current-source `--production` accepts these governed transports. The host-side `start` example below tests integration only, not isolation. A manifest can contain 1-32 reviewed targets, including separately scoped model access.
+
 ## Connect An MCP Server
 
 From current source, build Circuit and discover a candidate manifest using a gateway-owned least-privilege bearer credential:

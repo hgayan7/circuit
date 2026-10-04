@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func loadUpstreamManifest(path string) (*gateway.CustomToolConfig, error) {
+func loadUpstreamManifest(path string) ([]gateway.CustomToolConfig, error) {
 	info, err := os.Lstat(path)
 	if err != nil || !info.Mode().IsRegular() || info.Size() > 1<<20 {
 		return nil, fmt.Errorf("upstream manifest must be a regular YAML file at most 1 MiB")
@@ -30,28 +30,30 @@ func loadUpstreamManifest(path string) (*gateway.CustomToolConfig, error) {
 	}
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
-	if decoder.Decode(&manifest) != nil || len(manifest.CustomTools) != 1 {
-		return nil, fmt.Errorf("manifest must contain exactly one custom_tools target, not agent or policy configuration")
+	if decoder.Decode(&manifest) != nil || len(manifest.CustomTools) == 0 || len(manifest.CustomTools) > 32 {
+		return nil, fmt.Errorf("manifest must contain 1-32 custom_tools targets, not agent or policy configuration")
 	}
 	var extra any
 	if decoder.Decode(&extra) != io.EOF {
 		return nil, fmt.Errorf("manifest must contain exactly one YAML document")
 	}
-	target := manifest.CustomTools[0]
-	if target.Protocol != gateway.MCPForwardProtocol && target.Protocol != gateway.RESTForwardProtocol {
-		return nil, fmt.Errorf("manifest must use an MCP or REST forwarding profile")
-	}
-	if target.TokenFile == "" || target.TokenEnv != "" {
-		return nil, fmt.Errorf("guided middleware setup requires a gateway-owned upstream token_file")
-	}
 	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
-	for _, ref := range []*string{&target.TokenFile, &target.CACert} {
-		if *ref != "" && !filepath.IsAbs(*ref) {
-			*ref = filepath.Join(filepath.Dir(absolute), *ref)
+	for i := range manifest.CustomTools {
+		target := &manifest.CustomTools[i]
+		if target.Protocol != gateway.MCPForwardProtocol && target.Protocol != gateway.RESTForwardProtocol {
+			return nil, fmt.Errorf("manifest must use an MCP or REST forwarding profile")
+		}
+		if target.TokenFile == "" || target.TokenEnv != "" {
+			return nil, fmt.Errorf("guided middleware setup requires a gateway-owned upstream token_file")
+		}
+		for _, ref := range []*string{&target.TokenFile, &target.CACert} {
+			if *ref != "" && !filepath.IsAbs(*ref) {
+				*ref = filepath.Join(filepath.Dir(absolute), *ref)
+			}
 		}
 	}
-	return &target, nil
+	return manifest.CustomTools, nil
 }

@@ -200,6 +200,9 @@ func newSetupCommand() *cobra.Command {
 			return err
 		}
 		cmd.Printf("Created private setup: %s\nStart: circuit start --dir %q\nVerify after starting: circuit doctor --dir %q\nMCP client configuration: %s\nReview UI: %s\nOperator token file: %s\n", dir, dir, dir, filepath.Join(dir, "mcp.json"), s.Connection.URL, filepath.Join(dir, "secrets", "admin-token"))
+		if o.Integration == "github" || o.Integration == "middleware" || o.Integration == "plugin" {
+			cmd.Printf("Recommended isolated flow (current source): circuit up --dir %q, then circuit agent run --dir %q --image YOUR_AGENT_IMAGE --workspace YOUR_WORKSPACE -- YOUR_COMMAND\n", dir, dir)
+		}
 		cmd.Println("Local TLS certificate only; browser trust warning is expected. No system trust was changed. Production deployment, provider access, and agent isolation still need verification.")
 		cmd.Println("Keep this operator directory and all provider credentials outside agent workspaces and sandbox mounts. Share only the agent token and public CA.")
 		return nil

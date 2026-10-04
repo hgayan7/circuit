@@ -28,7 +28,7 @@ The host port is loopback-only. Containers use nonroot UID, read-only root files
 
 This is a deployment template, not an agent framework. Run the real agent inside that network without host shell/Docker access, provider credentials, gateway configuration, or state mounts. Isolation depends on that deployment. Keep bbolt on local block-backed storage, not a shared network filesystem. Never run two gateway processes on one state file.
 
-`--production` requires a real GitHub App, named operators including an admin, GitHub-only targets, and `--tls-cert`/`--tls-key`. It rejects simulation and other target types in this initial profile. Other adapters remain available for bounded nonproduction pilots.
+Current-source `--production` requires named operators including an admin, TLS, and only GitHub App or governed MCP/REST/plugin targets. It rejects simulation, native host/database executors, and legacy custom HTTP. This file's existing compose template remains GitHub-specific; use [the generated isolated deployment](isolated-agents.md) for general transports. The released rc.2 profile remains GitHub-only. Passing configuration validation alone does not establish external agent isolation.
 
 ## Operators And Rotation
 

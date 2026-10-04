@@ -2,7 +2,7 @@
 
 # Circuit
 
-**Approval and action limits for AI agents.**
+**A governed execution boundary for AI agents.**
 
 Circuit is a self-hosted action gateway between an agent and the tools it uses. Agents receive scoped Circuit credentials; the gateway holds upstream credentials, evaluates policies and budgets, and asks a human to approve consequential actions. A built-in web interface shows proposals, decisions, and execution history.
 
@@ -12,7 +12,21 @@ For example, let an engineering agent read two repositories and open up to five 
 
 [**v0.2.0-rc.2**](https://github.com/hgayan7/circuit/releases/tag/v0.2.0-rc.2) is available as a **developer preview / release candidate**, not a production-certified release. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums. The stable Homebrew tap does not install this candidate.
 
-The GitHub-only production-oriented profile, operational extensions, recovery tests, and cross-platform builds are implemented. The full uninterrupted 72-hour fixture soak remains pending. Operators must also validate their intended workload, email delivery, and separate-host recovery with their own credentials. See the [release checklist](docs/release-checklist.md) for acceptance criteria and supported scope.
+The released candidate contains the GitHub production-oriented profile. **Current main adds an isolated gateway-only agent deployment, governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients.** These newer features are source-only until the next release. The full uninterrupted 72-hour fixture soak remains pending. See the [release checklist](docs/release-checklist.md) for acceptance criteria and supported scope.
+
+## Integrate Your Agent
+
+Follow the [isolated-agent quickstart](docs/isolated-agents.md). Register reviewed upstream routes/tools and keep their credentials in the gateway, then:
+
+```sh
+circuit setup --integration middleware --upstream-manifest /private/upstreams.yaml \
+  --out "$HOME/.circuit-operator"
+circuit up --dir "$HOME/.circuit-operator"
+circuit agent run --dir "$HOME/.circuit-operator" --image YOUR_AGENT_IMAGE \
+  --workspace /path/to/clean/workspace -- YOUR_COMMAND
+```
+
+Use the same setup directory for all three commands (`--out` on setup, `--dir` on up/run). The guide includes exact noninteractive commands and image builds. Connect via MCP or the generated REST clients. The isolated runner only permits gateway TCP/8443; model access must also be a declared route. Installing an SDK alone on an unrestricted host does not prevent bypass.
 
 ## Try It Locally
 
@@ -34,17 +48,17 @@ Review file-write and merge proposals in the interface. This simulation never co
 ## How It Fits
 
 ```text
-Agent in an existing sandbox
+Agent in a restricted network namespace
           | Circuit agent credential
           v
 Circuit action gateway --- Operator review interface
   scopes | policies | budgets | approvals | durable state
           | scoped provider credential
           v
-        GitHub
+Declared MCP / REST / plugins / GitHub
 ```
 
-Run Circuit as a persistent middleware service. Connect agent tools through authenticated REST or MCP; operators use the web interface. The CLI supplies setup, validation, recovery, and an optional restricted Docker runner. Circuit is not a model router and does not implement its own OS sandbox.
+Run Circuit as a persistent middleware service. Operators use the web interface. Current source supplies Docker orchestration and a separate trusted namespace firewall; you can also enforce equivalent isolation in your own infrastructure. Circuit is not a transparent model router or a custom OS-sandbox engine.
 
 ### Guided Setup
 
@@ -57,7 +71,7 @@ bin/circuit start
 bin/circuit doctor
 ```
 
-Choose GitHub, PostgreSQL, read-only workspace access, or a provider plugin; register the generated `mcp.json` entry in your agent client. Start with read-only permissions and explicitly opt into approved writes. See [guided setup](docs/onboarding.md) and the optional [Docker runner](docs/sandbox.md). GitHub remains the only integration in the production-oriented profile.
+Choose GitHub, PostgreSQL, read-only workspace access, or a provider plugin; register the generated `mcp.json` entry in your agent client. This host-side flow is cooperative, not sandbox enforcement. For current-source GitHub/MCP/REST/plugins, prefer [setup -> up -> isolated agent](docs/isolated-agents.md). PostgreSQL/native workspace executors remain bounded pilot integrations outside `--production`.
 
 To rely on enforcement, agents must not have independent provider credentials or unrestricted alternative execution paths. Routing one tool through Circuit does not protect calls that bypass it.
 
@@ -90,11 +104,11 @@ Docker deployment builds and rehearsal scripts require the source checkout. Loca
 
 Provider plugins run as separate services using the versioned [plugin contract](docs/plugin-contract.md). Policy, approvals, budgets, durable claims, and audit remain in the trusted core. Registering a plugin does not automatically make its provider production-supported.
 
-**New on main, after rc.2:** [MCP and REST middleware](docs/middleware.md) reuses existing Streamable HTTP MCP servers and fixed REST routes through the same enforcement core. Discover and review an upstream manifest, import it with `setup --integration middleware`, then connect your agent to Circuit. No provider-specific adapter is required for registered operations. The rc.2 downloads do not contain this newer work; these profiles remain outside the GitHub-only production profile.
+**New on main, after rc.2:** [MCP and REST middleware](docs/middleware.md) reuses existing Streamable HTTP MCP servers and fixed REST routes through the same enforcement core. Discover and review an upstream manifest, import it with `setup --integration middleware`, then deploy the isolated agent. No provider-specific adapter is required for registered operations. Current `--production` accepts these governed transports and plugins; rc.2 downloads do not contain this work. The [OpenAPI contract](api/openapi.yaml) generates clients for other languages without a separate policy engine.
 
 | Area | Tested Scope |
 | --- | --- |
-| GitHub | Live fixture pilot: branches, files, PRs, merges, issues, App token refresh, approvals, budgets, isolated-agent execution, and signed webhook recovery. The `--production` profile supports GitHub only. |
+| GitHub | Live fixture pilot: branches, files, PRs, merges, issues, App token refresh, approvals, budgets, isolated-agent execution, and signed webhook recovery. |
 | PostgreSQL | Real local/CI database queries and mutations, row limits, transactional rollback, permission failures, and timeouts. Requires least-privilege roles and query-specific policies; outside the GitHub-only production profile. |
 | Workspace/files | Local root-scoped file access, atomic writes, symlink-race protection, and bounded shell execution. Shell commands require approval and an external OS sandbox. |
 | Custom tools/plugins | Local HTTP/MCP integration and sidecar conformance tests. Each provider needs its own scope, credential-isolation, and recovery validation. |

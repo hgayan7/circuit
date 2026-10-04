@@ -33,7 +33,7 @@ The agent submits simulated GitHub actions. Review the file-write and merge prop
 
 ## Connect A Real Agent
 
-Use the rc.2 binary or matching source and follow [guided setup](onboarding.md): `circuit setup`, `circuit start`, then `circuit doctor` in another terminal. Register its generated agent-only `mcp.json` in your client. The optional [Docker runner](sandbox.md) uses an existing internal gateway network and your trusted agent image.
+For current source, follow [isolated agents and generated clients](isolated-agents.md): `setup`, `up`, then `agent run --dir ...`. The gateway-only namespace firewall and generated clients are newer than rc.2. With an rc.2 binary, [guided setup](onboarding.md) remains `setup`, `start`, then `doctor`; that host-side flow does not enforce isolation.
 
 Run Circuit as a persistent gateway and configure your agent's tools to call its authenticated REST or Streamable HTTP MCP endpoint. Integration requires routing those tool calls through Circuit; it is not automatic protection for every outbound request.
 

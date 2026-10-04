@@ -1,5 +1,7 @@
 # Optional Agent Sandbox
 
+**Current-source recommended flow:** [isolated agents](isolated-agents.md) adds `circuit up` and `agent run --dir`, automatically wiring a dedicated gateway-only firewall namespace. That enforced mode is newer than rc.2. The older invocation below remains available but checks only an internal Docker network, not per-agent egress firewall rules.
+
 Circuit's action gateway works with your existing sandbox. The optional `circuit agent run` command in v0.2.0-rc.2 and on `main` provides a restricted Docker invocation; it is not an OS isolation implementation or a replacement for the action gateway.
 
 ```text

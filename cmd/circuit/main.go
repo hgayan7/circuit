@@ -116,10 +116,11 @@ and reports any errors before you run your agent.
 
 var runCmd = &cobra.Command{
 	Use:   "run -- <command> [args...]",
-	Short: "Wrap an agent process — intercept every outbound HTTP call",
+	Short: "Inspect proxy-aware HTTP traffic (cooperative legacy path, not isolation)",
 	Long: `Starts an ephemeral proxy, injects HTTP_PROXY into your agent's environment,
-and enforces your circuit.yaml policies on every outbound request.
-No changes to your agent code required.
+and checks circuit.yaml policies only on requests sent through that proxy.
+Clients can ignore the proxy. Host credentials and privileges are not isolated.
+For mandatory gateway-only egress, use setup, up, and agent run --dir.
 
   circuit run -- python agent.py
   circuit run --audit agent.ndjson -- node agent.js
@@ -166,6 +167,7 @@ No changes to your agent code required.
 		}
 
 		r := runner.New(engine, opts...)
+		cmd.PrintErrln("Cooperative proxy inspection only: direct network calls, host access, and inherited credentials are not contained. Use circuit up and agent run --dir for the isolated gateway flow.")
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer cancel()
 

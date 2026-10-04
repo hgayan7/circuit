@@ -48,7 +48,11 @@ func TestIntegrationPresetsAreExplicit(t *testing.T) {
 		o := Options{Integration: integration, Preset: "read-only", Port: 8643, DSNEnv: "FIXTURE_DSN", Workspace: workspace, Endpoint: "http://127.0.0.1:9000/actions", PluginTokenFile: "fixture-token", PluginOperations: []string{"lookup", "modify"}, PluginReadOnly: []string{"lookup"}}
 		cfg, err := BuildConfig(o, dir)
 		require.NoError(t, err)
-		if integration == "plugin" { require.NoError(t, cfg.ValidateProduction()) } else { require.Error(t, cfg.ValidateProduction()) }
+		if integration == "plugin" {
+			require.NoError(t, cfg.ValidateProduction())
+		} else {
+			require.Error(t, cfg.ValidateProduction())
+		}
 		require.NotContains(t, cfg.Agents[0].Actions, "exec_cmd")
 		if integration == "plugin" {
 			require.Equal(t, []string{"lookup"}, cfg.Agents[0].Actions)
