@@ -96,7 +96,7 @@ func NewHTTPHandler(s *Service, tokens Tokens) (*HTTPHandler, error) {
 		h.agents[a.ID] = hash
 	}
 	for _, plugin := range s.cfg.CustomTools {
-		if plugin.Protocol != PluginProtocol {
+		if !governedCustomProtocol(plugin.Protocol) {
 			continue
 		}
 		secret, err := credential(plugin.TokenEnv, plugin.TokenFile)
@@ -393,6 +393,9 @@ func (h *HTTPHandler) mcpServer(agent Agent) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "circuit-actions", Version: "0.2.0"}, nil)
 	for _, operation := range agent.Actions {
 		op := operation
+		if h.addForwardedTools(server, agent, op) {
+			continue
+		}
 		names := []string{"github_" + op}
 		switch op {
 		case "exec_cmd":

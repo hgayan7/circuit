@@ -25,6 +25,7 @@ func init() {
 	gatewayCmd := &cobra.Command{Use: "gateway", Short: "Scoped GitHub actions with durable limits and operator approvals"}
 	rootCmd.AddCommand(gatewayCmd)
 	addGatewayOperations(gatewayCmd)
+	addGatewayForwarding(gatewayCmd)
 	gatewayCmd.AddCommand(&cobra.Command{Use: "token", Short: "Generate a Circuit bearer credential", RunE: func(cmd *cobra.Command, args []string) error {
 		data := make([]byte, 32)
 		if _, err := rand.Read(data); err != nil {

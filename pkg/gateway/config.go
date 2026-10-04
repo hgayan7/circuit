@@ -91,18 +91,21 @@ func (p *PaymentAccountConfig) Timeout() time.Duration {
 }
 
 type CustomToolConfig struct {
-	ID                 string            `yaml:"id" json:"id"`
-	Name               string            `yaml:"name" json:"name"`
-	Endpoint           string            `yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
-	Method             string            `yaml:"method,omitempty" json:"method,omitempty"`
-	Headers            map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
-	Operations         []string          `yaml:"operations,omitempty" json:"operations,omitempty"`
-	RequireApproval    bool              `yaml:"require_approval,omitempty" json:"require_approval,omitempty"`
-	MaxTimeout         string            `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
-	Protocol           string            `yaml:"protocol,omitempty" json:"protocol,omitempty"`
-	TokenEnv           string            `yaml:"token_env,omitempty" json:"token_env,omitempty"`
-	TokenFile          string            `yaml:"token_file,omitempty" json:"token_file,omitempty"`
-	ReadOnlyOperations []string          `yaml:"read_only_operations,omitempty" json:"read_only_operations,omitempty"`
+	ID                 string                      `yaml:"id" json:"id"`
+	Name               string                      `yaml:"name" json:"name"`
+	Endpoint           string                      `yaml:"endpoint,omitempty" json:"endpoint,omitempty"`
+	Method             string                      `yaml:"method,omitempty" json:"method,omitempty"`
+	Headers            map[string]string           `yaml:"headers,omitempty" json:"headers,omitempty"`
+	Operations         []string                    `yaml:"operations,omitempty" json:"operations,omitempty"`
+	RequireApproval    bool                        `yaml:"require_approval,omitempty" json:"require_approval,omitempty"`
+	MaxTimeout         string                      `yaml:"max_timeout,omitempty" json:"max_timeout,omitempty"`
+	Protocol           string                      `yaml:"protocol,omitempty" json:"protocol,omitempty"`
+	TokenEnv           string                      `yaml:"token_env,omitempty" json:"token_env,omitempty"`
+	TokenFile          string                      `yaml:"token_file,omitempty" json:"token_file,omitempty"`
+	ReadOnlyOperations []string                    `yaml:"read_only_operations,omitempty" json:"read_only_operations,omitempty"`
+	CACert             string                      `yaml:"ca_cert,omitempty" json:"ca_cert,omitempty"`
+	MCPTools           map[string]ForwardedMCPTool `yaml:"mcp_tools,omitempty" json:"mcp_tools,omitempty"`
+	Routes             []RESTRoute                 `yaml:"routes,omitempty" json:"routes,omitempty"`
 	timeout            time.Duration
 }
 
@@ -589,7 +592,7 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 			return config.ActionDeny, fmt.Sprintf("Agent is not permitted to access custom tool %q", toolID), nil
 		}
 		for _, tool := range c.CustomTools {
-			if tool.ID == toolID && tool.Protocol == PluginProtocol && (req.CustomTool != toolID || !member(tool.Operations, req.Operation)) {
+			if tool.ID == toolID && governedCustomProtocol(tool.Protocol) && (req.CustomTool != toolID || !member(tool.Operations, req.Operation)) {
 				return config.ActionDeny, "Plugin requires an explicit target and declared operation", nil
 			}
 		}
@@ -663,7 +666,7 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 			toolID = "default"
 		}
 		for _, ct := range c.CustomTools {
-			if ct.ID == toolID && (ct.RequireApproval || (ct.Protocol == PluginProtocol && !member(ct.ReadOnlyOperations, req.Operation))) {
+			if ct.ID == toolID && (ct.RequireApproval || (governedCustomProtocol(ct.Protocol) && !member(ct.ReadOnlyOperations, req.Operation))) {
 				verdict = config.ActionRequireApproval
 				reason = fmt.Sprintf("All actions on custom tool %q require operator approval", toolID)
 				break

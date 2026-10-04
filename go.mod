@@ -7,6 +7,7 @@ require (
 	filippo.io/age v1.3.2
 	github.com/auxten/postgresql-parser v1.0.1
 	github.com/elazarl/goproxy v1.9.2
+	github.com/google/jsonschema-go v0.4.3
 	github.com/lib/pq v1.9.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/spf13/cobra v1.10.2
@@ -31,7 +32,6 @@ require (
 	github.com/getsentry/raven-go v0.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

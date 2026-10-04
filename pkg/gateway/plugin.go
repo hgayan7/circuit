@@ -30,6 +30,12 @@ type PluginResult struct {
 }
 
 func validatePluginConfig(c CustomToolConfig) error {
+	if c.Protocol == MCPForwardProtocol || c.Protocol == RESTForwardProtocol {
+		return validateForwardConfig(c)
+	}
+	if c.CACert != "" || len(c.MCPTools) > 0 || len(c.Routes) > 0 {
+		return fmt.Errorf("forwarding fields require an MCP or REST forwarding protocol")
+	}
 	if c.Protocol == "" {
 		if c.TokenEnv != "" || c.TokenFile != "" || len(c.ReadOnlyOperations) > 0 {
 			return fmt.Errorf("plugin fields require a protocol")
@@ -65,6 +71,9 @@ func validatePluginConfig(c CustomToolConfig) error {
 func (t *CustomToolTarget) ConfigurePlugin(c CustomToolConfig) error {
 	if c.Protocol == "" {
 		return nil
+	}
+	if c.Protocol == MCPForwardProtocol || c.Protocol == RESTForwardProtocol {
+		return t.configureForward(c)
 	}
 	if err := validatePluginConfig(c); err != nil {
 		return err

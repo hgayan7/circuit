@@ -81,6 +81,9 @@ func NewCustomToolExecutor(target *CustomToolTarget) *CustomToolExecutor {
 // Execute executes an action request on the custom tool target.
 func (e *CustomToolExecutor) Execute(ctx context.Context, r Request) Outcome {
 	if e.target.plugin != nil {
+		if e.target.plugin.Protocol == MCPForwardProtocol || e.target.plugin.Protocol == RESTForwardProtocol {
+			return e.executeForward(ctx, r)
+		}
 		return e.executePlugin(ctx, r)
 	}
 	if e.target.Timeout > 0 {
