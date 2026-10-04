@@ -90,6 +90,8 @@ Docker deployment builds and rehearsal scripts require the source checkout. Loca
 
 Provider plugins run as separate services using the versioned [plugin contract](docs/plugin-contract.md). Policy, approvals, budgets, durable claims, and audit remain in the trusted core. Registering a plugin does not automatically make its provider production-supported.
 
+**New on main, after rc.2:** [MCP and REST middleware](docs/middleware.md) reuses existing Streamable HTTP MCP servers and fixed REST routes through the same enforcement core. Discover and review an upstream manifest, import it with `setup --integration middleware`, then connect your agent to Circuit. No provider-specific adapter is required for registered operations. The rc.2 downloads do not contain this newer work; these profiles remain outside the GitHub-only production profile.
+
 | Area | Tested Scope |
 | --- | --- |
 | GitHub | Live fixture pilot: branches, files, PRs, merges, issues, App token refresh, approvals, budgets, isolated-agent execution, and signed webhook recovery. The `--production` profile supports GitHub only. |

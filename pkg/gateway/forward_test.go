@@ -131,6 +131,39 @@ func TestRESTUnknownOutcomeAndRedirectAreNotReplayed(t *testing.T) {
 	require.NotContains(t, string(encoded), upstreamSecret)
 }
 
+func TestRESTIngressForwardsOnlyAfterOperatorDecision(t *testing.T) {
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		require.Equal(t, "Bearer "+upstreamSecret, r.Header.Get("Authorization"))
+		fmt.Fprint(w, `{"ok":true}`)
+	}))
+	defer upstream.Close()
+	cfg := forwardedConfig(t, RESTForwardProtocol, upstream.URL)
+	s, _ := testService(t, cfg, pluginExecutor(t, cfg))
+	h, err := NewHTTPHandler(s, Tokens{Admin: adminToken, Agents: map[string]string{"agent": agentToken}})
+	require.NoError(t, err)
+	server := httptest.NewServer(h)
+	defer server.Close()
+	r := Request{Operation: "reserve_item", CustomTool: "inventory", Args: map[string]any{"sku": "fixture"}}
+	status, data := callHTTP(t, server.URL+"/v1/actions", "POST", agentToken, "write", r)
+	require.Equal(t, 202, status)
+	var a Action
+	require.NoError(t, json.Unmarshal(data, &a))
+	require.Equal(t, "pending", a.State)
+	require.Zero(t, calls.Load())
+	status, _ = callHTTP(t, server.URL+"/admin/actions/"+a.ID+"/decision", "POST", agentToken, "", map[string]string{"digest": a.Digest, "decision": "approve"})
+	require.Equal(t, 403, status)
+	status, data = callHTTP(t, server.URL+"/admin/actions/"+a.ID+"/decision", "POST", adminToken, "", map[string]string{"digest": a.Digest, "decision": "approve"})
+	require.Equal(t, 200, status)
+	require.NoError(t, json.Unmarshal(data, &a))
+	require.Equal(t, "succeeded", a.State)
+	require.EqualValues(t, 1, calls.Load())
+	status, _ = callHTTP(t, server.URL+"/v1/actions", "POST", agentToken, "write", r)
+	require.Equal(t, 200, status)
+	require.EqualValues(t, 1, calls.Load())
+}
+
 func upstreamMCP(t *testing.T, fail bool) (*httptest.Server, *atomic.Int32) {
 	t.Helper()
 	var calls atomic.Int32

@@ -27,6 +27,7 @@ import (
 type Options struct {
 	Directory, Integration, Preset, Repository, KeyFile, DSNEnv, Workspace string
 	Endpoint, PluginTokenFile                                              string
+	UpstreamManifest                                                       string
 	PluginOperations, PluginReadOnly                                       []string
 	AppID, InstallationID                                                  int64
 	Port                                                                   int
@@ -162,6 +163,29 @@ func BuildConfig(o Options, dir string) (*gateway.Config, error) {
 		c.Workspaces = []gateway.WorkspaceConfig{{ID: "workspace", Path: path, ReadOnly: true, MaxTimeout: "15s"}}
 		a.Workspaces = []string{"workspace"}
 		a.Actions = []string{"read_file", "list_dir"}
+	case "middleware":
+		if o.Preset != "read-only" && o.Preset != "review-writes" {
+			return nil, fmt.Errorf("middleware presets: read-only, review-writes")
+		}
+		target, err := loadUpstreamManifest(o.UpstreamManifest)
+		if err != nil {
+			return nil, err
+		}
+		ops := target.Operations
+		if o.Preset == "read-only" {
+			ops = target.ReadOnlyOperations
+		}
+		if len(ops) == 0 {
+			return nil, fmt.Errorf("manifest has no explicitly classified read-only operations; review it or choose review-writes")
+		}
+		c.CustomTools = []gateway.CustomToolConfig{*target}
+		a.CustomTools = []string{target.ID}
+		a.Actions = append([]string(nil), ops...)
+		for _, op := range ops {
+			if !contains(target.ReadOnlyOperations, op) {
+				writes = append(writes, op)
+			}
+		}
 	case "plugin":
 		if o.Preset != "read-only" && o.Preset != "review-writes" {
 			return nil, fmt.Errorf("plugin presets: read-only, review-writes")
@@ -188,7 +212,7 @@ func BuildConfig(o Options, dir string) (*gateway.Config, error) {
 			}
 		}
 	default:
-		return nil, fmt.Errorf("integration must be github, postgres, workspace, or plugin")
+		return nil, fmt.Errorf("integration must be github, postgres, workspace, plugin, or middleware")
 	}
 	if len(writes) > 0 {
 		c.Rules = []gateway.Rule{{ID: "review-writes", Actions: writes, Action: config.ActionRequireApproval, Reason: "Review the exact change before execution"}}
@@ -328,6 +352,12 @@ func CheckCredentials(c *gateway.Config) error {
 		}
 		if len(strings.TrimSpace(string(data))) < 32 {
 			return fmt.Errorf("plugin token needs at least 32 characters")
+		}
+		if p.CACert != "" {
+			data, err := os.ReadFile(p.CACert)
+			if err != nil || !x509.NewCertPool().AppendCertsFromPEM(data) {
+				return fmt.Errorf("upstream public CA file is unavailable or invalid")
+			}
 		}
 	}
 	for _, w := range c.Workspaces {

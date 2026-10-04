@@ -1,5 +1,7 @@
 # Custom HTTP Tools Gateway
 
+For new integrations, prefer the [governed MCP/REST forwarding profiles](middleware.md) on main after rc.2. They fix upstream origins and routes/tool bindings, reject redirects, and require approval for operations not explicitly classified read-only. The legacy HTTP mode below has different transport behavior and is not silently upgraded into these profiles.
+
 Custom tools dispatch JSON to a configured HTTP endpoint. Local integration tests cover successful calls, timeouts, failures, and a lost write response that remains uncertain across restarts. This is not validation of arbitrary third-party APIs.
 
 ```yaml

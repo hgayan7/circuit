@@ -42,7 +42,7 @@ func newSetupCommand() *cobra.Command {
 			o.Integration = "demo"
 		}
 		if o.Integration == "" && !nonInteractive {
-			value, err := ask("Choose demo, github, postgres, workspace, or plugin", "demo")
+			value, err := ask("Choose demo, github, postgres, workspace, plugin, or middleware", "demo")
 			if err != nil {
 				return err
 			}
@@ -117,6 +117,13 @@ func newSetupCommand() *cobra.Command {
 					value    *string
 					fallback string
 				}{"Read-only workspace path", &o.Workspace, ""})
+			case "middleware":
+				fields = append(fields, struct {
+					label    string
+					value    *string
+					fallback string
+				}{"Reviewed upstream manifest path", &o.UpstreamManifest, ""})
+				cmd.Println("Discovery grants no permissions. Use review-writes unless you have explicitly classified safe read-only operations in the manifest.")
 			case "plugin":
 				fields = append(fields, struct {
 					label    string
@@ -128,7 +135,7 @@ func newSetupCommand() *cobra.Command {
 					fallback string
 				}{"Private plugin-token file", &o.PluginTokenFile, ""})
 			default:
-				return fmt.Errorf("choose demo, github, postgres, workspace, or plugin")
+				return fmt.Errorf("choose demo, github, postgres, workspace, plugin, or middleware")
 			}
 			for _, field := range fields {
 				if *field.value == "" {
@@ -201,7 +208,8 @@ func newSetupCommand() *cobra.Command {
 	f.BoolVar(&demo, "demo", false, "Start a credential-free simulation")
 	f.BoolVar(&nonInteractive, "non-interactive", false, "Use explicit flags without prompting")
 	f.StringVar(&o.Directory, "out", onboarding.DefaultDirectory(), "New operator-only setup directory outside the agent workspace; never overwrite")
-	f.StringVar(&o.Integration, "integration", "", "github, postgres, workspace, or plugin")
+	f.StringVar(&o.Integration, "integration", "", "github, postgres, workspace, plugin, or middleware")
+	f.StringVar(&o.UpstreamManifest, "upstream-manifest", "", "Reviewed MCP/REST forwarding target manifest")
 	f.StringVar(&o.Preset, "preset", "read-only", "Permission preset; default read-only")
 	f.IntVar(&o.Port, "port", 8643, "Loopback gateway port")
 	f.StringVar(&o.Repository, "repo", "", "Allowed GitHub owner/repository")

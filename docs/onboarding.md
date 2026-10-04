@@ -33,6 +33,8 @@ The exported MCP configuration references only the agent token and public CA, ne
 | Workspace | `read-only` | Read/list an explicit directory. No shell or file-write capability. |
 | Plugin | `read-only` | Only the explicitly declared non-mutating operations. |
 | Plugin | `review-writes` | Declared operations; non-read-only calls require approval. |
+| Middleware (main after rc.2) | `read-only` | Explicitly classified read-only operations in a reviewed MCP/REST manifest. |
+| Middleware (main after rc.2) | `review-writes` | Reviewed operations; calls not explicitly classified read-only require approval. |
 
 Presets limit total actions to 100/hour and write-capable presets to five writes/hour. They generate editable gateway policy, not a second enforcement engine. GitHub is the only integration accepted by the existing `--production` profile. PostgreSQL, workspace, and plugin setup are real integrations but need their own deployment/workload qualification.
 
@@ -63,6 +65,8 @@ PostgreSQL uses `--integration postgres --dsn-env CIRCUIT_PG_DSN`, where the nam
 Plugins use `--integration plugin --endpoint https://your-plugin/actions --plugin-token-file /private/operator/plugin-token --operations lookup,modify --read-only-operations lookup`. Only declare genuinely non-mutating operations read-only. The plugin credential is distinct from agent/operator credentials. Use the versioned [plugin contract](plugin-contract.md); registering a plugin does not certify a new provider.
 
 ## Before Deployment
+
+To reuse an existing MCP server or REST API without an adapter, follow [middleware registration](middleware.md). Current main adds `--integration middleware --upstream-manifest /private/operator/upstream.yaml`; use `review-writes` until safe reads are explicitly classified. This is newer than rc.2.
 
 Generated TLS is local-only, expires after 30 days, and is not installed in the system trust store. The browser may warn until you configure trust. Production needs managed certificate renewal and the [deployment](production-deployment.md), [operations](operations.md), and [release](release-checklist.md) checks, not just a successful `doctor` result.
 
