@@ -1,0 +1,16 @@
+.gitignore
+.npmignore
+README.md
+package.json
+src/apis/ActionsApi.ts
+src/apis/index.ts
+src/index.ts
+src/models/APIError.ts
+src/models/Action.ts
+src/models/ActionRequest.ts
+src/models/Outcome.ts
+src/models/Reservation.ts
+src/models/SubmitAction403Response.ts
+src/models/index.ts
+src/runtime.ts
+tsconfig.json

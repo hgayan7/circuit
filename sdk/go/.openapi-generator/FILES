@@ -1,0 +1,16 @@
+.gitignore
+README.md
+api/openapi.yaml
+api_actions.go
+client.go
+configuration.go
+go.mod
+go.sum
+model_action.go
+model_action_request.go
+model_api_error.go
+model_outcome.go
+model_reservation.go
+model_submit_action_403_response.go
+response.go
+utils.go

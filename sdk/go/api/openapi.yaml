@@ -1,0 +1,391 @@
+openapi: 3.0.3
+info:
+  description: "Submit governed actions and poll their durable status. Authenticate\
+    \ with an agent-only Circuit credential, never a provider or operator credential.\
+    \ Reuse the same Idempotency-Key and payload after transport failures. Pending\
+    \ is not success. Uncertain must stop automation and be reconciled by an operator;\
+    \ never retry it with a new key. Clients do not enforce isolation."
+  title: Circuit Agent API
+  version: 1.0.0
+servers:
+- url: https://gateway:8443
+security:
+- agentBearer: []
+tags:
+- name: Actions
+paths:
+  /v1/actions:
+    get:
+      operationId: listActions
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Action"
+                type: array
+          description: Agent-scoped durable action history.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+      summary: List this agent's actions
+      tags:
+      - Actions
+    post:
+      operationId: submitAction
+      parameters:
+      - description: Stable key for this exact intent and payload. Do not generate
+          a new key on retry.
+        explode: false
+        in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          maxLength: 128
+          minLength: 1
+          pattern: "^[A-Za-z0-9._:-]{1,128}$"
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Action"
+          description: "Check state, not merely HTTP success. pending/approved/executing\
+            \ require polling; uncertain requires reconciliation; only succeeded confirms\
+            \ execution."
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Action"
+          description: "Check state, not merely HTTP success. pending/approved/executing\
+            \ require polling; uncertain requires reconciliation; only succeeded confirms\
+            \ execution."
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/submitAction_403_response"
+          description: "Policy denial/rejection (Action), or wrong credential role\
+            \ (APIError)."
+        "410":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Action"
+          description: "Check state, not merely HTTP success. pending/approved/executing\
+            \ require polling; uncertain requires reconciliation; only succeeded confirms\
+            \ execution."
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+      summary: Submit an action for policy evaluation and possible execution
+      tags:
+      - Actions
+  /v1/actions/{id}:
+    get:
+      operationId: getAction
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Action"
+          description: "Check state, not merely HTTP success. pending/approved/executing\
+            \ require polling; uncertain requires reconciliation; only succeeded confirms\
+            \ execution."
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/APIError"
+          description: "Request, authentication, role, storage, or identity conflict\
+            \ error."
+      summary: Read status without dispatching another action
+      tags:
+      - Actions
+components:
+  responses:
+    ActionResponse:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Action"
+      description: "Check state, not merely HTTP success. pending/approved/executing\
+        \ require polling; uncertain requires reconciliation; only succeeded confirms\
+        \ execution."
+    ErrorResponse:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/APIError"
+      description: "Request, authentication, role, storage, or identity conflict error."
+  schemas:
+    ActionRequest:
+      additionalProperties: false
+      example:
+        args:
+          key: ""
+        workspace: workspace
+        database: database
+        environment: environment
+        channel: channel
+        custom_tool: custom_tool
+        repository: repository
+        operation: operation
+        account: account
+      properties:
+        operation:
+          description: Operator-declared operation name.
+          type: string
+        custom_tool:
+          description: Explicit configured MCP/REST/plugin target ID.
+          type: string
+        repository:
+          type: string
+        workspace:
+          type: string
+        database:
+          type: string
+        environment:
+          type: string
+        channel:
+          type: string
+        account:
+          type: string
+        args:
+          additionalProperties: true
+          description: Arguments checked against the target's pinned schema.
+          type: object
+      required:
+      - args
+      - operation
+      type: object
+    Action:
+      example:
+        request:
+          args:
+            key: ""
+          workspace: workspace
+          database: database
+          environment: environment
+          channel: channel
+          custom_tool: custom_tool
+          repository: repository
+          operation: operation
+          account: account
+        reason: reason
+        agent_id: agent_id
+        created_at: 2000-01-23T04:56:07.000+00:00
+        approved_by: approved_by
+        expires_at: 2000-01-23T04:56:07.000+00:00
+        updated_at: 2000-01-23T04:56:07.000+00:00
+        reservations:
+        - at: 2000-01-23T04:56:07.000+00:00
+          key: key
+        - at: 2000-01-23T04:56:07.000+00:00
+          key: key
+        policy_digest: policy_digest
+        digest: digest
+        id: id
+        state: pending
+        outcome:
+          warning: warning
+          http_status: 0
+          body: ""
+          error: error
+          uncertain: true
+      properties:
+        id:
+          type: string
+        agent_id:
+          type: string
+        request:
+          $ref: "#/components/schemas/ActionRequest"
+        digest:
+          type: string
+        policy_digest:
+          type: string
+        state:
+          enum:
+          - pending
+          - approved
+          - executing
+          - succeeded
+          - failed
+          - denied
+          - rejected
+          - expired
+          - uncertain
+          type: string
+        reason:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+        expires_at:
+          format: date-time
+          type: string
+        approved_by:
+          type: string
+        outcome:
+          $ref: "#/components/schemas/Outcome"
+        reservations:
+          items:
+            $ref: "#/components/schemas/Reservation"
+          type: array
+      required:
+      - agent_id
+      - created_at
+      - digest
+      - expires_at
+      - id
+      - policy_digest
+      - reason
+      - request
+      - state
+      - updated_at
+      type: object
+    Reservation:
+      example:
+        at: 2000-01-23T04:56:07.000+00:00
+        key: key
+      properties:
+        key:
+          type: string
+        at:
+          format: date-time
+          type: string
+      required:
+      - at
+      - key
+      type: object
+    Outcome:
+      example:
+        warning: warning
+        http_status: 0
+        body: ""
+        error: error
+        uncertain: true
+      properties:
+        http_status:
+          type: integer
+        body:
+          description: Provider JSON or a bounded text envelope.
+        error:
+          type: string
+        uncertain:
+          type: boolean
+        warning:
+          type: string
+      required:
+      - http_status
+      type: object
+    APIError:
+      example:
+        error: error
+      properties:
+        error:
+          type: string
+      required:
+      - error
+      type: object
+    submitAction_403_response:
+      oneOf:
+      - $ref: "#/components/schemas/Action"
+      - $ref: "#/components/schemas/APIError"
+  securitySchemes:
+    agentBearer:
+      scheme: bearer
+      type: http

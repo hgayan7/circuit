@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/hgayan7/circuit/api"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -128,6 +129,10 @@ func NewHTTPHandler(s *Service, tokens Tokens) (*HTTPHandler, error) {
 		io.WriteString(w, uiJS)
 	})
 	mux.HandleFunc("POST /v1/actions", h.submit)
+	mux.HandleFunc("GET /openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/yaml")
+		w.Write(api.Contract)
+	})
 	mux.HandleFunc("GET /v1/actions", h.list)
 	mux.HandleFunc("GET /v1/actions/{id}", h.get)
 	mux.HandleFunc("GET /admin/actions", h.list)
@@ -176,7 +181,7 @@ func (h *HTTPHandler) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 503, map[string]string{"error": "Gateway is draining"})
 		return
 	}
-	if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || r.URL.Path == "/" || r.URL.Path == "/ui.js" || (h.webhookPath != "" && r.URL.Path == h.webhookPath) {
+	if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" || r.URL.Path == "/" || r.URL.Path == "/ui.js" || r.URL.Path == "/openapi.yaml" || (h.webhookPath != "" && r.URL.Path == h.webhookPath) {
 		h.mux.ServeHTTP(w, r)
 		return
 	}
