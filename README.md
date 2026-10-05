@@ -8,7 +8,15 @@ Circuit sits between an AI agent and the services it uses. The agent requests an
 
 For example, let an engineering agent read two repositories and open up to five PRs per hour. Restrict writes to approved branches, forbid workflow-file changes, and require approval before merging an exact commit. The agent can keep working without receiving an unrestricted GitHub token.
 
-**Start here:** [Try the approval demo](#try-the-demo) | [Understand the flow](#how-it-works) | [Integrate your app](#integrate-your-app) | [Check support and limits](#supported-integrations)
+**Start here:** [Watch the overview](#watch-circuit) | [Try the approval demo](#try-the-demo) | [Understand the flow](#how-it-works) | [Integrate your app](#integrate-your-app) | [Check support and limits](#supported-integrations)
+
+## Watch Circuit
+
+A 29-second overview of sandbox isolation, gateway-only networking, credential separation, and governed tool execution.
+
+[![Watch the Circuit product overview](assets/circuit-launch-preview.jpg)](https://github.com/hgayan7/circuit/blob/main/assets/circuit-launch.mp4)
+
+[Watch the video](https://github.com/hgayan7/circuit/blob/main/assets/circuit-launch.mp4). The sandbox is an explanatory diagram; the interface results are from the local simulation below.
 
 ## Try The Demo
 
