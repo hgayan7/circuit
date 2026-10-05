@@ -4,31 +4,113 @@
 
 **A governed execution boundary for AI agents.**
 
-Circuit is a self-hosted action gateway between an agent and the tools it uses. Agents receive scoped Circuit credentials; the gateway holds upstream credentials, evaluates policies and budgets, and asks a human to approve consequential actions. A built-in web interface shows proposals, decisions, and execution history.
+Circuit sits between an AI agent and the services it uses. The agent requests an action; Circuit checks whether it is allowed, asks for approval when required, and executes it using credentials held by the gateway. A built-in web interface shows requests, decisions, and execution history.
 
 For example, let an engineering agent read two repositories and open up to five PRs per hour. Restrict writes to approved branches, forbid workflow-file changes, and require approval before merging an exact commit. The agent can keep working without receiving an unrestricted GitHub token.
 
-## Release Status
+**Start here:** [Understand the flow](#how-it-works) | [Integrate your app](#integrate-your-app) | [Try the demo](#try-the-demo) | [Check support and limits](#supported-integrations)
+
+## What Is Available
 
 [**v0.2.0-rc.2**](https://github.com/hgayan7/circuit/releases/tag/v0.2.0-rc.2) is available as a **developer preview / release candidate**, not a production-certified release. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums. The stable Homebrew tap does not install this candidate.
 
-The released candidate contains the GitHub production-oriented profile. **Current main adds an isolated gateway-only agent deployment, governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients.** These newer features are source-only until the next release. The full uninterrupted 72-hour fixture soak remains pending. See the [release checklist](docs/release-checklist.md) for acceptance criteria and supported scope.
+| Version | What you get |
+| --- | --- |
+| Released `v0.2.0-rc.2` | GitHub production-oriented profile, guided setup, action gateway, review UI, and agent-only MCP connector. |
+| Current `main` | Everything above, plus isolated gateway-only agent deployment, governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients. Build from source for these additions. |
 
-## Integrate Your Agent
+The full uninterrupted 72-hour fixture soak remains pending. See the [release checklist](docs/release-checklist.md) for acceptance criteria. Neither a `--production` flag nor a passing fixture test is production certification.
 
-Follow the [isolated-agent quickstart](docs/isolated-agents.md). Register reviewed upstream routes/tools and keep their credentials in the gateway, then:
+## How It Works
+
+```text
+Your agent/app inside the isolated environment
+          | requests an action through an SDK or MCP
+          v
+Circuit gateway --- Human review when required
+  permissions -> policies -> budgets -> approval -> recorded execution
+          | gateway-owned service credentials
+          v
+Declared REST services / MCP servers / plugins / GitHub
+          | result returned through Circuit
+          v
+Your agent/app
+```
+
+Circuit runs as a persistent middleware service. The agent decides what to request; Circuit decides whether to execute it. Operators review requests in the web interface.
+
+**What prevents bypass?** In the tested Docker deployment, the agent can reach only Circuit, and it does not receive service credentials. It cannot skip Circuit and contact a service directly through that network. Installing an SDK alone on an unrestricted host does not provide this protection.
+
+Circuit supplies Docker orchestration and a separate trusted network firewall. It is not a transparent model router or a custom OS-sandbox engine. Other infrastructure needs equivalent isolation enforced by its operator.
+
+## Integrate Your App
+
+### 1. Declare Services And Rules
+
+Create an operator-owned manifest listing the services and operations your agent may use. Keep service credentials outside the agent workspace. The [integration guide](docs/isolated-agents.md) includes a complete manifest example, prerequisites, and image builds.
+
+From the current source checkout, build the CLI and trusted images:
 
 ```sh
-circuit setup --integration middleware --upstream-manifest /private/upstreams.yaml \
+go build -o bin/circuit ./cmd/circuit
+docker build --target gateway -f deploy/docker/Dockerfile -t circuit-gateway:local .
+docker build --target boundary -f deploy/docker/Dockerfile -t circuit-boundary:local .
+```
+
+Requires Go 1.26.7 or later, Docker with Linux containers, Docker Compose v2 supporting `--wait`, and an agent image containing your app and dependencies.
+
+Generate the configuration, scoped credentials, and local TLS files:
+
+```sh
+bin/circuit setup --integration middleware --upstream-manifest /private/upstreams.yaml \
   --out "$HOME/.circuit-operator"
-circuit up --dir "$HOME/.circuit-operator"
-circuit agent run --dir "$HOME/.circuit-operator" --image YOUR_AGENT_IMAGE \
+```
+
+Replace `/private/upstreams.yaml` with your manifest path. Setup is guided; the integration guide also provides noninteractive commands.
+
+### 2. Start Circuit
+
+```sh
+bin/circuit up --dir "$HOME/.circuit-operator"
+bin/circuit doctor --dir "$HOME/.circuit-operator"
+```
+
+Use the printed review URL and an operator token to review actions. Agent tokens cannot approve requests.
+
+### 3. Connect And Run Your App
+
+Configure your app's tool/model callbacks to use a Circuit SDK or MCP, then launch it:
+
+```sh
+bin/circuit agent run --dir "$HOME/.circuit-operator" --image YOUR_AGENT_IMAGE \
   --workspace /path/to/clean/workspace -- YOUR_COMMAND
 ```
 
-Use the same setup directory for all three commands (`--out` on setup, `--dir` on up/run). The guide includes exact noninteractive commands and image builds. Connect via MCP or the generated REST clients. The isolated runner only permits gateway TCP/8443; model access must also be a declared route. Installing an SDK alone on an unrestricted host does not prevent bypass.
+Replace the image, workspace, and command with your app's values. Use the same setup directory throughout: `--out` creates it; `--dir` selects it. The runner supplies the gateway URL, agent token, and public CA, and mounts the reviewed workspace read-only.
 
-## Try It Locally
+**All network access must go through Circuit**, including model calls. The isolated runner permits only gateway TCP/8443. Model access must be a declared route/tool; Circuit does not automatically intercept an existing model SDK. REST POST requests require approval, including inference. See [model access](docs/isolated-agents.md#model-access) for autonomous inference options and cost-accounting limits.
+
+### Choose A Client
+
+Circuit's API is language-agnostic. The enforcement rules stay in the gateway, not in each client.
+
+| Client | Integration path | Validation |
+| --- | --- | --- |
+| Node.js / TypeScript | Generated SDK with a safety-aware facade | Tested against the real gateway over TLS. |
+| Python | Generated SDK with a safety-aware facade | Tested against the real gateway over TLS. |
+| Go | Generated SDK with a safety-aware facade | Tested against the real gateway over TLS. |
+| Java, Kotlin, C#, Rust, and other languages | REST API or bindings generated from OpenAPI | Other generated clients are not yet runtime-qualified. |
+| MCP-compatible agents | Circuit's agent-only MCP connector | Scoped MCP connection and forwarding rehearsed in CI. |
+
+The maintained SDKs are available in this checkout, **not yet published to npm/PyPI**. See [installation and code examples](docs/isolated-agents.md#generated-clients). Generate another language with:
+
+```sh
+sh scripts/generate-client.sh kotlin /path/to/new-client-directory
+```
+
+The [OpenAPI contract](api/openapi.yaml) defines the shared REST API. Generated bindings handle the wire format; your app still needs to connect its callbacks and handle action states. The maintained facades submit once, poll for a result, and stop on denial, unresolved approval, or an uncertain outcome without automatically redispatching.
+
+## Try The Demo
 
 Requires Go 1.26.7 or later and Python 3 for the sample agent. From a source checkout:
 
@@ -45,22 +127,39 @@ python3 examples/github-agent.py --demo
 
 Review file-write and merge proposals in the interface. This simulation never contacts GitHub and needs no real credentials. For a reproducible candidate checkout, use the `v0.2.0-rc.2` tag. See [Getting Started](docs/getting-started.md) for installation and next steps.
 
-## How It Fits
+## What Circuit Enforces
 
-```text
-Agent in a restricted network namespace
-          | Circuit agent credential
-          v
-Circuit action gateway --- Operator review interface
-  scopes | policies | budgets | approvals | durable state
-          | scoped provider credential
-          v
-Declared MCP / REST / plugins / GitHub
-```
+| Control | Behavior |
+| --- | --- |
+| Scoped access | Explicit repository and operation allowlists, separate agent identities, and gateway-owned service credentials. |
+| Combined policies | DENY overrides ALLOW; approval requirements and all matching budgets apply together. |
+| Durable budgets | Atomic reservations persist through restarts and are rechecked before execution. |
+| Exact approvals | Decisions bind to stored payloads and digests, with expiry and policy-version checks. GitHub merges also require the approved head SHA. |
+| Retry protection | Stable idempotency keys return the original action. Claimed actions are not automatically replayed after ambiguous failures or restarts. |
+| Review and audit | A web review queue and persisted history record requests, decisions, operator attribution, and service outcomes. |
 
-Run Circuit as a persistent middleware service. Operators use the web interface. Current source supplies Docker orchestration and a separate trusted namespace firewall; you can also enforce equivalent isolation in your own infrastructure. Circuit is not a transparent model router or a custom OS-sandbox engine.
+## Supported Integrations
 
-### Guided Setup
+Use existing Streamable HTTP MCP servers or fixed REST routes through the [middleware contract](docs/middleware.md). Discover and review a service manifest, import it with `setup --integration middleware`, and deploy the isolated agent. Registered operations do not require a provider-specific adapter, but your app must call the Circuit contract.
+
+For custom behavior, provider plugins run as separate services using the versioned [plugin contract](docs/plugin-contract.md). Policy, approvals, budgets, durable claims, and audit remain in the trusted core. Registering a plugin does not automatically make its provider production-supported.
+
+Current source accepts governed MCP/REST transports and plugins under `--production`; rc.2 downloads do not contain these additions.
+
+| Area | Tested scope and boundary |
+| --- | --- |
+| GitHub | Live fixture pilot: branches, files, PRs, merges, issues, App token refresh, approvals, budgets, isolated-agent execution, and signed webhook recovery. |
+| PostgreSQL | Real local/CI queries and mutations, row limits, transactional rollback, permission failures, and timeouts. Requires least-privilege roles and query-specific policies. The native executor remains outside `--production`. |
+| Workspace/files | Local root-scoped access, atomic writes, symlink-race protection, and bounded shell execution. Shell commands require approval and an external OS sandbox. Native workspace execution remains outside `--production`. |
+| Custom tools/plugins | Local HTTP/MCP integration and sidecar conformance tests. Each provider needs its own scope, credential-isolation, and recovery validation. |
+| Operational email/storage | Firing/resolved SMTP messages and authenticated S3-compatible upload/readback/recovery fixtures. Actual BYOK destinations require operator acceptance. |
+| Cloud, communication, payments | Simulation-only action adapters; no native provider execution. Operational alert email is separate from the simulated communication adapter. |
+
+Simulations are explicit and return `simulated: true`. Missing credentials do not silently enable simulation. See [validation status](docs/validation-status.md) for detailed coverage and reproduction.
+
+## Other Connection Modes
+
+### Host-Side Guided Setup
 
 The rc.2 binaries and current source include a guided BYOK flow and agent-only stdio MCP connector:
 
@@ -75,14 +174,19 @@ Choose GitHub, PostgreSQL, read-only workspace access, or a provider plugin; reg
 
 To rely on enforcement, agents must not have independent provider credentials or unrestricted alternative execution paths. Routing one tool through Circuit does not protect calls that bypass it.
 
-## What Is Enforced
+### Proxy And Inspection Tools
 
-- **Scoped access:** explicit repository and operation allowlists, separate agent identities, and gateway-owned upstream credentials.
-- **Combined policies:** DENY overrides ALLOW; approval requirements and all matching budgets apply together.
-- **Durable budgets:** atomic reservations persist through restarts and are rechecked before execution.
-- **Exact approvals:** decisions bind to stored payloads and digests, with expiry and policy-version checks. GitHub merges also require the approved head SHA.
-- **Retry protection:** stable idempotency keys return the original action. Claimed actions are not automatically replayed after ambiguous failures or restarts.
-- **Review and audit:** a web review queue and persisted history record proposals, decisions, operator attribution, and upstream outcomes.
+The earlier tools remain available with a separate `circuit.yaml` configuration:
+
+```sh
+circuit run --policy examples/policies/expanded_safety.yaml -- python agent.py
+circuit mcp wrap --policy circuit.yaml -- your-mcp-server
+circuit inspect --kind prompt
+circuit inspect --kind shell
+circuit inspect --kind sql
+```
+
+These cover proxy-aware traffic, heuristic prompt-injection signals, and conservative parser-based shell/SQL restrictions. They do not replace sandboxing or the action gateway, and use older first-match policy semantics. Read the [safety guide](docs/safety.md) before relying on them.
 
 ## BYOK Deployment
 
@@ -100,49 +204,35 @@ Optional [operational extensions](docs/operations.md) provide:
 
 Docker deployment builds and rehearsal scripts require the source checkout. Local SMTP and authenticated S3-compatible fixtures validate the operational pipelines; they do not prove delivery or disaster recovery for your chosen providers.
 
-## Extensible Integrations
-
-Provider plugins run as separate services using the versioned [plugin contract](docs/plugin-contract.md). Policy, approvals, budgets, durable claims, and audit remain in the trusted core. Registering a plugin does not automatically make its provider production-supported.
-
-**New on main, after rc.2:** [MCP and REST middleware](docs/middleware.md) reuses existing Streamable HTTP MCP servers and fixed REST routes through the same enforcement core. Discover and review an upstream manifest, import it with `setup --integration middleware`, then deploy the isolated agent. No provider-specific adapter is required for registered operations. Current `--production` accepts these governed transports and plugins; rc.2 downloads do not contain this work. The [OpenAPI contract](api/openapi.yaml) generates clients for other languages without a separate policy engine.
-
-| Area | Tested Scope |
-| --- | --- |
-| GitHub | Live fixture pilot: branches, files, PRs, merges, issues, App token refresh, approvals, budgets, isolated-agent execution, and signed webhook recovery. |
-| PostgreSQL | Real local/CI database queries and mutations, row limits, transactional rollback, permission failures, and timeouts. Requires least-privilege roles and query-specific policies; outside the GitHub-only production profile. |
-| Workspace/files | Local root-scoped file access, atomic writes, symlink-race protection, and bounded shell execution. Shell commands require approval and an external OS sandbox. |
-| Custom tools/plugins | Local HTTP/MCP integration and sidecar conformance tests. Each provider needs its own scope, credential-isolation, and recovery validation. |
-| Operational email/storage | Firing/resolved SMTP messages and authenticated S3-compatible upload/readback/recovery fixtures. Actual BYOK destinations require operator acceptance. |
-| Cloud, communication, payments | Simulation-only action adapters; no native provider execution. Operational alert email is separate from the simulated communication adapter. |
-
-Simulations are explicit and return `simulated: true`. Missing real credentials do not silently enable simulation. See [validation status](docs/validation-status.md) for detailed coverage and reproduction.
-
-## Tests And Limits
+## Verification And Limits
 
 ```sh
 go test -race ./...
 go vet ./...
 ```
 
-[CI](https://github.com/hgayan7/circuit/actions/workflows/ci.yml) also exercises live PostgreSQL, reachable Go vulnerability checks, restricted Docker builds, real disk-full recovery, authenticated S3 recovery, alert behavior, and Linux/macOS cross-platform builds. Release publishing requires green CI for the exact tagged commit.
+[CI](https://github.com/hgayan7/circuit/actions/workflows/ci.yml) also checks generated-client drift, all three maintained SDKs against a real TLS gateway, isolated-agent bypass attempts, live PostgreSQL, reachable Go vulnerabilities, restricted Docker builds, real disk-full recovery, authenticated S3 recovery, alert behavior, and Linux/macOS cross-platform builds. Release publishing requires green CI for the exact tagged commit.
 
 Recorded evidence covers [GitHub and local workflows](docs/validation-status.md), [Docker deployment](docs/production-validation-results.json), [email and backups](docs/operations-validation-results.json), [S3 storage](docs/archive-validation-results.json), and [specific-image upgrade/rollback](docs/upgrade-validation-results.json). A short test or running soak is not a completed multi-day validation.
 
-The bbolt store has one owning process, not distributed replicas. Named bearer roles are not SSO/MFA. Circuit prevents automatic replay of claimed actions; it does not guarantee exactly-once delivery across network boundaries. Independent security review was deferred, not completed. Team identity, reviewer quorum, distributed operation, and additional validated providers remain future work.
+| Limit | What it means |
+| --- | --- |
+| Single-process storage | The bbolt store has one owning process, not distributed replicas. |
+| Bearer-role identity | Named roles are not SSO/MFA; team identity and reviewer quorum remain future work. |
+| Ambiguous delivery | Circuit prevents automatic replay of claimed actions, not exactly-once delivery across network boundaries. |
+| Qualified isolation | The enforced deployment is tested with Docker/Linux containers and `runc`. Other runtimes and infrastructure need separate qualification. Host/kernel administrators and malicious trusted images are outside the threat model. |
+| Incomplete qualification | The uninterrupted long soak is pending; independent security review was deferred, not completed. Additional providers need their own validation. |
 
-## Supporting Inspection Tools
+## Documentation
 
-The earlier proxy and inspection tools remain available with a separate `circuit.yaml` configuration:
-
-```sh
-circuit run --policy examples/policies/expanded_safety.yaml -- python agent.py
-circuit mcp wrap --policy circuit.yaml -- your-mcp-server
-circuit inspect --kind prompt
-circuit inspect --kind shell
-circuit inspect --kind sql
-```
-
-These cover proxy-aware traffic, heuristic prompt-injection signals, and conservative parser-based shell/SQL restrictions. They do not replace sandboxing or the action gateway, and use older first-match policy semantics. Read the [safety guide](docs/safety.md) before relying on them.
+| Need | Guide |
+| --- | --- |
+| Integrate an isolated agent and install SDKs | [Isolated agents and generated clients](docs/isolated-agents.md) |
+| Install or explore the demo | [Getting started](docs/getting-started.md) |
+| Register REST routes or MCP tools | [Middleware](docs/middleware.md) |
+| Build a provider plugin | [Plugin contract](docs/plugin-contract.md) |
+| Operate, back up, and restore Circuit | [Deployment](docs/production-deployment.md) and [operations](docs/operations.md) |
+| Check tested scope and release gates | [Validation status](docs/validation-status.md) and [release checklist](docs/release-checklist.md) |
 
 ## License
 
