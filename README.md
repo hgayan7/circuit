@@ -12,14 +12,16 @@ For example, let an engineering agent read two repositories and open up to five 
 
 ## What Is Available
 
-[**v0.2.0-rc.2**](https://github.com/hgayan7/circuit/releases/tag/v0.2.0-rc.2) is available as a **developer preview / release candidate**, not a production-certified release. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums. The stable Homebrew tap does not install this candidate.
+The **v0.2.0 release scope** is a self-hosted BYOK gateway with tested Docker/runc isolation and maintained Python, TypeScript, and Go clients. Check [repository releases](https://github.com/hgayan7/circuit/releases) for validated artifacts. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums.
 
 | Version | What you get |
 | --- | --- |
 | Released `v0.2.0-rc.2` | GitHub production-oriented profile, guided setup, action gateway, review UI, and agent-only MCP connector. |
-| Current `main` | Everything above, plus isolated gateway-only agent deployment, governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients. Build from source for these additions. |
+| v0.2.0 / current source | Everything above, plus isolated gateway-only agent deployment, governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients. Use the matching checkout and artifact version. |
 
-The full uninterrupted 72-hour fixture soak remains pending. See the [release checklist](docs/release-checklist.md) for acceptance criteria. Neither a `--production` flag nor a passing fixture test is production certification.
+For v0.2.0, binaries and installable SDK archives are distributed only through this repository's [releases](https://github.com/hgayan7/circuit/releases), after exact-artifact checks pass. No npm/PyPI, Homebrew, or container-registry publishing is performed. See [local artifact testing](docs/local-release-testing.md) to build and validate without publishing.
+
+The owner waived the uninterrupted 72-hour fixture soak on 2026-10-05; it has not passed. See the [release checklist](docs/release-checklist.md) for scope and exceptions. Neither a stable version, a `--production` flag, nor a passing fixture test is production certification.
 
 ## How It Works
 
@@ -102,7 +104,7 @@ Circuit's API is language-agnostic. The enforcement rules stay in the gateway, n
 | Java, Kotlin, C#, Rust, and other languages | REST API or bindings generated from OpenAPI | Other generated clients are not yet runtime-qualified. |
 | MCP-compatible agents | Circuit's agent-only MCP connector | Scoped MCP connection and forwarding rehearsed in CI. |
 
-The maintained SDKs are available in this checkout, **not yet published to npm/PyPI**. See [installation and code examples](docs/isolated-agents.md#generated-clients). Generate another language with:
+The maintained SDKs are available in this checkout and as packed repository release assets, **not on npm/PyPI**. See [local/archive installation](docs/local-release-testing.md) and [code examples](docs/isolated-agents.md#generated-clients). Generate another language with:
 
 ```sh
 sh scripts/generate-client.sh kotlin /path/to/new-client-directory
@@ -221,7 +223,7 @@ Recorded evidence covers [GitHub and local workflows](docs/validation-status.md)
 | Bearer-role identity | Named roles are not SSO/MFA; team identity and reviewer quorum remain future work. |
 | Ambiguous delivery | Circuit prevents automatic replay of claimed actions, not exactly-once delivery across network boundaries. |
 | Qualified isolation | The enforced deployment is tested with Docker/Linux containers and `runc`. Other runtimes and infrastructure need separate qualification. Host/kernel administrators and malicious trusted images are outside the threat model. |
-| Incomplete qualification | The uninterrupted long soak is pending; independent security review was deferred, not completed. Additional providers need their own validation. |
+| Qualification exceptions | The uninterrupted long soak is owner-waived, not passed; independent security review was deferred, not completed. Additional providers need their own validation. |
 
 ## Documentation
 
@@ -233,6 +235,7 @@ Recorded evidence covers [GitHub and local workflows](docs/validation-status.md)
 | Build a provider plugin | [Plugin contract](docs/plugin-contract.md) |
 | Operate, back up, and restore Circuit | [Deployment](docs/production-deployment.md) and [operations](docs/operations.md) |
 | Check tested scope and release gates | [Validation status](docs/validation-status.md) and [release checklist](docs/release-checklist.md) |
+| Check compatibility or rehearse upgrades | [Compatibility policy](docs/compatibility.md) and [local artifact testing](docs/local-release-testing.md) |
 
 ## License
 

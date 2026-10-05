@@ -1,6 +1,8 @@
 const assert = require('node:assert/strict');
-const { fromEnvironment } = require('./node.cjs');
-const { ActionStopped } = require('./dist');
+const path = require('node:path');
+const pkg = process.env.CIRCUIT_TEST_NODE_PACKAGE || __dirname;
+const { fromEnvironment } = require(path.join(pkg, 'node.cjs'));
+const { ActionStopped } = require(path.join(pkg, 'dist'));
 const circuit = fromEnvironment();
 const request = operation => ({ operation, customTool: 'inventory', args: { sku: 'typescript' } });
 (async () => {

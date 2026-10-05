@@ -15,6 +15,7 @@ p = argparse.ArgumentParser()
 p.add_argument('--gateway-image', default='circuit-gateway:local')
 p.add_argument('--boundary-image', default='circuit-boundary:local')
 p.add_argument('--agent-image', default='python:3.13-alpine')
+p.add_argument('--binary', type=Path, help='Use an extracted release binary')
 a = p.parse_args()
 checks = []
 def run(*args, **kwargs):
@@ -33,7 +34,10 @@ with tempfile.TemporaryDirectory(prefix='circuit-isolated-') as temp:
     work = Path(temp)
     binary, operator, workspace = work/'circuit', work/'operator', work/'workspace'
     workspace.mkdir()
-    run('go','build','-o',str(binary),'./cmd/circuit',cwd=root)
+    if a.binary:
+        binary = a.binary.resolve()
+    else:
+        run('go','build','-o',str(binary),'./cmd/circuit',cwd=root)
     token = secrets.token_urlsafe(32)
     provider_token = work/'provider-token'
     provider_token.write_text(token)

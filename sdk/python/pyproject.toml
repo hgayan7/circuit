@@ -1,6 +1,6 @@
 [project]
-name = "circuit_client"
-version = "0.1.0"
+name = "circuit-agent-client"
+version = "0.2.0"
 description = "Circuit Agent API"
 authors = [
   {name = "OpenAPI Generator Community",email = "team@openapitools.org"},

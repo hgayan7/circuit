@@ -31,25 +31,30 @@ archives:
 
 checksum:
   name_template: "checksums.txt"
+  extra_files:
+    - glob: .circuit/release-sdk/*
 
 release:
+  draft: true
   prerelease: auto
+  extra_files:
+    - glob: .circuit/release-sdk/*
   header: |
-    Circuit is a self-hosted BYOK gateway. This release includes policy enforcement,
-    durable approvals/audit, the GitHub App profile, REST/MCP and approval UI,
-    configurable email alerts, and encrypted backups with verified storage adapters.
+    Circuit is a self-hosted BYOK action gateway with exact approvals, durable
+    budgets and audit, an operator UI, and gateway-owned provider credentials.
+    The setup -> up -> agent run flow provides tested gateway-only Docker/runc
+    isolation. Governed REST routes, MCP tools, plugins, and GitHub are supported.
 
-    Guided BYOK setup (setup/start/doctor), an agent-only stdio MCP connector,
-    and an optional restricted Docker agent runner are included. Provider integrations
-    remain extensible; the production-oriented profile supports GitHub only.
-
-    Linux/macOS amd64/arm64 binaries and deployment templates are included.
+    Linux/macOS amd64/arm64 binaries, deployment templates, an OpenAPI contract,
+    and installable Python/TypeScript/Go SDK archives are included in this repository.
+    No npm/PyPI, Homebrew, or container-registry publication is performed.
     For Docker builds and rehearsal scripts, use the source checkout for this tag.
     Supply your own protected credentials; no production secrets are bundled.
 
-    Production qualification requires the full uninterrupted soak and operator
-    acceptance for the intended workload, email, storage, and separate-host recovery.
-    A prerelease is not a production-certification claim. Independent review was deferred.
+    The owner waived the 72-hour soak on 2026-10-05; it has not passed.
+    Independent security review remains deferred. Intended-provider/workload,
+    email/storage, and separate-host recovery acceptance remain the operator's duty.
+    A stable version is not independent production certification.
     See [the release checklist](https://github.com/hgayan7/circuit/blob/{{ .Tag }}/docs/release-checklist.md).
 
 snapshot:
@@ -65,7 +70,7 @@ changelog:
 
 homebrew_casks:
   - name: circuit
-    skip_upload: auto
+    skip_upload: true
     repository:
       owner: hgayan7
       name: homebrew-circuit

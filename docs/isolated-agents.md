@@ -1,6 +1,6 @@
 # Isolated Agents And Generated Clients
 
-This is the recommended **current-source** flow, newer than v0.2.0-rc.2. It combines the existing action gateway with a fail-closed Docker network boundary and generated clients. These changes do not retroactively qualify the rc.2 binaries or complete the long soak.
+This is the recommended **v0.2.0/current-source** flow, newer than v0.2.0-rc.2. It combines the existing action gateway with a fail-closed Docker network boundary and generated clients. Use a matching checkout and binary. These changes do not retroactively qualify rc.2 or complete the long soak; the owner waived that soak, not its evidence, for this release. See the [qualification checklist](release-checklist.md).
 
 ## What Circuit Does
 
@@ -104,7 +104,7 @@ An app with no configurable callbacks can use MCP if supported, or needs a small
 
 The versioned contract is [api/openapi.yaml](../api/openapi.yaml), also served at `GET /openapi.yaml`. OpenAPI matches Circuit's existing REST transport; a second protobuf/gRPC enforcement service is unnecessary. [OpenAPI Generator](https://openapi-generator.tech/) generates wire bindings using a pinned image. Handwritten facades add consistent stop/wait behavior without another policy engine.
 
-Install from this checkout; packages are **not yet published** to npm/PyPI:
+Install from this checkout or [packed repository artifacts](local-release-testing.md); packages are **not published** to npm/PyPI:
 
 ```sh
 python -m pip install ./sdk/python

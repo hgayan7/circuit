@@ -5,3 +5,5 @@
 - Never commit credentials, private keys, local deployment state, or backup decryption identities.
 - Keep core enforcement separate from replaceable integrations. New plugins must pass scope, approval, unknown-outcome, and credential-isolation tests before support claims expand.
 - Report test evidence honestly. A running soak is not a completed soak, and a fixture test is not validation of every production provider or deployment.
+- Publish only within hgayan7/circuit when authorized. Do not publish to npm/PyPI, container registries, Homebrew repositories, or other destinations.
+- The only allowed email destination for tests is hgayan7@gmail.com. Ask the owner if an email destination is unclear; do not send to other recipients.

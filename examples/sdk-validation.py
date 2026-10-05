@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shutil
 import socket
 import ssl
 import subprocess
@@ -17,6 +18,9 @@ import urllib.request
 root = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser()
 p.add_argument('--python', default='python3', help='Python interpreter with sdk/python installed')
+p.add_argument('--binary', type=Path, help='Use an extracted release binary instead of building from source')
+p.add_argument('--node-package', type=Path, help='Installed package directory in a clean consumer project')
+p.add_argument('--go-package', type=Path, help='Extracted Go SDK directory')
 a = p.parse_args()
 calls = []
 stop = threading.Event()
@@ -41,7 +45,10 @@ class Origin(http.server.BaseHTTPRequestHandler):
 with tempfile.TemporaryDirectory(prefix='circuit-sdks-') as temp:
     work = Path(temp)
     binary, operator = work/'circuit', work/'operator'
-    subprocess.run(['go','build','-o',str(binary),'./cmd/circuit'],cwd=root,check=True)
+    if a.binary:
+        binary = a.binary.resolve()
+    else:
+        subprocess.run(['go','build','-o',str(binary),'./cmd/circuit'],cwd=root,check=True)
     provider_token = secrets.token_urlsafe(32)
     token = work/'provider-token'
     token.write_text(provider_token);token.chmod(0o600)
@@ -89,7 +96,11 @@ with tempfile.TemporaryDirectory(prefix='circuit-sdks-') as temp:
         reviewer_thread = threading.Thread(target=approve_fixture_only,daemon=True)
         reviewer_thread.start()
         env = dict(os.environ,CIRCUIT_GATEWAY_URL=url,CIRCUIT_TOKEN_FILE=str(operator/'secrets/agent-token'),CIRCUIT_CA_CERT=str(ca))
-        for command,cwd in [([a.python,'validation.py'],root/'sdk/python'),(['node','validation.cjs'],root/'sdk/typescript'),(['go','run','./cmd/validation'],root/'sdk/go')]:
+        if a.node_package:
+            env['CIRCUIT_TEST_NODE_PACKAGE'] = str(a.node_package.resolve())
+        # Run Python outside its source tree so an installed wheel is actually exercised.
+        shutil.copyfile(root/'sdk/python/validation.py',work/'validation.py')
+        for command,cwd in [([a.python,str(work/'validation.py')],work),(['node','validation.cjs'],root/'sdk/typescript'),(['go','run','./cmd/validation'],a.go_package.resolve() if a.go_package else root/'sdk/go')]:
             subprocess.run(command,cwd=cwd,env=env,check=True,timeout=120)
         for language in ('python','typescript','go'):
             assert calls.count(('/reserve',language)) == 1, calls

@@ -131,6 +131,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
           go-version-file: go.mod
@@ -150,6 +152,21 @@ jobs:
           go test ./...
       - name: Rehearse all generated clients against actual gateway
         run: python3 examples/sdk-validation.py --python /tmp/circuit-sdk-venv/bin/python
+      - name: Install packed artifacts in clean consumer environments
+        run: |
+          go build -ldflags '-X main.version=0.2.0-local' -o /tmp/circuit-candidate ./cmd/circuit
+          sh scripts/package-sdks.sh .circuit/release-sdk
+          python3 examples/release-validation.py --artifacts .circuit/release-sdk --binary /tmp/circuit-candidate
+      - name: Rehearse previous-release upgrade and rollback
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download v0.2.0-rc.2 --pattern circuit_0.2.0-rc.2_linux_amd64.tar.gz --pattern checksums.txt --dir /tmp/circuit-previous
+          cd /tmp/circuit-previous
+          sha256sum --ignore-missing -c checksums.txt
+          tar -xzf circuit_0.2.0-rc.2_linux_amd64.tar.gz
+          cd "$GITHUB_WORKSPACE"
+          python3 examples/compatibility-validation.py --previous /tmp/circuit-previous/circuit --candidate /tmp/circuit-candidate
 
   build-matrix:
     name: Cross-Platform Build

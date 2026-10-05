@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   goreleaser:
-    name: Release Binaries & Homebrew Cask
+    name: Validate and Release Repository Artifacts
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -40,7 +40,36 @@ jobs:
         with:
           distribution: goreleaser
           version: 'v2.18.2'
+          args: check
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Build installable SDK archives
+        run: sh scripts/package-sdks.sh .circuit/release-sdk
+      - name: Build draft repository release
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        with:
+          distribution: goreleaser
+          version: 'v2.18.2'
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: unused-no-external-publication
+      - name: Verify and test exact downloadable artifacts before publication
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release download "$GITHUB_REF_NAME" --dir /tmp/circuit-release
+          cd /tmp/circuit-release
+          sha256sum -c checksums.txt
+          tar -xzf "circuit_${version}_linux_amd64.tar.gz"
+          cd "$GITHUB_WORKSPACE"
+          python3 examples/release-validation.py --artifacts /tmp/circuit-release --binary /tmp/circuit-release/circuit --expected-version "$version"
+          docker build --target gateway -f deploy/docker/Dockerfile -t circuit-release-fixture .
+          docker build --target boundary -f deploy/docker/Dockerfile -t circuit-release-boundary .
+          python3 examples/isolated-validation.py --binary /tmp/circuit-release/circuit --gateway-image circuit-release-fixture --boundary-image circuit-release-boundary
+      - name: Publish validated release in this repository only
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
