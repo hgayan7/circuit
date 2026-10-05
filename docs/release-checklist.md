@@ -4,6 +4,8 @@ Circuit is a self-hosted BYOK gateway, not a hosted service with vendor-provided
 
 ## Supported Release Scope
 
+The bullets below describe the released rc.2 baseline. Current main additionally supports the [generated isolated deployment and clients](isolated-agents.md): gateway-only runc namespaces, governed MCP/REST/plugin production targets, and OpenAPI-generated TypeScript/Python/Go clients with explicit stop/wait semantics. These additions require their own exact-commit CI and intended-provider acceptance before a new release; they do not expand the old binaries retroactively.
+
 - Production-oriented profile: single-process gateway, GitHub App-backed action integration, TLS 1.3, named operator tokens, bbolt state, REST/MCP and approval UI.
 - Operational extensions: Prometheus, Alertmanager email BYOK, age-encrypted hourly backups, optional rclone storage adapter with authenticated S3-compatible conformance evidence.
 - PostgreSQL execution: real database integration tested; operators still need least-privilege roles and query-specific policies. Not enabled by the GitHub-only production profile.

@@ -92,6 +92,8 @@ The generated deployment uses its own named state volume. If a setup already has
 
 ## Model Access
 
+The runner also rejects workspaces containing known credential/configuration files or hard links to them, sockets, pipes, and devices. Read-only filesystem mounts can still expose live Unix sockets, so they are checked before launch. This is a preflight check, not a universal secret detector: review workspace contents and trusted images, and do not let other host processes replace them with sensitive files/services during a run.
+
 The sandbox has no direct internet/model-provider access. Register model access as another fixed REST target (or a trusted plugin/MCP service) in the same manifest. Guided middleware setup accepts up to 32 reviewed targets. For example, declare `model_complete` bound to a fixed `POST /v1/chat/completions` with a schema limiting model names and rejecting streaming/unsupported fields. Call it through the same SDK and read the returned `action.outcome.body`.
 
 REST POST routes require approval in the current contract, including inference. For autonomous inference, use a reviewed MCP tool (or a provider plugin configured through plugin setup) explicitly classified as non-mutating by the operator. Do not weaken the REST write classification merely to make a model SDK work. A model request may not mutate your tool resources but still incurs provider charges: action-count limits are not token/cost accounting. Circuit is not a transparent OpenAI/LiteLLM-compatible model router. Existing agent frameworks need their model/tool callbacks configured to use this contract; generated code cannot automatically rewrite arbitrary application calls. No wildcard internet proxy is added to make integrations work.

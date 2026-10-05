@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"path/filepath"
@@ -201,6 +202,9 @@ func CheckWorkspaceIsolation(s *Setup, workspace string) error {
 		return err
 	}
 	paths := []string{s.Config, s.TLSKey, s.Connection.TokenFile}
+	for _, agent := range c.Agents {
+		paths = append(paths, agent.TokenFile)
+	}
 	if c.GitHubApp != nil {
 		paths = append(paths, c.GitHubApp.PrivateKeyFile)
 	}
@@ -210,6 +214,7 @@ func CheckWorkspaceIsolation(s *Setup, workspace string) error {
 	for _, tool := range c.CustomTools {
 		paths = append(paths, tool.TokenFile)
 	}
+	var protected []os.FileInfo
 	for _, path := range paths {
 		resolved, err := filepath.EvalSymlinks(path)
 		if err != nil {
@@ -219,6 +224,31 @@ func CheckWorkspaceIsolation(s *Setup, workspace string) error {
 		if err != nil || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
 			return fmt.Errorf("agent workspace contains operator configuration or a known provider/agent credential; use a separate clean workspace")
 		}
+		info, err := os.Stat(resolved)
+		if err != nil {
+			return err
+		}
+		protected = append(protected, info)
 	}
-	return nil
+	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return fmt.Errorf("agent workspace could not be inspected; choose a readable clean workspace")
+		}
+		if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("agent workspace contains a socket, pipe, or device; do not expose host services through filesystem mounts")
+		}
+		for _, secret := range protected {
+			if os.SameFile(info, secret) {
+				return fmt.Errorf("agent workspace contains a hard link to protected configuration or credentials")
+			}
+		}
+		return nil
+	})
 }

@@ -3,7 +3,7 @@ set -eu
 cd "$(dirname "$0")/.."
 GENERATOR='openapitools/openapi-generator-cli:v7.15.0@sha256:509f01c3c7eee9d1ad286506a7b6aa4624a95b410be9a238a306d209e900621f'
 generate() {
-  docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  docker run --rm --user "$(id -u):$(id -g)" --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
     --tmpfs /tmp:rw,nosuid,size=256m -v "$PWD:/local" "$GENERATOR" generate \
     -i /local/api/openapi.yaml -g "$1" -o "/local/sdk/$2" \
     --git-user-id hgayan7 --git-repo-id "${4:-circuit}" \

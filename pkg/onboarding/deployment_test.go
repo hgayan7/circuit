@@ -2,6 +2,7 @@ package onboarding
 
 import (
 	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,4 +129,14 @@ func TestIsolatedWorkspaceRejectsKnownCredentials(t *testing.T) {
 	c, err := gateway.LoadConfig(s.Config)
 	require.NoError(t, err)
 	require.Error(t, CheckWorkspaceIsolation(s, filepath.Dir(c.CustomTools[0].TokenFile)))
+	workspace := t.TempDir()
+	require.NoError(t, os.Link(c.CustomTools[0].TokenFile, filepath.Join(workspace, "innocent-name")))
+	require.ErrorContains(t, CheckWorkspaceIsolation(s, workspace), "hard link")
+	workspace, err = os.MkdirTemp("", "circuit-ws-")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(workspace) })
+	listener, err := net.Listen("unix", filepath.Join(workspace, "provider.sock"))
+	require.NoError(t, err)
+	defer listener.Close()
+	require.ErrorContains(t, CheckWorkspaceIsolation(s, workspace), "host services")
 }

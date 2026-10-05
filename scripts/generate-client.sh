@@ -12,7 +12,7 @@ out=$(cd "$2" && pwd)
 root=$(cd "$(dirname "$0")/.." && pwd)
 image='openapitools/openapi-generator-cli:v7.15.0@sha256:509f01c3c7eee9d1ad286506a7b6aa4624a95b410be9a238a306d209e900621f'
 docker pull "$image"
-docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+docker run --rm --user "$(id -u):$(id -g)" --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
   --tmpfs /tmp:rw,nosuid,size=256m -v "$root/api:/contract:ro" -v "$out:/output" "$image" \
   generate -i /contract/openapi.yaml -g "$1" -o /output \
   --additional-properties hideGenerationTimestamp=true --git-user-id hgayan7 --git-repo-id circuit
