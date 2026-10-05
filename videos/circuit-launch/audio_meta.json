@@ -14,121 +14,79 @@
     {
       "id": "1",
       "path": "assets/voice/1.wav",
-      "duration_s": 7.125,
+      "duration_s": 3.883,
       "words": [
         {
           "id": "w0",
-          "text": "Your",
-          "start": 0.05,
-          "end": 0.31
+          "text": "an",
+          "start": 0.07,
+          "end": 0.16
         },
         {
           "id": "w1",
-          "text": "agent",
-          "start": 0.31,
-          "end": 0.7
+          "text": "AI",
+          "start": 0.23,
+          "end": 0.44
         },
         {
           "id": "w2",
-          "text": "can",
-          "start": 0.7,
-          "end": 0.93
+          "text": "agent",
+          "start": 0.44,
+          "end": 0.98
         },
         {
           "id": "w3",
-          "text": "write",
-          "start": 0.93,
-          "end": 1.32
+          "text": "can",
+          "start": 0.98,
+          "end": 1.31
         },
         {
           "id": "w4",
-          "text": "files",
-          "start": 1.32,
-          "end": 1.72
+          "text": "ship",
+          "start": 1.31,
+          "end": 1.74
         },
         {
           "id": "w5",
-          "text": "and",
-          "start": 1.72,
-          "end": 2
+          "text": "code.",
+          "start": 1.74,
+          "end": 2.24
         },
         {
           "id": "w6",
-          "text": "merge",
-          "start": 2,
-          "end": 2.47
+          "text": "It",
+          "start": 2.31,
+          "end": 2.38
         },
         {
           "id": "w7",
-          "text": "pull",
-          "start": 2.47,
-          "end": 2.81
+          "text": "can",
+          "start": 2.38,
+          "end": 2.59
         },
         {
           "id": "w8",
-          "text": "requests.",
-          "start": 2.9,
-          "end": 3.6
+          "text": "also",
+          "start": 2.59,
+          "end": 2.88
         },
         {
           "id": "w9",
-          "text": "What",
-          "start": 3.65,
-          "end": 3.9
+          "text": "ship",
+          "start": 2.88,
+          "end": 3.17
         },
         {
           "id": "w10",
-          "text": "stops",
-          "start": 3.9,
-          "end": 4.28
+          "text": "a",
+          "start": 3.17,
+          "end": 3.24
         },
         {
           "id": "w11",
-          "text": "one",
-          "start": 4.28,
-          "end": 4.51
-        },
-        {
-          "id": "w12",
-          "text": "wrong",
-          "start": 4.51,
-          "end": 4.89
-        },
-        {
-          "id": "w13",
-          "text": "action",
-          "start": 4.89,
-          "end": 5.38
-        },
-        {
-          "id": "w14",
-          "text": "from",
-          "start": 5.38,
-          "end": 5.66
-        },
-        {
-          "id": "w15",
-          "text": "becoming",
-          "start": 5.66,
-          "end": 6.21
-        },
-        {
-          "id": "w16",
-          "text": "a",
-          "start": 6.29,
-          "end": 6.3
-        },
-        {
-          "id": "w17",
-          "text": "real",
-          "start": 6.3,
-          "end": 6.57
-        },
-        {
-          "id": "w18",
-          "text": "change?",
-          "start": 6.57,
-          "end": 7.26
+          "text": "mistake.",
+          "start": 3.24,
+          "end": 3.98
         }
       ],
       "frame": 1
@@ -136,109 +94,55 @@
     {
       "id": "2",
       "path": "assets/voice/2.wav",
-      "duration_s": 6.059,
+      "duration_s": 2.453,
       "words": [
         {
           "id": "w0",
-          "text": "Circuit",
-          "start": 0.07,
-          "end": 0.42
+          "text": "Put",
+          "start": 0.02,
+          "end": 0.14
         },
         {
           "id": "w1",
-          "text": "puts",
-          "start": 0.51,
-          "end": 0.71
+          "text": "circuit",
+          "start": 0.19,
+          "end": 0.55
         },
         {
           "id": "w2",
-          "text": "a",
-          "start": 0.71,
-          "end": 0.77
+          "text": "between",
+          "start": 0.66,
+          "end": 1.04
         },
         {
           "id": "w3",
-          "text": "governed",
-          "start": 0.77,
-          "end": 1.23
+          "text": "your",
+          "start": 1.04,
+          "end": 1.28
         },
         {
           "id": "w4",
-          "text": "gateway",
-          "start": 1.29,
-          "end": 1.76
+          "text": "agent",
+          "start": 1.28,
+          "end": 1.53
         },
         {
           "id": "w5",
-          "text": "between",
-          "start": 1.76,
-          "end": 2.08
+          "text": "and",
+          "start": 1.6,
+          "end": 1.81
         },
         {
           "id": "w6",
-          "text": "your",
-          "start": 2.08,
-          "end": 2.4
+          "text": "it's",
+          "start": 1.81,
+          "end": 2.08
         },
         {
           "id": "w7",
-          "text": "agent",
-          "start": 2.4,
-          "end": 2.75
-        },
-        {
-          "id": "w8",
-          "text": "and",
-          "start": 2.8,
-          "end": 3.08
-        },
-        {
-          "id": "w9",
-          "text": "its",
-          "start": 3.14,
-          "end": 3.45
-        },
-        {
-          "id": "w10",
           "text": "tools.",
-          "start": 3.47,
-          "end": 4.16
-        },
-        {
-          "id": "w11",
-          "text": "You",
-          "start": 4.23,
-          "end": 4.36
-        },
-        {
-          "id": "w12",
-          "text": "control",
-          "start": 4.36,
-          "end": 4.83
-        },
-        {
-          "id": "w13",
-          "text": "what",
-          "start": 4.83,
-          "end": 5.1
-        },
-        {
-          "id": "w14",
-          "text": "it",
-          "start": 5.1,
-          "end": 5.23
-        },
-        {
-          "id": "w15",
-          "text": "can",
-          "start": 5.23,
-          "end": 5.38
-        },
-        {
-          "id": "w16",
-          "text": "execute.",
-          "start": 5.45,
-          "end": 5.95
+          "start": 2.08,
+          "end": 2.45
         }
       ],
       "frame": 2
@@ -246,115 +150,61 @@
     {
       "id": "3",
       "path": "assets/voice/3.wav",
-      "duration_s": 7.467,
+      "duration_s": 4.245,
       "words": [
         {
           "id": "w0",
-          "text": "Requests",
-          "start": 0.05,
-          "end": 0.66
+          "text": "scope",
+          "start": 0.06,
+          "end": 0.54
         },
         {
           "id": "w1",
-          "text": "pass",
-          "start": 0.66,
-          "end": 0.99
+          "text": "policy,",
+          "start": 0.54,
+          "end": 1.35
         },
         {
           "id": "w2",
-          "text": "scope,",
-          "start": 0.99,
-          "end": 1.41
+          "text": "budget,",
+          "start": 1.35,
+          "end": 2
         },
         {
           "id": "w3",
-          "text": "policy,",
-          "start": 1.71,
-          "end": 2.21
+          "text": "sensitive",
+          "start": 2.04,
+          "end": 2.56
         },
         {
           "id": "w4",
-          "text": "and",
-          "start": 2.21,
-          "end": 2.45
-        },
-        {
-          "id": "w5",
-          "text": "budget",
-          "start": 2.45,
+          "text": "action",
+          "start": 2.56,
           "end": 2.94
         },
         {
-          "id": "w6",
-          "text": "checks.",
+          "id": "w5",
+          "text": "stop",
           "start": 2.94,
-          "end": 3.74
+          "end": 3.24
+        },
+        {
+          "id": "w6",
+          "text": "for",
+          "start": 3.4,
+          "end": 3.46
         },
         {
           "id": "w7",
-          "text": "Sensitive",
-          "start": 3.79,
-          "end": 4.35
+          "text": "your",
+          "start": 3.46,
+          "end": 3.65
         },
         {
           "id": "w8",
-          "text": "actions",
-          "start": 4.35,
-          "end": 4.83
-        },
-        {
-          "id": "w9",
-          "text": "wait",
-          "start": 4.83,
-          "end": 5.02
-        },
-        {
-          "id": "w10",
-          "text": "for",
-          "start": 5.12,
-          "end": 5.13
-        },
-        {
-          "id": "w11",
-          "text": "a",
-          "start": 5.13,
-          "end": 5.45
-        },
-        {
-          "id": "w12",
-          "text": "human",
-          "start": 5.45,
-          "end": 5.76
-        },
-        {
-          "id": "w13",
-          "text": "to",
-          "start": 5.81,
-          "end": 5.88
-        },
-        {
-          "id": "w14",
-          "text": "review",
-          "start": 5.94,
-          "end": 6.26
-        },
-        {
-          "id": "w15",
-          "text": "the",
-          "start": 6.34,
-          "end": 6.52
-        },
-        {
-          "id": "w16",
-          "text": "exact",
-          "start": 6.52,
-          "end": 6.87
-        },
-        {
-          "id": "w17",
-          "text": "payload.",
-          "start": 6.87,
-          "end": 7.58
+          "text": "approval.",
+          "start": 3.65,
+          "end": 4.12
         }
       ],
       "frame": 3
@@ -362,109 +212,79 @@
     {
       "id": "4",
       "path": "assets/voice/4.wav",
-      "duration_s": 8.384,
+      "duration_s": 5.013,
       "words": [
         {
           "id": "w0",
-          "text": "After",
-          "start": 0.1,
-          "end": 0.39
+          "text": "Review",
+          "start": 0.03,
+          "end": 0.49
         },
         {
           "id": "w1",
-          "text": "approval,",
-          "start": 0.39,
-          "end": 1.13
+          "text": "the",
+          "start": 0.49,
+          "end": 0.73
         },
         {
           "id": "w2",
-          "text": "circuit",
-          "start": 1.27,
-          "end": 1.64
+          "text": "exact",
+          "start": 0.73,
+          "end": 1.08
         },
         {
           "id": "w3",
-          "text": "executes",
-          "start": 1.75,
-          "end": 2.36
+          "text": "action,",
+          "start": 1.13,
+          "end": 1.81
         },
         {
           "id": "w4",
-          "text": "with",
-          "start": 2.36,
-          "end": 2.61
+          "text": "approve",
+          "start": 1.81,
+          "end": 2.13
         },
         {
           "id": "w5",
-          "text": "gateway-held",
-          "start": 2.61,
-          "end": 3.35
+          "text": "it,",
+          "start": 2.6,
+          "end": 2.73
         },
         {
           "id": "w6",
-          "text": "credentials",
-          "start": 3.35,
-          "end": 4.15
+          "text": "circuit",
+          "start": 2.73,
+          "end": 3.17
         },
         {
           "id": "w7",
-          "text": "and",
-          "start": 4.36,
-          "end": 4.45
+          "text": "executes",
+          "start": 3.22,
+          "end": 3.74
         },
         {
           "id": "w8",
-          "text": "records",
-          "start": 4.45,
-          "end": 4.96
+          "text": "and",
+          "start": 3.74,
+          "end": 3.92
         },
         {
           "id": "w9",
-          "text": "the",
-          "start": 4.96,
-          "end": 5.04
+          "text": "records",
+          "start": 3.92,
+          "end": 4.3
         },
         {
           "id": "w10",
-          "text": "result.",
-          "start": 5.04,
-          "end": 6.22
+          "text": "the",
+          "start": 4.36,
+          "end": 4.53
         },
         {
           "id": "w11",
-          "text": "Merges",
-          "start": 6.32,
-          "end": 6.58
-        },
-        {
-          "id": "w12",
-          "text": "bind",
-          "start": 6.58,
-          "end": 6.8
-        },
-        {
-          "id": "w13",
-          "text": "to",
-          "start": 6.83,
-          "end": 6.95
-        },
-        {
-          "id": "w14",
-          "text": "the",
-          "start": 6.95,
-          "end": 7.12
-        },
-        {
-          "id": "w15",
-          "text": "approved",
-          "start": 7.49,
-          "end": 7.62
-        },
-        {
-          "id": "w16",
-          "text": "commit.",
-          "start": 7.62,
-          "end": 8.22
+          "text": "result.",
+          "start": 4.53,
+          "end": 4.95
         }
       ],
       "frame": 4
@@ -472,108 +292,144 @@
     {
       "id": "5",
       "path": "assets/voice/5.wav",
-      "duration_s": 7.211,
+      "duration_s": 4.693,
       "words": [
         {
           "id": "w0",
           "text": "Keep",
           "start": 0.08,
-          "end": 0.35
+          "end": 0.31
         },
         {
           "id": "w1",
           "text": "agents",
-          "start": 0.35,
-          "end": 0.87
+          "start": 0.31,
+          "end": 0.77
         },
         {
           "id": "w2",
-          "text": "moving,",
-          "start": 0.87,
-          "end": 1.6
+          "text": "moving.",
+          "start": 0.77,
+          "end": 1.24
         },
         {
           "id": "w3",
-          "text": "keep",
-          "start": 1.7,
-          "end": 2.01
+          "text": "Keep",
+          "start": 1.32,
+          "end": 1.47
         },
         {
           "id": "w4",
-          "text": "control.",
-          "start": 2.01,
-          "end": 2.76
+          "text": "control,",
+          "start": 1.47,
+          "end": 2
         },
         {
           "id": "w5",
-          "text": "Circuit",
-          "start": 2.84,
-          "end": 3.34
+          "text": "tri-circuit,",
+          "start": 2,
+          "end": 2.8
         },
         {
           "id": "w6",
-          "text": "is",
-          "start": 3.34,
-          "end": 3.5
+          "text": "open",
+          "start": 2.8,
+          "end": 3.12
         },
         {
           "id": "w7",
-          "text": "open",
-          "start": 3.5,
-          "end": 3.82
+          "text": "source,",
+          "start": 3.12,
+          "end": 3.73
         },
         {
           "id": "w8",
-          "text": "source",
-          "start": 3.82,
-          "end": 4.33
-        },
-        {
-          "id": "w9",
-          "text": "and",
-          "start": 4.33,
-          "end": 4.58
-        },
-        {
-          "id": "w10",
           "text": "self-hosted.",
-          "start": 4.58,
-          "end": 5.52
-        },
-        {
-          "id": "w11",
-          "text": "Try",
-          "start": 5.6,
-          "end": 5.76
-        },
-        {
-          "id": "w12",
-          "text": "the",
-          "start": 5.8,
-          "end": 6.04
-        },
-        {
-          "id": "w13",
-          "text": "demo",
-          "start": 6.04,
-          "end": 6.38
-        },
-        {
-          "id": "w14",
-          "text": "on",
-          "start": 6.38,
-          "end": 6.55
-        },
-        {
-          "id": "w15",
-          "text": "GitHub.",
-          "start": 6.55,
-          "end": 7.34
+          "start": 3.81,
+          "end": 4.8
         }
       ],
       "frame": 5
     }
   ],
-  "sfx": [],
-  "total_duration_s": 36.246
+  "sfx": [
+    {
+      "frame": 1,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 0.1,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 1,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 2.4,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 2,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 0.5,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 3,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 0.4,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 3,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 1.1,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 3,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 1.8,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 3,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 3.0,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 2.5,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 4,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 3.4,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 5,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 1.7,
+      "duration_s": 0.24,
+      "volume": 0.18
+    },
+    {
+      "frame": 5,
+      "file": "assets/sfx/action.wav",
+      "offset_s": 3.4,
+      "duration_s": 0.24,
+      "volume": 0.18
+    }
+  ],
+  "total_duration_s": 20.287
 }

@@ -1,35 +1,23 @@
-# SCRIPT — Circuit launch
+# Circuit launch v2
 
-**Voice:** Michael (local Kokoro)
-**Voice settings:** speed 1.05
-**Voice direction:** Calm, direct, informative.
+Local Kokoro am_michael, speed 1.12.
 
-## Line 1 — Frame 1 (Frame 1)
+## Line 1 — Frame 1
 
-**Delivery:** Plain and clear.
+    An AI agent can ship code. It can also ship a mistake.
 
-    Your agent can write files and merge pull requests. What stops one wrong action from becoming a real change?
+## Line 2 — Frame 2
 
-## Line 2 — Frame 2 (Frame 2)
+    Put Circuit between your agent and its tools.
 
-**Delivery:** Plain and clear.
+## Line 3 — Frame 3
 
-    Circuit puts a governed gateway between your agent and its tools. You control what it can execute.
+    Scope. Policy. Budget. Sensitive actions stop for your approval.
 
-## Line 3 — Frame 3 (Frame 3)
+## Line 4 — Frame 4
 
-**Delivery:** Plain and clear.
+    Review the exact action. Approve it. Circuit executes and records the result.
 
-    Requests pass scope, policy, and budget checks. Sensitive actions wait for a human to review the exact payload.
+## Line 5 — Frame 5
 
-## Line 4 — Frame 4 (Frame 4)
-
-**Delivery:** Plain and clear.
-
-    After approval, Circuit executes with gateway-held credentials and records the result. Merges bind to the approved commit.
-
-## Line 5 — Frame 5 (Frame 5)
-
-**Delivery:** Plain and clear.
-
-    Keep agents moving. Keep control. Circuit is open source and self-hosted. Try the demo on GitHub.
+    Keep agents moving. Keep control. Try Circuit. Open source. Self-hosted.

@@ -13,3 +13,6 @@ CLAUDE.md
 build-scenes.py
 .media/
 .thumbnails/
+audio-revision.log
+registry-revision.json
+render*.log

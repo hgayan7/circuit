@@ -1,1 +1,1 @@
-Your agent can write files and merge pull requests. What stops one wrong action from becoming a real change?
+An AI agent can ship code. It can also ship a mistake.

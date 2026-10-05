@@ -2,27 +2,27 @@
   "provider": "kokoro",
   "voice": "am_michael",
   "lang": "en",
-  "speed": 1.05,
+  "speed": 1.12,
   "lines": [
     {
       "id": "1",
-      "text": "Your agent can write files and merge pull requests. What stops one wrong action from becoming a real change?"
+      "text": "An AI agent can ship code. It can also ship a mistake."
     },
     {
       "id": "2",
-      "text": "Circuit puts a governed gateway between your agent and its tools. You control what it can execute."
+      "text": "Put Circuit between your agent and its tools."
     },
     {
       "id": "3",
-      "text": "Requests pass scope, policy, and budget checks. Sensitive actions wait for a human to review the exact payload."
+      "text": "Scope. Policy. Budget. Sensitive actions stop for your approval."
     },
     {
       "id": "4",
-      "text": "After approval, Circuit executes with gateway-held credentials and records the result. Merges bind to the approved commit."
+      "text": "Review the exact action. Approve it. Circuit executes and records the result."
     },
     {
       "id": "5",
-      "text": "Keep agents moving. Keep control. Circuit is open source and self-hosted. Try the demo on GitHub."
+      "text": "Keep agents moving. Keep control. Try Circuit. Open source. Self-hosted."
     }
   ],
   "bgm": {

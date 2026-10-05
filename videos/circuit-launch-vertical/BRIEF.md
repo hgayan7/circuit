@@ -34,3 +34,7 @@ Create the launch video proposed in chat. The user approved creation with "do it
 - Claim enforcement only for governed requests and configured gateway-only Docker isolation. No universal safety, zero-code, production-certification, exactly-once, or unsupported provider claims.
 
 - User requested checking the local model; cached Kokoro-82M is used through a project-local Python environment. No music bed.
+
+## Revision — 2026-10-05
+
+User requests a more modern, catchy film. Build and export a shorter visual revision with kinetic typography, larger real UI, causal request/approval motion, shorter local narration and subtle original action cues.

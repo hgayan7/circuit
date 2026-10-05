@@ -1,1 +1,1 @@
-Requests pass scope, policy, and budget checks. Sensitive actions wait for a human to review the exact payload.
+Scope. Policy. Budget. Sensitive actions stop for your approval.

@@ -1,1 +1,1 @@
-Circuit puts a governed gateway between your agent and its tools. You control what it can execute.
+Put Circuit between your agent and its tools.
