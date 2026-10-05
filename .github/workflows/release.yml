@@ -60,7 +60,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          gh release download "$GITHUB_REF_NAME" --dir /tmp/circuit-release
+          for attempt in 1 2 3; do
+            gh release download "$GITHUB_REF_NAME" --dir /tmp/circuit-release --clobber && break
+            [ "$attempt" -lt 3 ] || exit 1
+            sleep 5
+          done
           cd /tmp/circuit-release
           sha256sum -c checksums.txt
           tar -xzf "circuit_${version}_linux_amd64.tar.gz"

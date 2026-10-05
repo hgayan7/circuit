@@ -161,7 +161,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download v0.2.0-rc.2 --pattern circuit_0.2.0-rc.2_linux_amd64.tar.gz --pattern checksums.txt --dir /tmp/circuit-previous
+          for attempt in 1 2 3; do
+            gh release download v0.2.0-rc.2 --pattern circuit_0.2.0-rc.2_linux_amd64.tar.gz --pattern checksums.txt --dir /tmp/circuit-previous --clobber && break
+            [ "$attempt" -lt 3 ] || exit 1
+            sleep 5
+          done
           cd /tmp/circuit-previous
           sha256sum --ignore-missing -c checksums.txt
           tar -xzf circuit_0.2.0-rc.2_linux_amd64.tar.gz
