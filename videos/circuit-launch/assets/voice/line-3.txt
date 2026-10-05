@@ -1,1 +1,1 @@
-Scope. Policy. Budget. Sensitive actions stop for your approval.
+Provider keys stay outside. Requests pass scope, policy, and budget checks.

@@ -38,3 +38,7 @@ Create the launch video proposed in chat. The user approved creation with "do it
 ## Revision — 2026-10-05
 
 User requests a more modern, catchy film. Build and export a shorter visual revision with kinetic typography, larger real UI, causal request/approval motion, shorter local narration and subtle original action cues.
+
+## Revision v3 — 2026-10-05
+
+Focus on the restricted Docker/runc sandbox, gateway-only egress, credential separation, tool scope and recorded execution. Approval becomes a brief when-required supporting feature. Retain modern kinetic pacing and local narration.

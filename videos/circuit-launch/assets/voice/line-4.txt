@@ -1,1 +1,1 @@
-Review the exact action. Approve it. Circuit executes and records the result.
+Use declared tools. Execute within the rules. Record the result. Approve only when required.

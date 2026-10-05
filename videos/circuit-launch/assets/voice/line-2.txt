@@ -1,1 +1,1 @@
-Put Circuit between your agent and its tools.
+Sandbox the agent. Block direct access. Route every network request through Circuit.

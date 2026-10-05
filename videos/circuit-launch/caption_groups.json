@@ -1,5 +1,5 @@
 {
-  "total_duration_s": 27,
+  "total_duration_s": 28.62,
   "width": 1080,
   "height": 1080,
   "groups": [
@@ -132,339 +132,357 @@
     {
       "id": "caption-group-6",
       "frame": 2,
-      "start": 5.52,
-      "end": 6.54,
-      "text": "Put circuit between",
+      "start": 5.08,
+      "end": 6.69,
+      "text": "Sandbox the agent,",
       "words": [
         {
           "id": "caption-word-6-0",
-          "text": "Put",
-          "start": 5.52,
-          "end": 5.64
+          "text": "Sandbox",
+          "start": 5.08,
+          "end": 5.71
         },
         {
           "id": "caption-word-6-1",
-          "text": "circuit",
-          "start": 5.69,
-          "end": 6.05
+          "text": "the",
+          "start": 5.71,
+          "end": 6.01
         },
         {
           "id": "caption-word-6-2",
-          "text": "between",
-          "start": 6.16,
-          "end": 6.54
+          "text": "agent,",
+          "start": 6.01,
+          "end": 6.69
         }
       ]
     },
     {
       "id": "caption-group-7",
       "frame": 2,
-      "start": 6.54,
-      "end": 7.1,
-      "text": "your agent",
+      "start": 6.69,
+      "end": 8.24,
+      "text": "block direct access,",
       "words": [
         {
           "id": "caption-word-7-0",
-          "text": "your",
-          "start": 6.54,
-          "end": 6.78
+          "text": "block",
+          "start": 6.69,
+          "end": 7.08
         },
         {
           "id": "caption-word-7-1",
-          "text": "agent",
-          "start": 6.78,
-          "end": 7.03
+          "text": "direct",
+          "start": 7.08,
+          "end": 7.55
+        },
+        {
+          "id": "caption-word-7-2",
+          "text": "access,",
+          "start": 7.55,
+          "end": 8.2
         }
       ]
     },
     {
       "id": "caption-group-8",
       "frame": 2,
-      "start": 7.1,
-      "end": 8.07,
-      "text": "and it's tools.",
+      "start": 8.24,
+      "end": 9.29,
+      "text": "route every network",
       "words": [
         {
           "id": "caption-word-8-0",
-          "text": "and",
-          "start": 7.1,
-          "end": 7.31
+          "text": "route",
+          "start": 8.24,
+          "end": 8.47
         },
         {
           "id": "caption-word-8-1",
-          "text": "it's",
-          "start": 7.31,
-          "end": 7.58
+          "text": "every",
+          "start": 8.57,
+          "end": 8.82
         },
         {
           "id": "caption-word-8-2",
-          "text": "tools.",
-          "start": 7.58,
-          "end": 7.95
+          "text": "network",
+          "start": 8.82,
+          "end": 9.2
         }
       ]
     },
     {
       "id": "caption-group-9",
-      "frame": 3,
-      "start": 9.76,
-      "end": 11.05,
-      "text": "scope policy,",
+      "frame": 2,
+      "start": 9.29,
+      "end": 10.58,
+      "text": "request through circuit.",
       "words": [
         {
           "id": "caption-word-9-0",
-          "text": "scope",
-          "start": 9.76,
-          "end": 10.24
+          "text": "request",
+          "start": 9.29,
+          "end": 9.66
         },
         {
           "id": "caption-word-9-1",
-          "text": "policy,",
-          "start": 10.24,
-          "end": 11.05
+          "text": "through",
+          "start": 9.66,
+          "end": 10.04
+        },
+        {
+          "id": "caption-word-9-2",
+          "text": "circuit.",
+          "start": 10.04,
+          "end": 10.46
         }
       ]
     },
     {
       "id": "caption-group-10",
       "frame": 3,
-      "start": 11.05,
-      "end": 11.74,
-      "text": "budget,",
+      "start": 11.221,
+      "end": 12.531,
+      "text": "Provider keys stay",
       "words": [
         {
           "id": "caption-word-10-0",
-          "text": "budget,",
-          "start": 11.05,
-          "end": 11.7
+          "text": "Provider",
+          "start": 11.221,
+          "end": 11.851
+        },
+        {
+          "id": "caption-word-10-1",
+          "text": "keys",
+          "start": 11.851,
+          "end": 12.191
+        },
+        {
+          "id": "caption-word-10-2",
+          "text": "stay",
+          "start": 12.191,
+          "end": 12.531
         }
       ]
     },
     {
       "id": "caption-group-11",
       "frame": 3,
-      "start": 11.74,
-      "end": 13.06,
-      "text": "sensitive action stop",
+      "start": 12.531,
+      "end": 13.271,
+      "text": "outside,",
       "words": [
         {
           "id": "caption-word-11-0",
-          "text": "sensitive",
-          "start": 11.74,
-          "end": 12.26
-        },
-        {
-          "id": "caption-word-11-1",
-          "text": "action",
-          "start": 12.26,
-          "end": 12.64
-        },
-        {
-          "id": "caption-word-11-2",
-          "text": "stop",
-          "start": 12.64,
-          "end": 12.94
+          "text": "outside,",
+          "start": 12.531,
+          "end": 13.271
         }
       ]
     },
     {
       "id": "caption-group-12",
       "frame": 3,
-      "start": 13.1,
-      "end": 13.94,
-      "text": "for your approval.",
+      "start": 13.271,
+      "end": 14.421,
+      "text": "requests pass scope,",
       "words": [
         {
           "id": "caption-word-12-0",
-          "text": "for",
-          "start": 13.1,
-          "end": 13.16
+          "text": "requests",
+          "start": 13.271,
+          "end": 13.741
         },
         {
           "id": "caption-word-12-1",
-          "text": "your",
-          "start": 13.16,
-          "end": 13.35
+          "text": "pass",
+          "start": 13.741,
+          "end": 13.951
         },
         {
           "id": "caption-word-12-2",
-          "text": "approval.",
-          "start": 13.35,
-          "end": 13.82
+          "text": "scope,",
+          "start": 14.031,
+          "end": 14.401
         }
       ]
     },
     {
       "id": "caption-group-13",
-      "frame": 4,
-      "start": 14.93,
-      "end": 16.03,
-      "text": "Review the exact",
+      "frame": 3,
+      "start": 14.421,
+      "end": 15.451,
+      "text": "policy and budget",
       "words": [
         {
           "id": "caption-word-13-0",
-          "text": "Review",
-          "start": 14.93,
-          "end": 15.39
+          "text": "policy",
+          "start": 14.421,
+          "end": 14.901
         },
         {
           "id": "caption-word-13-1",
-          "text": "the",
-          "start": 15.39,
-          "end": 15.63
+          "text": "and",
+          "start": 14.901,
+          "end": 15.081
         },
         {
           "id": "caption-word-13-2",
-          "text": "exact",
-          "start": 15.63,
-          "end": 15.98
+          "text": "budget",
+          "start": 15.081,
+          "end": 15.451
         }
       ]
     },
     {
       "id": "caption-group-14",
-      "frame": 4,
-      "start": 16.03,
-      "end": 16.71,
-      "text": "action,",
+      "frame": 3,
+      "start": 15.451,
+      "end": 15.961,
+      "text": "checks.",
       "words": [
         {
           "id": "caption-word-14-0",
-          "text": "action,",
-          "start": 16.03,
-          "end": 16.71
+          "text": "checks.",
+          "start": 15.451,
+          "end": 15.841
         }
       ]
     },
     {
       "id": "caption-group-15",
       "frame": 4,
-      "start": 16.71,
-      "end": 17.15,
-      "text": "approve",
+      "start": 16.497,
+      "end": 17.957,
+      "text": "Use declared tools,",
       "words": [
         {
           "id": "caption-word-15-0",
-          "text": "approve",
-          "start": 16.71,
-          "end": 17.03
+          "text": "Use",
+          "start": 16.497,
+          "end": 16.707
+        },
+        {
+          "id": "caption-word-15-1",
+          "text": "declared",
+          "start": 16.757,
+          "end": 17.427
+        },
+        {
+          "id": "caption-word-15-2",
+          "text": "tools,",
+          "start": 17.427,
+          "end": 17.927
         }
       ]
     },
     {
       "id": "caption-group-16",
       "frame": 4,
-      "start": 17.5,
-      "end": 17.63,
-      "text": "it,",
+      "start": 17.957,
+      "end": 19.127,
+      "text": "execute within the",
       "words": [
         {
           "id": "caption-word-16-0",
-          "text": "it,",
-          "start": 17.5,
-          "end": 17.63
+          "text": "execute",
+          "start": 17.957,
+          "end": 18.457
+        },
+        {
+          "id": "caption-word-16-1",
+          "text": "within",
+          "start": 18.457,
+          "end": 18.907
+        },
+        {
+          "id": "caption-word-16-2",
+          "text": "the",
+          "start": 18.907,
+          "end": 19.077
         }
       ]
     },
     {
       "id": "caption-group-17",
       "frame": 4,
-      "start": 17.63,
-      "end": 19.26,
-      "text": "circuit executes and records",
+      "start": 19.127,
+      "end": 19.617,
+      "text": "rules,",
       "words": [
         {
           "id": "caption-word-17-0",
-          "text": "circuit",
-          "start": 17.63,
-          "end": 18.07
-        },
-        {
-          "id": "caption-word-17-1",
-          "text": "executes",
-          "start": 18.12,
-          "end": 18.64
-        },
-        {
-          "id": "caption-word-17-2",
-          "text": "and",
-          "start": 18.64,
-          "end": 18.82
-        },
-        {
-          "id": "caption-word-17-3",
-          "text": "records",
-          "start": 18.82,
-          "end": 19.2
+          "text": "rules,",
+          "start": 19.127,
+          "end": 19.617
         }
       ]
     },
     {
       "id": "caption-group-18",
       "frame": 4,
-      "start": 19.26,
-      "end": 19.97,
-      "text": "the result.",
+      "start": 19.617,
+      "end": 20.727,
+      "text": "record the result,",
       "words": [
         {
           "id": "caption-word-18-0",
-          "text": "the",
-          "start": 19.26,
-          "end": 19.43
+          "text": "record",
+          "start": 19.617,
+          "end": 19.897
         },
         {
           "id": "caption-word-18-1",
-          "text": "result.",
-          "start": 19.43,
-          "end": 19.85
+          "text": "the",
+          "start": 19.897,
+          "end": 20.047
+        },
+        {
+          "id": "caption-word-18-2",
+          "text": "result,",
+          "start": 20.047,
+          "end": 20.607
         }
       ]
     },
     {
       "id": "caption-group-19",
-      "frame": 5,
-      "start": 21.28,
-      "end": 22.52,
-      "text": "Keep agents moving.",
+      "frame": 4,
+      "start": 20.837,
+      "end": 21.897,
+      "text": "approve only when",
       "words": [
         {
           "id": "caption-word-19-0",
-          "text": "Keep",
-          "start": 21.28,
-          "end": 21.51
+          "text": "approve",
+          "start": 20.837,
+          "end": 21.237
         },
         {
           "id": "caption-word-19-1",
-          "text": "agents",
-          "start": 21.51,
-          "end": 21.97
+          "text": "only",
+          "start": 21.237,
+          "end": 21.607
         },
         {
           "id": "caption-word-19-2",
-          "text": "moving.",
-          "start": 21.97,
-          "end": 22.44
+          "text": "when",
+          "start": 21.607,
+          "end": 21.897
         }
       ]
     },
     {
       "id": "caption-group-20",
-      "frame": 5,
-      "start": 22.52,
-      "end": 23.2,
-      "text": "Keep control,",
+      "frame": 4,
+      "start": 21.897,
+      "end": 22.607,
+      "text": "required.",
       "words": [
         {
           "id": "caption-word-20-0",
-          "text": "Keep",
-          "start": 22.52,
-          "end": 22.67
-        },
-        {
-          "id": "caption-word-20-1",
-          "text": "control,",
-          "start": 22.67,
-          "end": 23.2
+          "text": "required.",
+          "start": 21.897,
+          "end": 22.487
         }
       ]
     },
@@ -472,50 +490,98 @@
       "id": "caption-group-21",
       "frame": 5,
       "start": 23.2,
-      "end": 24,
-      "text": "tri-circuit,",
+      "end": 24.44,
+      "text": "Keep agents moving.",
       "words": [
         {
           "id": "caption-word-21-0",
-          "text": "tri-circuit,",
+          "text": "Keep",
           "start": 23.2,
-          "end": 24
+          "end": 23.43
+        },
+        {
+          "id": "caption-word-21-1",
+          "text": "agents",
+          "start": 23.43,
+          "end": 23.89
+        },
+        {
+          "id": "caption-word-21-2",
+          "text": "moving.",
+          "start": 23.89,
+          "end": 24.36
         }
       ]
     },
     {
       "id": "caption-group-22",
       "frame": 5,
-      "start": 24,
-      "end": 25.01,
-      "text": "open source,",
+      "start": 24.44,
+      "end": 25.12,
+      "text": "Keep control,",
       "words": [
         {
           "id": "caption-word-22-0",
-          "text": "open",
-          "start": 24,
-          "end": 24.32
+          "text": "Keep",
+          "start": 24.44,
+          "end": 24.59
         },
         {
           "id": "caption-word-22-1",
-          "text": "source,",
-          "start": 24.32,
-          "end": 24.93
+          "text": "control,",
+          "start": 24.59,
+          "end": 25.12
         }
       ]
     },
     {
       "id": "caption-group-23",
       "frame": 5,
-      "start": 25.01,
-      "end": 26.12,
-      "text": "self-hosted.",
+      "start": 25.12,
+      "end": 25.92,
+      "text": "tri-circuit,",
       "words": [
         {
           "id": "caption-word-23-0",
+          "text": "tri-circuit,",
+          "start": 25.12,
+          "end": 25.92
+        }
+      ]
+    },
+    {
+      "id": "caption-group-24",
+      "frame": 5,
+      "start": 25.92,
+      "end": 26.93,
+      "text": "open source,",
+      "words": [
+        {
+          "id": "caption-word-24-0",
+          "text": "open",
+          "start": 25.92,
+          "end": 26.24
+        },
+        {
+          "id": "caption-word-24-1",
+          "text": "source,",
+          "start": 26.24,
+          "end": 26.85
+        }
+      ]
+    },
+    {
+      "id": "caption-group-25",
+      "frame": 5,
+      "start": 26.93,
+      "end": 28.04,
+      "text": "self-hosted.",
+      "words": [
+        {
+          "id": "caption-word-25-0",
           "text": "self-hosted.",
-          "start": 25.01,
-          "end": 26
+          "start": 26.93,
+          "end": 27.92
         }
       ]
     }

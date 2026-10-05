@@ -10,15 +10,15 @@
     },
     {
       "id": "2",
-      "text": "Put Circuit between your agent and its tools."
+      "text": "Sandbox the agent. Block direct access. Route every network request through Circuit."
     },
     {
       "id": "3",
-      "text": "Scope. Policy. Budget. Sensitive actions stop for your approval."
+      "text": "Provider keys stay outside. Requests pass scope, policy, and budget checks."
     },
     {
       "id": "4",
-      "text": "Review the exact action. Approve it. Circuit executes and records the result."
+      "text": "Use declared tools. Execute within the rules. Record the result. Approve only when required."
     },
     {
       "id": "5",
