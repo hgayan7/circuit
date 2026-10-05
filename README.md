@@ -14,9 +14,9 @@ For example, let an engineering agent read two repositories and open up to five 
 
 A 29-second overview of sandbox isolation, gateway-only networking, credential separation, and governed tool execution.
 
-[![Watch the Circuit product overview](assets/circuit-launch-preview.jpg)](https://github.com/hgayan7/circuit/blob/main/assets/circuit-launch.mp4)
+https://github.com/user-attachments/assets/86937f3e-4a18-4ef1-a18a-2a73efadcea3
 
-[Watch the video](https://github.com/hgayan7/circuit/blob/main/assets/circuit-launch.mp4). The sandbox is an explanatory diagram; the interface results are from the local simulation below.
+The sandbox is an explanatory diagram; the interface results are from the local simulation below.
 
 ## Try The Demo
 
