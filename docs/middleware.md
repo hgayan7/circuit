@@ -105,7 +105,7 @@ Successful 2xx REST responses become durable JSON; text/empty responses are wrap
 - Forwarding uses gateway-owned bearer credentials distinct from agent/operator tokens, verified TLS 1.3, optional `ca_cert`, no inline authorization headers, and origin-bound authentication. Plain HTTP is loopback-only for local development.
 - Upstream MCP sessions are separate: inbound session/auth context is not forwarded, while cancellation is preserved. SDK negotiation starts with the 2025-11-25 protocol. Tool schema discovery is rechecked per execution, not cached across sessions.
 - REST receives `Idempotency-Key`; MCP receives `circuit/action_id` metadata. Upstreams may deduplicate with these, but Circuit does not assume they do. Ambiguous writes are not automatically replayed, even across restart. Exactly-once execution across systems is not promised.
-- These profiles remain outside the GitHub-only `--production` profile. Registering a target is not production qualification; validate its scopes, semantics, credentials, failures, and intended workload.
+- v0.2.0/current source accepts these governed transports under `--production`; rc.2 did not. Registering a target is not production qualification; validate its scopes, semantics, credentials, failures, and intended workload.
 - Direct provider credentials or alternative network routes bypass enforcement. Use an existing isolated environment or the [Docker runner](sandbox.md). Local actions outside the gateway remain outside its control.
 - Sampling, elicitation, resources/prompts, upstream stdio launching, OAuth enrollment, asynchronous tool workflows, OpenAPI import, dynamic path bindings, and replicated shared storage are not implemented. This remains a single-owner bbolt deployment.
 
