@@ -8,18 +8,45 @@ Circuit sits between an AI agent and the services it uses. The agent requests an
 
 For example, let an engineering agent read two repositories and open up to five PRs per hour. Restrict writes to approved branches, forbid workflow-file changes, and require approval before merging an exact commit. The agent can keep working without receiving an unrestricted GitHub token.
 
-**Start here:** [Understand the flow](#how-it-works) | [Integrate your app](#integrate-your-app) | [Try the demo](#try-the-demo) | [Check support and limits](#supported-integrations)
+**Start here:** [Try the approval demo](#try-the-demo) | [Understand the flow](#how-it-works) | [Integrate your app](#integrate-your-app) | [Check support and limits](#supported-integrations)
+
+## Try The Demo
+
+Watch an agent propose a GitHub file change, wait for your approval, and continue to a separately approved merge. The review interface shows the requested payload, your decision, and the execution history.
+
+This local simulation never contacts GitHub and needs no real credentials. Requires Go 1.26.7 or later and Python 3. For a reproducible release checkout, use the `v0.2.0` tag.
+
+1. From the source checkout, build and start the demo:
+
+   ```sh
+   go build -o bin/circuit ./cmd/circuit
+   bin/circuit gateway demo
+   ```
+
+2. Open [http://127.0.0.1:8080](http://127.0.0.1:8080) and enter the public demo operator token printed by the command.
+
+3. In another terminal, run the sample agent:
+
+   ```sh
+   python3 examples/github-agent.py --demo
+   ```
+
+4. Review and approve the pending file-write request. The agent continues to open a simulated PR, then waits for your approval to merge its exact head commit.
+
+5. Approve the merge and inspect the completed actions and approval records in the interface. The agent prints `Workflow completed through Circuit.`
+
+For a real GitHub workflow, configure your own credentials and repository scopes using the [GitHub guide](docs/github-gateway.md). See [Getting Started](docs/getting-started.md) for installation and next steps.
 
 ## What Is Available
 
-The **v0.2.0 release scope** is a self-hosted BYOK gateway with tested Docker/runc isolation and maintained Python, TypeScript, and Go clients. Check [repository releases](https://github.com/hgayan7/circuit/releases) for validated artifacts. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums.
+The released **[v0.2.0](https://github.com/hgayan7/circuit/releases/tag/v0.2.0)** is a self-hosted BYOK gateway with tested Docker/runc isolation and maintained Python, TypeScript, and Go clients. Check [repository releases](https://github.com/hgayan7/circuit/releases) for validated artifacts. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums.
 
 | Version | What you get |
 | --- | --- |
-| Released `v0.2.0-rc.2` | GitHub production-oriented profile, guided setup, action gateway, review UI, and agent-only MCP connector. |
-| v0.2.0 / current source | Everything above, plus isolated gateway-only agent deployment, governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients. Use the matching checkout and artifact version. |
+| Released `v0.2.0` | Guided setup, action gateway, review UI, agent-only MCP connector, isolated gateway-only agent deployment, GitHub and governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients. |
+| Earlier prerelease `v0.2.0-rc.2` | GitHub production-oriented profile, guided setup, action gateway, review UI, and agent-only MCP connector. Does not include the isolation and generated-client additions in v0.2.0. |
 
-For v0.2.0, binaries and installable SDK archives are distributed only through this repository's [releases](https://github.com/hgayan7/circuit/releases), after exact-artifact checks pass. No npm/PyPI, Homebrew, or container-registry publishing is performed. See [local artifact testing](docs/local-release-testing.md) to build and validate without publishing.
+The v0.2.0 binaries and installable SDK archives passed exact-artifact checks and are available through this repository's [release](https://github.com/hgayan7/circuit/releases/tag/v0.2.0). Use the matching source tag for Docker builds and rehearsal scripts; changes on `main` may be newer than the release. No npm/PyPI, Homebrew, or container-registry publishing is performed. See [local artifact testing](docs/local-release-testing.md) to build and validate without publishing.
 
 The owner waived the uninterrupted 72-hour fixture soak on 2026-10-05; it has not passed. See the [release checklist](docs/release-checklist.md) for scope and exceptions. Neither a stable version, a `--production` flag, nor a passing fixture test is production certification.
 
@@ -112,23 +139,6 @@ sh scripts/generate-client.sh kotlin /path/to/new-client-directory
 
 The [OpenAPI contract](api/openapi.yaml) defines the shared REST API. Generated bindings handle the wire format; your app still needs to connect its callbacks and handle action states. The maintained facades submit once, poll for a result, and stop on denial, unresolved approval, or an uncertain outcome without automatically redispatching.
 
-## Try The Demo
-
-Requires Go 1.26.7 or later and Python 3 for the sample agent. From a source checkout:
-
-```sh
-go build -o bin/circuit ./cmd/circuit
-bin/circuit gateway demo
-```
-
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080) and enter the public demo operator token printed by the command. In another terminal:
-
-```sh
-python3 examples/github-agent.py --demo
-```
-
-Review file-write and merge proposals in the interface. This simulation never contacts GitHub and needs no real credentials. For a reproducible candidate checkout, use the `v0.2.0-rc.2` tag. See [Getting Started](docs/getting-started.md) for installation and next steps.
-
 ## What Circuit Enforces
 
 | Control | Behavior |
@@ -146,7 +156,7 @@ Use existing Streamable HTTP MCP servers or fixed REST routes through the [middl
 
 For custom behavior, provider plugins run as separate services using the versioned [plugin contract](docs/plugin-contract.md). Policy, approvals, budgets, durable claims, and audit remain in the trusted core. Registering a plugin does not automatically make its provider production-supported.
 
-Current source accepts governed MCP/REST transports and plugins under `--production`; rc.2 downloads do not contain these additions.
+v0.2.0 accepts governed MCP/REST transports and plugins under `--production`; rc.2 downloads do not contain these additions.
 
 | Area | Tested scope and boundary |
 | --- | --- |
