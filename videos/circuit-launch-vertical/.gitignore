@@ -16,3 +16,4 @@ build-scenes.py
 audio-revision.log
 registry-revision.json
 render*.log
+.waveform-cache/
