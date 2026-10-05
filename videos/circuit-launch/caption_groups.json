@@ -1,0 +1,862 @@
+{
+  "total_duration_s": 40.6,
+  "width": 1080,
+  "height": 1080,
+  "groups": [
+    {
+      "id": "caption-group-0",
+      "frame": 1,
+      "start": 0.05,
+      "end": 0.7,
+      "text": "Your agent",
+      "words": [
+        {
+          "id": "caption-word-0-0",
+          "text": "Your",
+          "start": 0.05,
+          "end": 0.31
+        },
+        {
+          "id": "caption-word-0-1",
+          "text": "agent",
+          "start": 0.31,
+          "end": 0.7
+        }
+      ]
+    },
+    {
+      "id": "caption-group-1",
+      "frame": 1,
+      "start": 0.7,
+      "end": 1.72,
+      "text": "can write files",
+      "words": [
+        {
+          "id": "caption-word-1-0",
+          "text": "can",
+          "start": 0.7,
+          "end": 0.93
+        },
+        {
+          "id": "caption-word-1-1",
+          "text": "write",
+          "start": 0.93,
+          "end": 1.32
+        },
+        {
+          "id": "caption-word-1-2",
+          "text": "files",
+          "start": 1.32,
+          "end": 1.72
+        }
+      ]
+    },
+    {
+      "id": "caption-group-2",
+      "frame": 1,
+      "start": 1.72,
+      "end": 2.9,
+      "text": "and merge pull",
+      "words": [
+        {
+          "id": "caption-word-2-0",
+          "text": "and",
+          "start": 1.72,
+          "end": 2
+        },
+        {
+          "id": "caption-word-2-1",
+          "text": "merge",
+          "start": 2,
+          "end": 2.47
+        },
+        {
+          "id": "caption-word-2-2",
+          "text": "pull",
+          "start": 2.47,
+          "end": 2.81
+        }
+      ]
+    },
+    {
+      "id": "caption-group-3",
+      "frame": 1,
+      "start": 2.9,
+      "end": 3.65,
+      "text": "requests.",
+      "words": [
+        {
+          "id": "caption-word-3-0",
+          "text": "requests.",
+          "start": 2.9,
+          "end": 3.6
+        }
+      ]
+    },
+    {
+      "id": "caption-group-4",
+      "frame": 1,
+      "start": 3.65,
+      "end": 4.28,
+      "text": "What stops",
+      "words": [
+        {
+          "id": "caption-word-4-0",
+          "text": "What",
+          "start": 3.65,
+          "end": 3.9
+        },
+        {
+          "id": "caption-word-4-1",
+          "text": "stops",
+          "start": 3.9,
+          "end": 4.28
+        }
+      ]
+    },
+    {
+      "id": "caption-group-5",
+      "frame": 1,
+      "start": 4.28,
+      "end": 5.38,
+      "text": "one wrong action",
+      "words": [
+        {
+          "id": "caption-word-5-0",
+          "text": "one",
+          "start": 4.28,
+          "end": 4.51
+        },
+        {
+          "id": "caption-word-5-1",
+          "text": "wrong",
+          "start": 4.51,
+          "end": 4.89
+        },
+        {
+          "id": "caption-word-5-2",
+          "text": "action",
+          "start": 4.89,
+          "end": 5.38
+        }
+      ]
+    },
+    {
+      "id": "caption-group-6",
+      "frame": 1,
+      "start": 5.38,
+      "end": 6.29,
+      "text": "from becoming",
+      "words": [
+        {
+          "id": "caption-word-6-0",
+          "text": "from",
+          "start": 5.38,
+          "end": 5.66
+        },
+        {
+          "id": "caption-word-6-1",
+          "text": "becoming",
+          "start": 5.66,
+          "end": 6.21
+        }
+      ]
+    },
+    {
+      "id": "caption-group-7",
+      "frame": 1,
+      "start": 6.29,
+      "end": 7.38,
+      "text": "a real change?",
+      "words": [
+        {
+          "id": "caption-word-7-0",
+          "text": "a",
+          "start": 6.29,
+          "end": 6.3
+        },
+        {
+          "id": "caption-word-7-1",
+          "text": "real",
+          "start": 6.3,
+          "end": 6.57
+        },
+        {
+          "id": "caption-word-7-2",
+          "text": "change?",
+          "start": 6.57,
+          "end": 7.26
+        }
+      ]
+    },
+    {
+      "id": "caption-group-8",
+      "frame": 2,
+      "start": 7.87,
+      "end": 8.51,
+      "text": "Circuit puts",
+      "words": [
+        {
+          "id": "caption-word-8-0",
+          "text": "Circuit",
+          "start": 7.87,
+          "end": 8.22
+        },
+        {
+          "id": "caption-word-8-1",
+          "text": "puts",
+          "start": 8.31,
+          "end": 8.51
+        }
+      ]
+    },
+    {
+      "id": "caption-group-9",
+      "frame": 2,
+      "start": 8.51,
+      "end": 9.56,
+      "text": "a governed gateway",
+      "words": [
+        {
+          "id": "caption-word-9-0",
+          "text": "a",
+          "start": 8.51,
+          "end": 8.57
+        },
+        {
+          "id": "caption-word-9-1",
+          "text": "governed",
+          "start": 8.57,
+          "end": 9.03
+        },
+        {
+          "id": "caption-word-9-2",
+          "text": "gateway",
+          "start": 9.09,
+          "end": 9.56
+        }
+      ]
+    },
+    {
+      "id": "caption-group-10",
+      "frame": 2,
+      "start": 9.56,
+      "end": 10.6,
+      "text": "between your agent",
+      "words": [
+        {
+          "id": "caption-word-10-0",
+          "text": "between",
+          "start": 9.56,
+          "end": 9.88
+        },
+        {
+          "id": "caption-word-10-1",
+          "text": "your",
+          "start": 9.88,
+          "end": 10.2
+        },
+        {
+          "id": "caption-word-10-2",
+          "text": "agent",
+          "start": 10.2,
+          "end": 10.55
+        }
+      ]
+    },
+    {
+      "id": "caption-group-11",
+      "frame": 2,
+      "start": 10.6,
+      "end": 12.03,
+      "text": "and its tools.",
+      "words": [
+        {
+          "id": "caption-word-11-0",
+          "text": "and",
+          "start": 10.6,
+          "end": 10.88
+        },
+        {
+          "id": "caption-word-11-1",
+          "text": "its",
+          "start": 10.94,
+          "end": 11.25
+        },
+        {
+          "id": "caption-word-11-2",
+          "text": "tools.",
+          "start": 11.27,
+          "end": 11.96
+        }
+      ]
+    },
+    {
+      "id": "caption-group-12",
+      "frame": 2,
+      "start": 12.03,
+      "end": 12.63,
+      "text": "You control",
+      "words": [
+        {
+          "id": "caption-word-12-0",
+          "text": "You",
+          "start": 12.03,
+          "end": 12.16
+        },
+        {
+          "id": "caption-word-12-1",
+          "text": "control",
+          "start": 12.16,
+          "end": 12.63
+        }
+      ]
+    },
+    {
+      "id": "caption-group-13",
+      "frame": 2,
+      "start": 12.63,
+      "end": 13.03,
+      "text": "what it",
+      "words": [
+        {
+          "id": "caption-word-13-0",
+          "text": "what",
+          "start": 12.63,
+          "end": 12.9
+        },
+        {
+          "id": "caption-word-13-1",
+          "text": "it",
+          "start": 12.9,
+          "end": 13.03
+        }
+      ]
+    },
+    {
+      "id": "caption-group-14",
+      "frame": 2,
+      "start": 13.03,
+      "end": 13.87,
+      "text": "can execute.",
+      "words": [
+        {
+          "id": "caption-word-14-0",
+          "text": "can",
+          "start": 13.03,
+          "end": 13.18
+        },
+        {
+          "id": "caption-word-14-1",
+          "text": "execute.",
+          "start": 13.25,
+          "end": 13.75
+        }
+      ]
+    },
+    {
+      "id": "caption-group-15",
+      "frame": 3,
+      "start": 14.85,
+      "end": 16.33,
+      "text": "Requests pass scope,",
+      "words": [
+        {
+          "id": "caption-word-15-0",
+          "text": "Requests",
+          "start": 14.85,
+          "end": 15.46
+        },
+        {
+          "id": "caption-word-15-1",
+          "text": "pass",
+          "start": 15.46,
+          "end": 15.79
+        },
+        {
+          "id": "caption-word-15-2",
+          "text": "scope,",
+          "start": 15.79,
+          "end": 16.21
+        }
+      ]
+    },
+    {
+      "id": "caption-group-16",
+      "frame": 3,
+      "start": 16.51,
+      "end": 17.01,
+      "text": "policy,",
+      "words": [
+        {
+          "id": "caption-word-16-0",
+          "text": "policy,",
+          "start": 16.51,
+          "end": 17.01
+        }
+      ]
+    },
+    {
+      "id": "caption-group-17",
+      "frame": 3,
+      "start": 17.01,
+      "end": 18.59,
+      "text": "and budget checks.",
+      "words": [
+        {
+          "id": "caption-word-17-0",
+          "text": "and",
+          "start": 17.01,
+          "end": 17.25
+        },
+        {
+          "id": "caption-word-17-1",
+          "text": "budget",
+          "start": 17.25,
+          "end": 17.74
+        },
+        {
+          "id": "caption-word-17-2",
+          "text": "checks.",
+          "start": 17.74,
+          "end": 18.54
+        }
+      ]
+    },
+    {
+      "id": "caption-group-18",
+      "frame": 3,
+      "start": 18.59,
+      "end": 19.93,
+      "text": "Sensitive actions wait for",
+      "words": [
+        {
+          "id": "caption-word-18-0",
+          "text": "Sensitive",
+          "start": 18.59,
+          "end": 19.15
+        },
+        {
+          "id": "caption-word-18-1",
+          "text": "actions",
+          "start": 19.15,
+          "end": 19.63
+        },
+        {
+          "id": "caption-word-18-2",
+          "text": "wait",
+          "start": 19.63,
+          "end": 19.82
+        },
+        {
+          "id": "caption-word-18-3",
+          "text": "for",
+          "start": 19.92,
+          "end": 19.93
+        }
+      ]
+    },
+    {
+      "id": "caption-group-19",
+      "frame": 3,
+      "start": 19.93,
+      "end": 20.61,
+      "text": "a human",
+      "words": [
+        {
+          "id": "caption-word-19-0",
+          "text": "a",
+          "start": 19.93,
+          "end": 20.25
+        },
+        {
+          "id": "caption-word-19-1",
+          "text": "human",
+          "start": 20.25,
+          "end": 20.56
+        }
+      ]
+    },
+    {
+      "id": "caption-group-20",
+      "frame": 3,
+      "start": 20.61,
+      "end": 21.14,
+      "text": "to review",
+      "words": [
+        {
+          "id": "caption-word-20-0",
+          "text": "to",
+          "start": 20.61,
+          "end": 20.68
+        },
+        {
+          "id": "caption-word-20-1",
+          "text": "review",
+          "start": 20.74,
+          "end": 21.06
+        }
+      ]
+    },
+    {
+      "id": "caption-group-21",
+      "frame": 3,
+      "start": 21.14,
+      "end": 22.5,
+      "text": "the exact payload.",
+      "words": [
+        {
+          "id": "caption-word-21-0",
+          "text": "the",
+          "start": 21.14,
+          "end": 21.32
+        },
+        {
+          "id": "caption-word-21-1",
+          "text": "exact",
+          "start": 21.32,
+          "end": 21.67
+        },
+        {
+          "id": "caption-word-21-2",
+          "text": "payload.",
+          "start": 21.67,
+          "end": 22.38
+        }
+      ]
+    },
+    {
+      "id": "caption-group-22",
+      "frame": 4,
+      "start": 23.3,
+      "end": 24.45,
+      "text": "After approval,",
+      "words": [
+        {
+          "id": "caption-word-22-0",
+          "text": "After",
+          "start": 23.3,
+          "end": 23.59
+        },
+        {
+          "id": "caption-word-22-1",
+          "text": "approval,",
+          "start": 23.59,
+          "end": 24.33
+        }
+      ]
+    },
+    {
+      "id": "caption-group-23",
+      "frame": 4,
+      "start": 24.47,
+      "end": 26.55,
+      "text": "circuit executes with gateway-held",
+      "words": [
+        {
+          "id": "caption-word-23-0",
+          "text": "circuit",
+          "start": 24.47,
+          "end": 24.84
+        },
+        {
+          "id": "caption-word-23-1",
+          "text": "executes",
+          "start": 24.95,
+          "end": 25.56
+        },
+        {
+          "id": "caption-word-23-2",
+          "text": "with",
+          "start": 25.56,
+          "end": 25.81
+        },
+        {
+          "id": "caption-word-23-3",
+          "text": "gateway-held",
+          "start": 25.81,
+          "end": 26.55
+        }
+      ]
+    },
+    {
+      "id": "caption-group-24",
+      "frame": 4,
+      "start": 26.55,
+      "end": 27.47,
+      "text": "credentials",
+      "words": [
+        {
+          "id": "caption-word-24-0",
+          "text": "credentials",
+          "start": 26.55,
+          "end": 27.35
+        }
+      ]
+    },
+    {
+      "id": "caption-group-25",
+      "frame": 4,
+      "start": 27.56,
+      "end": 28.16,
+      "text": "and records",
+      "words": [
+        {
+          "id": "caption-word-25-0",
+          "text": "and",
+          "start": 27.56,
+          "end": 27.65
+        },
+        {
+          "id": "caption-word-25-1",
+          "text": "records",
+          "start": 27.65,
+          "end": 28.16
+        }
+      ]
+    },
+    {
+      "id": "caption-group-26",
+      "frame": 4,
+      "start": 28.16,
+      "end": 29.52,
+      "text": "the result.",
+      "words": [
+        {
+          "id": "caption-word-26-0",
+          "text": "the",
+          "start": 28.16,
+          "end": 28.24
+        },
+        {
+          "id": "caption-word-26-1",
+          "text": "result.",
+          "start": 28.24,
+          "end": 29.42
+        }
+      ]
+    },
+    {
+      "id": "caption-group-27",
+      "frame": 4,
+      "start": 29.52,
+      "end": 30.03,
+      "text": "Merges bind",
+      "words": [
+        {
+          "id": "caption-word-27-0",
+          "text": "Merges",
+          "start": 29.52,
+          "end": 29.78
+        },
+        {
+          "id": "caption-word-27-1",
+          "text": "bind",
+          "start": 29.78,
+          "end": 30
+        }
+      ]
+    },
+    {
+      "id": "caption-group-28",
+      "frame": 4,
+      "start": 30.03,
+      "end": 30.44,
+      "text": "to the",
+      "words": [
+        {
+          "id": "caption-word-28-0",
+          "text": "to",
+          "start": 30.03,
+          "end": 30.15
+        },
+        {
+          "id": "caption-word-28-1",
+          "text": "the",
+          "start": 30.15,
+          "end": 30.32
+        }
+      ]
+    },
+    {
+      "id": "caption-group-29",
+      "frame": 4,
+      "start": 30.69,
+      "end": 31.54,
+      "text": "approved commit.",
+      "words": [
+        {
+          "id": "caption-word-29-0",
+          "text": "approved",
+          "start": 30.69,
+          "end": 30.82
+        },
+        {
+          "id": "caption-word-29-1",
+          "text": "commit.",
+          "start": 30.82,
+          "end": 31.42
+        }
+      ]
+    },
+    {
+      "id": "caption-group-30",
+      "frame": 5,
+      "start": 32.48,
+      "end": 34.1,
+      "text": "Keep agents moving,",
+      "words": [
+        {
+          "id": "caption-word-30-0",
+          "text": "Keep",
+          "start": 32.48,
+          "end": 32.75
+        },
+        {
+          "id": "caption-word-30-1",
+          "text": "agents",
+          "start": 32.75,
+          "end": 33.27
+        },
+        {
+          "id": "caption-word-30-2",
+          "text": "moving,",
+          "start": 33.27,
+          "end": 34
+        }
+      ]
+    },
+    {
+      "id": "caption-group-31",
+      "frame": 5,
+      "start": 34.1,
+      "end": 35.24,
+      "text": "keep control.",
+      "words": [
+        {
+          "id": "caption-word-31-0",
+          "text": "keep",
+          "start": 34.1,
+          "end": 34.41
+        },
+        {
+          "id": "caption-word-31-1",
+          "text": "control.",
+          "start": 34.41,
+          "end": 35.16
+        }
+      ]
+    },
+    {
+      "id": "caption-group-32",
+      "frame": 5,
+      "start": 35.24,
+      "end": 35.9,
+      "text": "Circuit is",
+      "words": [
+        {
+          "id": "caption-word-32-0",
+          "text": "Circuit",
+          "start": 35.24,
+          "end": 35.74
+        },
+        {
+          "id": "caption-word-32-1",
+          "text": "is",
+          "start": 35.74,
+          "end": 35.9
+        }
+      ]
+    },
+    {
+      "id": "caption-group-33",
+      "frame": 5,
+      "start": 35.9,
+      "end": 36.98,
+      "text": "open source and",
+      "words": [
+        {
+          "id": "caption-word-33-0",
+          "text": "open",
+          "start": 35.9,
+          "end": 36.22
+        },
+        {
+          "id": "caption-word-33-1",
+          "text": "source",
+          "start": 36.22,
+          "end": 36.73
+        },
+        {
+          "id": "caption-word-33-2",
+          "text": "and",
+          "start": 36.73,
+          "end": 36.98
+        }
+      ]
+    },
+    {
+      "id": "caption-group-34",
+      "frame": 5,
+      "start": 36.98,
+      "end": 38,
+      "text": "self-hosted.",
+      "words": [
+        {
+          "id": "caption-word-34-0",
+          "text": "self-hosted.",
+          "start": 36.98,
+          "end": 37.92
+        }
+      ]
+    },
+    {
+      "id": "caption-group-35",
+      "frame": 5,
+      "start": 38,
+      "end": 38.44,
+      "text": "Try the",
+      "words": [
+        {
+          "id": "caption-word-35-0",
+          "text": "Try",
+          "start": 38,
+          "end": 38.16
+        },
+        {
+          "id": "caption-word-35-1",
+          "text": "the",
+          "start": 38.2,
+          "end": 38.44
+        }
+      ]
+    },
+    {
+      "id": "caption-group-36",
+      "frame": 5,
+      "start": 38.44,
+      "end": 39.86,
+      "text": "demo on GitHub.",
+      "words": [
+        {
+          "id": "caption-word-36-0",
+          "text": "demo",
+          "start": 38.44,
+          "end": 38.78
+        },
+        {
+          "id": "caption-word-36-1",
+          "text": "on",
+          "start": 38.78,
+          "end": 38.95
+        },
+        {
+          "id": "caption-word-36-2",
+          "text": "GitHub.",
+          "start": 38.95,
+          "end": 39.74
+        }
+      ]
+    }
+  ]
+}

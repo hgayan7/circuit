@@ -1,0 +1,1 @@
+Your agent can write files and merge pull requests. What stops one wrong action from becoming a real change?

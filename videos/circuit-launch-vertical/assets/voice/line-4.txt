@@ -1,0 +1,1 @@
+After approval, Circuit executes with gateway-held credentials and records the result. Merges bind to the approved commit.

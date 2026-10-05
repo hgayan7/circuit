@@ -1,0 +1,15 @@
+renders/
+snapshots*/
+capture-live-*/
+capture/
+.hyperframes/
+.media-cache/
+.media-temp/
+check-result.json
+capture-*-result.json
+render.log
+meta.json
+CLAUDE.md
+build-scenes.py
+.media/
+.thumbnails/

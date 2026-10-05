@@ -1,0 +1,31 @@
+{
+  "provider": "kokoro",
+  "voice": "am_michael",
+  "lang": "en",
+  "speed": 1.05,
+  "lines": [
+    {
+      "id": "1",
+      "text": "Your agent can write files and merge pull requests. What stops one wrong action from becoming a real change?"
+    },
+    {
+      "id": "2",
+      "text": "Circuit puts a governed gateway between your agent and its tools. You control what it can execute."
+    },
+    {
+      "id": "3",
+      "text": "Requests pass scope, policy, and budget checks. Sensitive actions wait for a human to review the exact payload."
+    },
+    {
+      "id": "4",
+      "text": "After approval, Circuit executes with gateway-held credentials and records the result. Merges bind to the approved commit."
+    },
+    {
+      "id": "5",
+      "text": "Keep agents moving. Keep control. Circuit is open source and self-hosted. Try the demo on GitHub."
+    }
+  ],
+  "bgm": {
+    "mode": "none"
+  }
+}
