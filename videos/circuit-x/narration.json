@@ -1,0 +1,43 @@
+{
+  "provider": "kokoro",
+  "voice": "am_michael",
+  "speed": 1.15,
+  "lines": [
+    {
+      "id": "keys",
+      "text": "Who holds your agent's keys?",
+      "start": 0.25,
+      "slot": 2.65
+    },
+    {
+      "id": "tools",
+      "text": "Write. Merge. Deploy.",
+      "start": 3.35,
+      "slot": 2.5
+    },
+    {
+      "id": "hit",
+      "text": "Meet Circuit.",
+      "start": 6.25,
+      "slot": 1.65
+    },
+    {
+      "id": "boundary",
+      "text": "Scoped requests. Gateway-held credentials. Isolated in Docker.",
+      "start": 8.35,
+      "slot": 4.5
+    },
+    {
+      "id": "proof",
+      "text": "Every action recorded. Approval when required.",
+      "start": 13.25,
+      "slot": 3.65
+    },
+    {
+      "id": "close",
+      "text": "Give agents tools. Keep control. Circuit. Open source. Self-hosted.",
+      "start": 17.2,
+      "slot": 4.65
+    }
+  ]
+}

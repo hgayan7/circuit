@@ -1,6 +1,6 @@
 # Circuit X cut
 
-22 seconds · 1080×1080 · 30 fps · original 120 BPM score · readable without sound.
+22 seconds · 1080×1080 · 30 fps · local Kokoro voiceover · original 120 BPM score · readable without sound.
 
 A separate revision of `../circuit-launch`, built for X on 2026-10-09. It preserves the prior launch composition and exports. This project pins HyperFrames 0.8.143; the prior launch remains on 0.8.134.
 
@@ -17,3 +17,5 @@ The mechanism is an explanatory diagram of configured Docker isolation. The capt
 `BRIEF.md` records intent and claims; `STORYBOARD.md` records the six beats; `MEDIA.md` records provenance. The opening headline and final CTA have explicit motion assertions in `index.motion.json`. `python3 scripts/soundtrack.py` recreates the original score without dependencies.
 
 Catalog primitives: rgb-glitch-text, kinetic-type-swap, logo-brand-close. Their source recipes are retained under `compositions/components`; the scenes adapt the motion to Circuit's copy, gold palette, and square framing.
+
+Narration: `scripts/narration.py` regenerates the six clips from `narration.json`. Set `HYPERFRAMES_PYTHON` to a Python environment with `kokoro-onnx` and `soundfile` if the default Python does not have them. All clips fit their scene slots without truncation. Visible scene numbering was removed.
