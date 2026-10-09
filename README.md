@@ -12,11 +12,11 @@ For example, let an engineering agent read two repositories and open up to five 
 
 ## Watch Circuit
 
-A 29-second overview of sandbox isolation, gateway-only networking, credential separation, and governed tool execution.
+A 22-second cinematic introduction to scoped agent access, gateway-held credentials, configured Docker isolation, and recorded execution.
 
-https://github.com/user-attachments/assets/86937f3e-4a18-4ef1-a18a-2a73efadcea3
+https://github.com/user-attachments/assets/fb2ec505-0782-4ce7-bae7-3df1291683c1
 
-The sandbox is an explanatory diagram; the interface results are from the local simulation below.
+The 3D scenes explain the boundary; the recorded interface results are from the local simulation below. Docker isolation requires configuration; installing the SDK alone does not provide isolation.
 
 ## Try The Demo
 

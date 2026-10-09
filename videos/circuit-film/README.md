@@ -10,7 +10,7 @@ npm run check -- --timeout 30000 --samples 15 --snapshots
 npm run render -- --skill=product-launch-video --quality high --output renders/video.mp4
 ```
 
-Delivery rendering waits for approval of the Studio preview. Source is pinned to HyperFrames 0.8.143. The catalog blocks carry separate Three.js runtimes; validation reports duplicate-runtime warnings and two source-size warnings. The glass matcap exceeds the bundle inline limit, so keep the project assets alongside the source when moving it. The local preview loads those assets successfully.
+The approved delivery export is `renders/circuit-film.mp4`: H.264/AAC, 1920×1080, 30 fps, 22.0 seconds. The README web copy is `../../assets/circuit-launch.mp4` (5.3 MB, 22.016 seconds with AAC frame rounding). Source is pinned to HyperFrames 0.8.143. The catalog blocks carry separate Three.js runtimes; validation reports duplicate-runtime warnings and two source-size warnings. The glass matcap exceeds the bundle inline limit, so keep the project assets alongside the source when moving it. The local preview loads those assets successfully.
 
 The footage illustrates Circuit. The recorded results are explicitly labelled a local simulation. Docker isolation requires configuration; the SDK alone does not provide isolation. The square `../circuit-x` project is preserved.
 

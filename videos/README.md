@@ -1,4 +1,8 @@
-# Circuit launch video
+# Circuit videos
+
+The current README video is `circuit-film`: a 22-second, 1920 × 1080 cinematic promo using catalog 3D scenes, local Kokoro narration, and an original score. Its editable source, timing, and provenance are in [circuit-film](circuit-film/README.md). `assets/circuit-launch.mp4` at the repository root is the published README video.
+
+The earlier projects below remain available for editing.
 
 Two editable HyperFrames projects explain what Circuit solves and how it works:
 
