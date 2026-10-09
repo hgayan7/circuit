@@ -1,0 +1,70 @@
+{
+  "provider": "kokoro",
+  "voice": "am_michael",
+  "speed": 1.08,
+  "lines": [
+    {
+      "id": "act",
+      "text": "An agent can act.",
+      "start": 0.4,
+      "slot": 2.1,
+      "duration": 1.4933,
+      "path": "assets/voice/act.wav",
+      "end": 1.8933
+    },
+    {
+      "id": "keys",
+      "text": "Who holds the keys?",
+      "start": 3,
+      "slot": 2.6,
+      "duration": 1.3227,
+      "path": "assets/voice/keys.wav",
+      "end": 4.3227
+    },
+    {
+      "id": "consequence",
+      "text": "Every request has consequences.",
+      "start": 6.2,
+      "slot": 3.4,
+      "duration": 1.9413,
+      "path": "assets/voice/consequence.wav",
+      "end": 8.1413
+    },
+    {
+      "id": "gateway",
+      "text": "Circuit. Scoped requests. Gateway-held credentials.",
+      "start": 10.4,
+      "slot": 3.5,
+      "duration": 3.392,
+      "path": "assets/voice/gateway.wav",
+      "end": 13.792
+    },
+    {
+      "id": "isolate",
+      "text": "Isolate in Docker. Record every action.",
+      "start": 14,
+      "slot": 2.9,
+      "duration": 2.88,
+      "path": "assets/voice/isolate.wav",
+      "end": 16.88
+    },
+    {
+      "id": "control",
+      "text": "Give agents tools. Keep control.",
+      "start": 18,
+      "slot": 2.5,
+      "duration": 2.432,
+      "path": "assets/voice/control.wav",
+      "end": 20.432
+    },
+    {
+      "id": "brand",
+      "text": "Circuit.",
+      "start": 20.7,
+      "slot": 1.0,
+      "duration": 0.832,
+      "path": "assets/voice/brand.wav",
+      "end": 21.532
+    }
+  ]
+}

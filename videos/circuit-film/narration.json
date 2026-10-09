@@ -1,0 +1,49 @@
+{
+  "provider": "kokoro",
+  "voice": "am_michael",
+  "speed": 1.08,
+  "lines": [
+    {
+      "id": "act",
+      "text": "An agent can act.",
+      "start": 0.4,
+      "slot": 2.1
+    },
+    {
+      "id": "keys",
+      "text": "Who holds the keys?",
+      "start": 3,
+      "slot": 2.6
+    },
+    {
+      "id": "consequence",
+      "text": "Every request has consequences.",
+      "start": 6.2,
+      "slot": 3.4
+    },
+    {
+      "id": "gateway",
+      "text": "Circuit. Scoped requests. Gateway-held credentials.",
+      "start": 10.4,
+      "slot": 3.5
+    },
+    {
+      "id": "isolate",
+      "text": "Isolate in Docker. Record every action.",
+      "start": 14,
+      "slot": 2.9
+    },
+    {
+      "id": "control",
+      "text": "Give agents tools. Keep control.",
+      "start": 18,
+      "slot": 2.5
+    },
+    {
+      "id": "brand",
+      "text": "Circuit.",
+      "start": 20.7,
+      "slot": 1.0
+    }
+  ]
+}

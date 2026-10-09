@@ -1,0 +1,9 @@
+{
+  "$schema": "https://hyperframes.heygen.com/schema/hyperframes.json",
+  "authoringSkill": "product-launch-video",
+  "paths": {
+    "blocks": "compositions",
+    "components": "compositions/components",
+    "assets": "assets"
+  }
+}
