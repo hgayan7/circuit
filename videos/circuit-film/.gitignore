@@ -4,3 +4,4 @@ snapshots/
 .thumbnails/
 .waveform-cache/
 *.mp4
+renders/

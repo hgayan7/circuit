@@ -276,6 +276,7 @@
          hf-seek CustomEvent instead — re-sync and repaint so the stage follows. */
       window.addEventListener("hf-seek", function (event) {
         var d = event && event.detail;
+        if (d && (d.time < 0 || d.time >= 6)) return;
         if (d && typeof d.time === "number")
           tl.totalTime(Math.min(d.time, tl.totalDuration()), true);
         var fn = tl.eventCallback("onUpdate");

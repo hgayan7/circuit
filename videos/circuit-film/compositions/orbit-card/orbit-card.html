@@ -68,6 +68,7 @@
       });
       window.addEventListener("hf-seek", (event) => {
         if (typeof event.detail?.time === "number") {
+          if (event.detail.time < 10 || event.detail.time >= 17) return;
           timeline.totalTime(Math.max(0, Math.min(7, event.detail.time - 10)), true);
           renderAt(Math.max(0, Math.min(7, event.detail.time - 10)) * 1.22);
         }

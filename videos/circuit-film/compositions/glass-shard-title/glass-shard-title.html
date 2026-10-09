@@ -275,6 +275,7 @@
            is identical and removeEventListener actually matches. */
         function gstOnSeek(event) {
           var d = event && event.detail;
+          if (d && (d.time < 17 || d.time > 22)) return;
           if (d && typeof d.time === "number")
             tl.totalTime(Math.max(0, Math.min(d.time - 17, tl.totalDuration())), true);
           var fn = tl.eventCallback("onUpdate");

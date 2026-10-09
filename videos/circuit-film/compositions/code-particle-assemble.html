@@ -316,6 +316,7 @@ window.__TOKENS = {"assemble": {"states": [{"code": "WRITE.\nMERGE.\nDEPLOY.", "
             render(); // paint frame 0
             window.addEventListener("hf-seek", function(event){
               if (typeof event.detail?.time === "number") {
+                if (event.detail.time < 6 || event.detail.time >= 10) return;
                 tl.totalTime(Math.max(0,Math.min(4,event.detail.time-6)),true);
                 render();
               }
