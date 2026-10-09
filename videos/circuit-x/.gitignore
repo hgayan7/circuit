@@ -1,0 +1,6 @@
+.hyperframes/
+.media/
+snapshots/
+*.mp4
+.thumbnails/
+.waveform-cache/
