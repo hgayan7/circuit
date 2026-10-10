@@ -10,6 +10,10 @@ This policy defines the supported contract. It is not a claim that every previou
 - Clients must inspect `action.state`, not just HTTP success. Unknown states, uncertain outcomes, and unexpected responses stop automation. Stable idempotency keys identify one logical request; never create a new key to recover an uncertain write.
 - Maintained facades are qualified together with the candidate gateway. Other generated bindings need their own TLS, timeout, state, and no-redispatch acceptance tests.
 
+## Current-source policy change after v0.2.0
+
+Explicit matching gateway ALLOW rules now override built-in and target approval defaults. DENY and matching REQUIRE_APPROVAL rules still take precedence; scope, safety checks, budgets, provider preconditions, and uncertain-write protections remain enforced. Review existing broad ALLOW rules before upgrading because they can now authorize writes that previously required review. Configurations without matching ALLOW rules keep their defaults. Published v0.2.0 binaries retain the old behavior. See [gateway policy](gateway-policy.md) for examples and migration guidance.
+
 ## Supported Deployment Boundary
 
 One process owns each bbolt state file. The locally tested enforced deployment uses Docker Linux containers with `runc`, gateway-only TCP/8443 egress, read-only workspace mounts, and separate provider/operator credentials. Native Windows, distributed replicas, other runtimes, and equivalent Kubernetes/VM isolation are not qualified by these tests.

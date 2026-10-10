@@ -1,15 +1,15 @@
 # Circuit Workspace & Shell Action Gateway
 
-Circuit provides root-scoped file operations and approval-gated local shell execution. File operations use Go's `os.Root`; shell execution is not an OS sandbox and can access the host outside the workspace. Use an independently configured OS sandbox before relying on shell isolation.
+Circuit provides root-scoped file operations and local shell execution with approval by default. File operations use Go's `os.Root`; shell execution is not an OS sandbox and can access the host outside the workspace. Use an independently configured OS sandbox before relying on shell isolation.
 
-Like the GitHub adapter, the gateway holds execution authority. Each agent receives explicit workspace allowlists, operation permissions, durable call quotas, and mandatory operator approval for destructive operations.
+Like the GitHub adapter, the gateway holds execution authority. Each agent receives explicit workspace allowlists, operation permissions, durable call quotas, and operator approval defaults for destructive operations. On current source after v0.2.0, [explicit gateway rules](gateway-policy.md) can authorize these operations automatically; scope, read-only restrictions, and external sandbox requirements still apply.
 
 ## Capabilities
 
 - **File Root Boundaries:** File operations are constrained to an explicit local directory root, including protection against symlink replacement races. Hard links, bind mounts, and independently privileged processes remain deployment concerns.
-- **Shell Review:** Every `exec_cmd` requires approval of the exact command, including interpreters and redirects. AST inspection adds review context but is not a security boundary. The shell receives a minimal PATH/HOME/TMPDIR environment, not gateway provider or operator credentials.
+- **Shell Review:** Every `exec_cmd` defaults to approval of the exact command, including interpreters and redirects; an explicit matching ALLOW rule can authorize it automatically. AST inspection adds review context but is not a security boundary. The shell receives a minimal PATH/HOME/TMPDIR environment, not gateway provider or operator credentials.
 - **Controlled File Mutations:** 
-  - `write_file` performs atomic writes with parent directory creation and 2 MiB bounds. Overwriting an existing file requires human operator approval.
+  - `write_file` performs atomic writes with parent directory creation and 2 MiB bounds. Overwriting an existing file defaults to human operator approval; an explicit matching ALLOW rule can authorize it automatically.
   - `delete_file` always requires operator review before deleting files or directories. Workspace roots cannot be deleted.
   - Workspaces marked `read_only: true` reject writes, deletion, and shell execution.
 - **Bounded Resource Limits:**
@@ -62,10 +62,10 @@ limits:
 
 | Operation | Required Arguments | Optional Arguments | Default Safety |
 | --- | --- | --- | --- |
-| `exec_cmd` | `command` | `cwd` (relative), `timeout_sec` | Every command requires approval; external sandbox required |
+| `exec_cmd` | `command` | `cwd` (relative), `timeout_sec` | Approval by default; explicit ALLOW supported; external sandbox required |
 | `read_file` | `path` (relative) | — | Allowed within workspace |
-| `write_file` | `path` (relative), `content` | `encoding` (`base64` or plain), `overwrite` (bool) | Overwrites require operator approval |
-| `delete_file` | `path` (relative) | `recursive` (bool) | Mandatory operator approval |
+| `write_file` | `path` (relative), `content` | `encoding` (`base64` or plain), `overwrite` (bool) | Overwrites default to approval; explicit ALLOW supported |
+| `delete_file` | `path` (relative) | `recursive` (bool) | Approval by default; explicit ALLOW supported |
 | `list_dir` | — | `path` (relative, default root) | Allowed within workspace |
 
 ## MCP Tools

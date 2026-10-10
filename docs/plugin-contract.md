@@ -24,7 +24,7 @@ agents:
 
 This is a nonproduction plugin pilot configuration. The initial `--production` profile remains GitHub-only until another integration passes its provider-specific release tests. Extensibility is not a claim that arbitrary plugins are production-safe.
 
-An agent sends an explicit `custom_tool: inventory`. The agent never selects the plugin URL, transport method, credential, or protocol version. Reserved built-in operation names cannot be shadowed. Unregistered operations and ambiguous implicit plugin targets are denied. Reads may run automatically only when the operator explicitly declares them read-only; all other plugin operations require exact approval. Additional rules and budgets still apply.
+An agent sends an explicit `custom_tool: inventory`. The agent never selects the plugin URL, transport method, credential, or protocol version. Reserved built-in operation names cannot be shadowed. Unregistered operations and ambiguous implicit plugin targets are denied. Declared read-only operations run automatically by default; other plugin operations default to exact approval. On current source after v0.2.0, a matching operator ALLOW rule can authorize a write automatically. Keep writes classified as mutating; matching REQUIRE_APPROVAL or DENY rules take precedence. See [gateway policy](gateway-policy.md). Additional rules and budgets still apply.
 
 The gateway sends a fixed POST with a gateway-only bearer credential and `Idempotency-Key` set to its durable action ID:
 

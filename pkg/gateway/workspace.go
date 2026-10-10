@@ -380,7 +380,7 @@ func (e *ShellExecutor) writeFile(_ context.Context, r Request) Outcome {
 	}
 	if err != nil {
 		if os.IsExist(err) {
-			return Outcome{Status: 409, Error: "file exists; resubmit with overwrite: true for operator approval"}
+			return Outcome{Status: 409, Error: "file exists; resubmit with overwrite: true for policy evaluation"}
 		}
 		return Outcome{Status: 500, Error: fmt.Sprintf("atomically replacing file: %v", err)}
 	}

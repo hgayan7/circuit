@@ -1,5 +1,7 @@
 # Circuit Proxy — How the Policy YAML Works
 
+This guide covers the legacy proxy/inspection schema. For autonomous agent actions through the gateway, use [gateway policy](gateway-policy.md), which combines all matching rules.
+
 A `circuit.yaml` file is your **rulebook**. Circuit reads it at startup,
 compiles every rule, and evaluates each intercepted request against them
 in order — the first rule that matches wins.

@@ -125,7 +125,7 @@ bin/circuit agent run --dir "$HOME/.circuit-operator" --image YOUR_AGENT_IMAGE \
 
 Replace the image, workspace, and command with your app's values. Use the same setup directory throughout: `--out` creates it; `--dir` selects it. The runner supplies the gateway URL, agent token, and public CA, and mounts the reviewed workspace read-only.
 
-**All network access must go through Circuit**, including model calls. The isolated runner permits only gateway TCP/8443. Model access must be a declared route/tool; Circuit does not automatically intercept an existing model SDK. REST POST requests require approval, including inference. See [model access](docs/isolated-agents.md#model-access) for autonomous inference options and cost-accounting limits.
+**All network access must go through Circuit**, including model calls. The isolated runner permits only gateway TCP/8443. Model access must be a declared route/tool; Circuit does not automatically intercept an existing model SDK. On current source after v0.2.0, an explicit gateway `ALLOW` rule can authorize REST POST requests, including inference, automatically. Unmatched writes default to approval. See [model access](docs/isolated-agents.md#model-access) for autonomous inference options and cost-accounting limits.
 
 ### Choose A Client
 
@@ -170,7 +170,7 @@ v0.2.0 accepts governed MCP/REST transports and plugins under `--production`; rc
 | --- | --- |
 | GitHub | Live fixture pilot: branches, files, PRs, merges, issues, App token refresh, approvals, budgets, isolated-agent execution, and signed webhook recovery. |
 | PostgreSQL | Real local/CI queries and mutations, row limits, transactional rollback, permission failures, and timeouts. Requires least-privilege roles and query-specific policies. The native executor remains outside `--production`. |
-| Workspace/files | Local root-scoped access, atomic writes, symlink-race protection, and bounded shell execution. Shell commands require approval and an external OS sandbox. Native workspace execution remains outside `--production`. |
+| Workspace/files | Local root-scoped access, atomic writes, symlink-race protection, and bounded shell execution. Shell commands default to approval, can be explicitly authorized by gateway rules, and require an external OS sandbox. Native workspace execution remains outside `--production`. |
 | Custom tools/plugins | Local HTTP/MCP integration and sidecar conformance tests. Each provider needs its own scope, credential-isolation, and recovery validation. |
 | Operational email/storage | Firing/resolved SMTP messages and authenticated S3-compatible upload/readback/recovery fixtures. Actual BYOK destinations require operator acceptance. |
 | Cloud, communication, payments | Simulation-only action adapters; no native provider execution. Operational alert email is separate from the simulated communication adapter. |
@@ -253,6 +253,7 @@ Recorded evidence covers [GitHub and local workflows](docs/validation-status.md)
 | Run a support-agent inventory workflow end to end | [Inventory replacement example](examples/inventory-support/README.md) |
 | Build a provider plugin | [Plugin contract](docs/plugin-contract.md) |
 | Operate, back up, and restore Circuit | [Deployment](docs/production-deployment.md) and [operations](docs/operations.md) |
+| Configure autonomous execution and approval rules | [Gateway policy](docs/gateway-policy.md) |
 | Check tested scope and release gates | [Validation status](docs/validation-status.md) and [release checklist](docs/release-checklist.md) |
 | Check compatibility or rehearse upgrades | [Compatibility policy](docs/compatibility.md) and [local artifact testing](docs/local-release-testing.md) |
 

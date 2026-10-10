@@ -6,11 +6,13 @@ This adapter is **simulation only**. It does not call Stripe, banks, or other pa
 - **Destination Allowlisting**: Outbound transfers (`transfer_funds`) are restricted to pre-approved beneficiary accounts configured in `allowed_destinations`.
 - **Per-Transaction Spending Limits**: `max_transaction_amount` enforces a hard ceiling on individual transfers or charges. Requests exceeding this are rejected at the policy engine before dispatch.
 - **Threshold-Based Human Approval**: Transactions exceeding `auto_approval_threshold` automatically pause and enter `pending` state, requiring cryptographic sign-off from authorized operators.
-- **Refund Governance**: `require_approval_for_refunds` flags all charge reversals and refunds for mandatory human review to prevent unauthorized charge manipulation.
+- **Refund Governance**: `require_approval_for_refunds` defaults charge reversals and refunds to human review to prevent unauthorized charge manipulation.
 - **Velocity Budgets**: Scoped limits (`account` and `agent_account`) constrain transaction frequency and prevent runaway loops.
 - **Zero-Dependency Simulation Mode**: Built-in mock ledger tracks balances, charges, refunds, and transaction history locally without requiring third-party credentials.
 
 ---
+
+On current source after v0.2.0, explicit matching gateway `ALLOW` rules can override payment approval defaults. Matching `REQUIRE_APPROVAL` and `DENY` rules take precedence; maximum transaction amounts and executor restrictions remain enforced. See [gateway policy](gateway-policy.md).
 
 ## Configuration
 

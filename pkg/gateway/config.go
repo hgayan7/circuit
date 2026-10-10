@@ -809,7 +809,12 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 			}
 		}
 	}
-	for _, rule := range c.Rules {
+	// Built-in and target approval settings are conservative defaults. Explicit
+	// operator rules may authorize autonomous execution, but never override a
+	// scope denial, a matching DENY, or another matching REQUIRE_APPROVAL.
+	var allowRule, approvalRule *Rule
+	for i := range c.Rules {
+		rule := &c.Rules[i]
 		if !member(rule.Actions, req.Operation) || (len(rule.Repositories) > 0 && !member(rule.Repositories, req.Repository)) {
 			continue
 		}
@@ -841,9 +846,23 @@ func (c *Config) evaluate(agentID string, req Request) (config.ActionType, strin
 			return config.ActionDeny, rule.Reason, nil
 		}
 		if rule.Action == config.ActionRequireApproval {
-			verdict = config.ActionRequireApproval
-			reason = rule.Reason
+			approvalRule = rule
+		} else if rule.Action == config.ActionAllow {
+			allowRule = rule
 		}
 	}
+	if approvalRule != nil {
+		return config.ActionRequireApproval, ruleReason(approvalRule), nil
+	}
+	if allowRule != nil {
+		return config.ActionAllow, ruleReason(allowRule), nil
+	}
 	return verdict, reason, nil
+}
+
+func ruleReason(rule *Rule) string {
+	if rule.Reason != "" {
+		return rule.Reason
+	}
+	return fmt.Sprintf("Policy rule %q: %s", rule.ID, rule.Action)
 }

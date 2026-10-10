@@ -131,7 +131,8 @@ limits:
 	require.EqualValues(t, 1, e.calls.Load())
 	a, err = s.Submit(context.Background(), "agent", "merge", mergeRequest())
 	require.NoError(t, err)
-	require.Equal(t, "pending", a.State)
+	require.Equal(t, "succeeded", a.State)
+	require.Equal(t, "policy", a.ApprovedBy)
 }
 func TestConcurrentIdempotencyDispatchesOnce(t *testing.T) {
 	e := &countingExecutor{}

@@ -4,13 +4,15 @@ This adapter is **simulation only**. It does not call cloud providers or Kuberne
 
 - **Environment Scoping**: Every action targets an isolated cloud environment (e.g. `staging`, `production`, `preview`, `dev`).
 - **Service Allowlisting**: Agents can only interact with services explicitly listed in `allowed_services`.
-- **Production Guardrails**: Any operation targeting an environment marked `production: true` automatically triggers **mandatory human operator approval**.
-- **Destructive Operation Protection**: Destructive operations like `rollback_deployment` or `scale_service` to 0 replicas require operator approval even in non-production environments.
+- **Production Guardrails**: Any operation targeting an environment marked `production: true` defaults to human operator approval.
+- **Destructive Operation Protection**: Destructive operations like `rollback_deployment` or `scale_service` to 0 replicas default to operator approval even in non-production environments.
 - **Replica Bounding**: `min_replicas` and `max_replicas` bounds prevent misconfigured scaling commands from causing outages or runaway cloud provider costs.
 - **Durable Budgets & Velocity Limits**: Scoped rate limits per `environment` or `agent_environment` prevent deployment loops or resource exhaustion.
 - **Zero-Dependency Simulation Mode**: Built-in simulated cloud provider for unit testing, CI pipelines, and prototyping without requiring live Kubernetes clusters or cloud credentials.
 
 ---
+
+On current source after v0.2.0, explicit matching gateway `ALLOW` rules can override these approval defaults. Matching `REQUIRE_APPROVAL` and `DENY` rules take precedence; configured scopes and executor limits remain enforced. See [gateway policy](gateway-policy.md).
 
 ## Configuration
 
@@ -76,7 +78,7 @@ Circuit exposes these actions over REST (`POST /v1/actions`) and the Model Conte
 | `rollback_deployment` | `cloud_rollback` | Rollback a service to its prior deployment revision. (Mandatory approval). | `service` | `environment` |
 | `restart_service` | `cloud_restart` | Trigger a rolling restart of pods/containers for a service. | `service` | `environment` |
 | `get_deployment_status` | `cloud_status` | Inspect current deployment revision, image, replicas, and status. | `service` | `environment` |
-| `scale_service` | `cloud_scale` | Scale replica count within configured min/max boundaries. (Scaling to 0 requires approval). | `service`, `replicas` | `environment` |
+| `scale_service` | `cloud_scale` | Scale replica count within configured min/max boundaries. (Scaling to 0 defaults to approval). | `service`, `replicas` | `environment` |
 
 ---
 

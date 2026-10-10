@@ -25,7 +25,7 @@ The complete suite passed with `go test -race ./...` and a real PostgreSQL DSN e
 - Cloud, communication, and payment targets require top-level `simulation: true`. Successful simulator bodies say `simulated: true`; provider state remains in memory, not the durable action store.
 - Database simulation requires `driver: mock`. Real databases need credentials and a successful startup connection check. An absent DSN never selects a simulator.
 - Custom simulation requires an explicit `mock:` or `sim:` endpoint. Empty endpoints fail.
-- Every shell command requires approval. Read-only workspaces reject shell execution. Shells do not inherit gateway credentials; this is not OS isolation.
+- Shell commands default to approval. On current source after v0.2.0, explicit gateway ALLOW rules can authorize supported actions automatically; see [gateway policy](gateway-policy.md). The recorded earlier pilots exercised the prior approval behavior. Read-only workspaces reject shell execution. Shells do not inherit gateway credentials; this is not OS isolation.
 - File replacement requires `overwrite: true` and approval. Implicit replacement returns a conflict.
 - Automatic webhook reconciliation is limited to merged PR events matching repository, PR number, and exact approved head SHA. Other uncertain actions require operator evidence.
 
