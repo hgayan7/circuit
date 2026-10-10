@@ -1,0 +1,34 @@
+{
+  "rules": [
+    {
+      "id": "automatic-search-and-holds",
+      "actions": ["search_showtimes", "hold_seats", "inspect_booking"],
+      "condition": "agent_id == 'agent' && custom_tool == 'booking'",
+      "action": "ALLOW"
+    },
+    {
+      "id": "automatic-small-purchase",
+      "actions": ["purchase_tickets"],
+      "condition": "agent_id == 'agent' && custom_tool == 'booking' && args.currency == 'INR' && args.amount_minor > 0 && args.amount_minor <= 200000",
+      "action": "ALLOW"
+    },
+    {
+      "id": "review-larger-purchase",
+      "actions": ["purchase_tickets"],
+      "condition": "custom_tool == 'booking' && args.amount_minor > 200000",
+      "action": "REQUIRE_APPROVAL",
+      "reason": "Purchases above INR 2000 need operator review in addition to customer consent"
+    },
+    {
+      "id": "block-invalid-or-excessive-purchase",
+      "actions": ["purchase_tickets"],
+      "condition": "args.currency != 'INR' || args.amount_minor <= 0 || args.amount_minor > 500000",
+      "action": "DENY",
+      "reason": "Only INR purchases up to 5000 are permitted"
+    }
+  ],
+  "limits": [
+    {"id": "all-actions", "actions": ["search_showtimes", "hold_seats", "purchase_tickets", "inspect_booking"], "scope": "agent", "window": "1h", "max_calls": 100},
+    {"id": "purchase-attempts", "actions": ["purchase_tickets"], "scope": "agent_custom_tool", "window": "1h", "max_calls": 10}
+  ]
+}

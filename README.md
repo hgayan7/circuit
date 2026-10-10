@@ -251,6 +251,7 @@ Recorded evidence covers [GitHub and local workflows](docs/validation-status.md)
 | Install or explore the demo | [Getting started](docs/getting-started.md) |
 | Register REST routes or MCP tools | [Middleware](docs/middleware.md) |
 | Run a support-agent inventory workflow end to end | [Inventory replacement example](examples/inventory-support/README.md) |
+| Run an autonomous booking chatbot with customer consent | [Movie booking example](examples/movie-booking/README.md) |
 | Build a provider plugin | [Plugin contract](docs/plugin-contract.md) |
 | Operate, back up, and restore Circuit | [Deployment](docs/production-deployment.md) and [operations](docs/operations.md) |
 | Configure autonomous execution and approval rules | [Gateway policy](docs/gateway-policy.md) |

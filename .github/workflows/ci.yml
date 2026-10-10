@@ -35,6 +35,10 @@ jobs:
         run: python3 examples/onboarding-validation.py
       - name: Rehearse guided middleware setup and real REST approval forwarding
         run: python3 examples/middleware-validation.py
+      - name: Verify movie booking consent and autonomous workflow
+        run: |
+          python3 -m unittest discover -s examples/movie-booking -p 'test_*.py' -v
+          python3 examples/movie-booking/demo.py
 
   postgres:
     name: Live PostgreSQL Integration
