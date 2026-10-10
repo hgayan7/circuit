@@ -10,7 +10,7 @@ This policy defines the supported contract. It is not a claim that every previou
 - Clients must inspect `action.state`, not just HTTP success. Unknown states, uncertain outcomes, and unexpected responses stop automation. Stable idempotency keys identify one logical request; never create a new key to recover an uncertain write.
 - Maintained facades are qualified together with the candidate gateway. Other generated bindings need their own TLS, timeout, state, and no-redispatch acceptance tests.
 
-## Current-source policy change after v0.2.0
+## v0.3.0 policy migration
 
 Explicit matching gateway ALLOW rules now override built-in and target approval defaults. DENY and matching REQUIRE_APPROVAL rules still take precedence; scope, safety checks, budgets, provider preconditions, and uncertain-write protections remain enforced. Review existing broad ALLOW rules before upgrading because they can now authorize writes that previously required review. Configurations without matching ALLOW rules keep their defaults. Published v0.2.0 binaries retain the old behavior. See [gateway policy](gateway-policy.md) for examples and migration guidance.
 

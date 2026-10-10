@@ -40,6 +40,21 @@ release:
   extra_files:
     - glob: .circuit/release-sdk/*
   header: |
+    ## Autonomous actions under explicit policy
+
+    v0.3.0 lets matching ALLOW rules authorize supported actions automatically,
+    including REST writes. DENY and REQUIRE_APPROVAL still take precedence.
+    Scope checks, budgets, exact approvals, and uncertain-write no-replay remain.
+    A movie-booking chatbot fixture demonstrates trusted customer consent and
+    recovery without duplicate purchases. Go 1.26.9 and x/net v0.60.0 address
+    the security-check findings; Docker builds use the patched toolchain too.
+
+    **Upgrade behavior change:** existing broad ALLOW rules can now authorize
+    writes that previously required review. Encode intended review requirements
+    as REQUIRE_APPROVAL rules and review policies before resuming agents.
+    See [v0.3.0 notes and migration guidance](https://github.com/hgayan7/circuit/blob/{{ .Tag }}/docs/releases/v0.3.0.md).
+    The OpenAPI contract stays 1.0.0; compatible SDK archives stay at 0.2.0.
+
     Circuit is a self-hosted BYOK action gateway with exact approvals, durable
     budgets and audit, an operator UI, and gateway-owned provider credentials.
     The setup -> up -> agent run flow provides tested gateway-only Docker/runc

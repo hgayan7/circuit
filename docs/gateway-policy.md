@@ -1,6 +1,6 @@
 # Autonomous execution rules
 
-On current source after v0.2.0, operators can explicitly authorize supported actions through gateway rules. An `ALLOW` rule permits execution without a human prompt, including REST POST/PUT/PATCH/DELETE, model inference routes, plugin writes, and native actions. Published v0.2.0 binaries retain the previous mandatory approval behavior.
+In v0.3.0, operators can explicitly authorize supported actions through gateway rules. An `ALLOW` rule permits execution without a human prompt, including REST POST/PUT/PATCH/DELETE, model inference routes, plugin writes, and native actions. Published v0.2.0 binaries retain the previous mandatory approval behavior.
 
 ## Decision order
 

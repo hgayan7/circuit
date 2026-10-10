@@ -6,7 +6,7 @@ Run a complete local conversation using the real Circuit gateway over verified T
 python3 examples/movie-booking/demo.py
 ```
 
-Requires Go 1.26.7+ and Python 3. No Python dependencies, model keys, external accounts, or Docker are needed. Everything runs in temporary directories and stops on exit. This is a deterministic chatbot walkthrough with local booking/payment fixtures; no real tickets are bought or money moved.
+Requires Go 1.26.9+ and Python 3. No Python dependencies, model keys, external accounts, or Docker are needed. Everything runs in temporary directories and stops on exit. This is a deterministic chatbot walkthrough with local booking/payment fixtures; no real tickets are bought or money moved.
 
 For terminal customer confirmation and operator approval prompts:
 
@@ -66,4 +66,4 @@ python3 -m unittest discover -s examples/movie-booking -p 'test_*.py' -v
 
 An LLM can select these tools through the same agent-only connection. This example does not use an LLM, expose a web chatbot, stream inference, or implement a real booking provider. It runs without OS/container isolation: credential separation in the code is not protection against malicious code sharing the host. For enforced routing, deploy the agent in the [isolated environment](../../docs/isolated-agents.md), keep operator/customer/service secrets outside it, and validate your actual provider.
 
-The autonomy semantics require current source after v0.2.0. Published v0.2.0 binaries retain mandatory write approvals. See [gateway policy](../../docs/gateway-policy.md) and [REST forwarding](../../docs/middleware.md).
+The autonomy semantics require v0.3.0 or newer. Published v0.2.0 binaries retain mandatory write approvals. See [gateway policy](../../docs/gateway-policy.md) and [REST forwarding](../../docs/middleware.md).

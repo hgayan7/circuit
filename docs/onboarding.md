@@ -2,7 +2,7 @@
 
 For mandatory gateway-only agent networking on current source, use [setup -> up -> agent run --dir](isolated-agents.md). Generated clients and the trusted firewall boundary are newer than rc.2; the host-side `start` flow below is cooperative integration, not enforced isolation.
 
-These commands are available in v0.2.0-rc.2 and on `main`. Use a downloaded rc.2 binary, or build its source with Go 1.26.7 or later:
+These commands are available in v0.2.0-rc.2 and on `main`. Use a downloaded rc.2 binary, or build current source with Go 1.26.9 or later (rc.2 source requires 1.26.7):
 
 ```sh
 go build -o bin/circuit ./cmd/circuit

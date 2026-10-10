@@ -2,7 +2,7 @@
 
 Circuit provides root-scoped file operations and local shell execution with approval by default. File operations use Go's `os.Root`; shell execution is not an OS sandbox and can access the host outside the workspace. Use an independently configured OS sandbox before relying on shell isolation.
 
-Like the GitHub adapter, the gateway holds execution authority. Each agent receives explicit workspace allowlists, operation permissions, durable call quotas, and operator approval defaults for destructive operations. On current source after v0.2.0, [explicit gateway rules](gateway-policy.md) can authorize these operations automatically; scope, read-only restrictions, and external sandbox requirements still apply.
+Like the GitHub adapter, the gateway holds execution authority. Each agent receives explicit workspace allowlists, operation permissions, durable call quotas, and operator approval defaults for destructive operations. In v0.3.0, [explicit gateway rules](gateway-policy.md) can authorize these operations automatically; scope, read-only restrictions, and external sandbox requirements still apply.
 
 ## Capabilities
 

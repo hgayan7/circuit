@@ -23,7 +23,7 @@ agents:
 
 REST actions select an integration using `channel`. The destination for `send_message` is supplied separately in `args.channel`. MCP exposes `comm_send_message`, `comm_send_email`, `comm_create_ticket`, `comm_update_ticket`, and `comm_publish_document`.
 
-Broadcast mentions and document publication default to approval. External email defaults to approval when configured. On current source after v0.2.0, explicit gateway ALLOW rules can override approval defaults; matching REQUIRE_APPROVAL and DENY rules take precedence. See [gateway policy](gateway-policy.md). Limits support `channel` and `agent_channel`. These are policy behavior tests, not evidence of delivery, provider permissions, or credential isolation on a real communication service.
+Broadcast mentions and document publication default to approval. External email defaults to approval when configured. In v0.3.0, explicit gateway ALLOW rules can override approval defaults; matching REQUIRE_APPROVAL and DENY rules take precedence. See [gateway policy](gateway-policy.md). Limits support `channel` and `agent_channel`. These are policy behavior tests, not evidence of delivery, provider permissions, or credential isolation on a real communication service.
 
 ```bash
 circuit gateway check gateway.yaml

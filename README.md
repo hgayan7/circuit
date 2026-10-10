@@ -22,7 +22,7 @@ The 3D scenes explain the boundary; the recorded interface results are from the 
 
 Watch an agent propose a GitHub file change, wait for your approval, and continue to a separately approved merge. The review interface shows the requested payload, your decision, and the execution history.
 
-This local simulation never contacts GitHub and needs no real credentials. Requires Go 1.26.7 or later and Python 3. For a reproducible release checkout, use the `v0.2.0` tag.
+This local simulation never contacts GitHub and needs no real credentials. Requires Go 1.26.9 or later and Python 3. For a reproducible release checkout, use the `v0.3.0` tag.
 
 1. From the source checkout, build and start the demo:
 
@@ -47,14 +47,15 @@ For a real GitHub workflow, configure your own credentials and repository scopes
 
 ## What Is Available
 
-The released **[v0.2.0](https://github.com/hgayan7/circuit/releases/tag/v0.2.0)** is a self-hosted BYOK gateway with tested Docker/runc isolation and maintained Python, TypeScript, and Go clients. Check [repository releases](https://github.com/hgayan7/circuit/releases) for validated artifacts. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums.
+The **[v0.3.0 release](https://github.com/hgayan7/circuit/releases/tag/v0.3.0)** is a self-hosted BYOK gateway with tested Docker/runc isolation and maintained Python, TypeScript, and Go clients. Check [repository releases](https://github.com/hgayan7/circuit/releases) for validated artifacts. Downloadable binaries target Linux and macOS, amd64 and arm64, with SHA-256 checksums.
 
 | Version | What you get |
 | --- | --- |
-| Released `v0.2.0` | Guided setup, action gateway, review UI, agent-only MCP connector, isolated gateway-only agent deployment, GitHub and governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients. |
+| `v0.3.0` | Explicit rules authorize autonomous actions, including REST writes; trusted-consent movie booking example; Go security fixes. Includes the v0.2.0 deployment and client features. |
+| Earlier `v0.2.0` | Guided setup, action gateway, review UI, agent-only MCP connector, isolated gateway-only agent deployment, GitHub and governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients. |
 | Earlier prerelease `v0.2.0-rc.2` | GitHub production-oriented profile, guided setup, action gateway, review UI, and agent-only MCP connector. Does not include the isolation and generated-client additions in v0.2.0. |
 
-The v0.2.0 binaries and installable SDK archives passed exact-artifact checks and are available through this repository's [release](https://github.com/hgayan7/circuit/releases/tag/v0.2.0). Use the matching source tag for Docker builds and rehearsal scripts; changes on `main` may be newer than the release. No npm/PyPI, Homebrew, or container-registry publishing is performed. See [local artifact testing](docs/local-release-testing.md) to build and validate without publishing.
+The release workflow verifies exact downloadable binary and SDK archives before publication. Gateway v0.3.0 retains the OpenAPI 1.0.0 contract and compatible SDK 0.2.0 archives. See the [v0.3.0 notes](docs/releases/v0.3.0.md), especially the changed `ALLOW` semantics. Use the matching source tag for Docker builds and rehearsal scripts; changes on `main` may be newer than the release. No npm/PyPI, Homebrew, or container-registry publishing is performed. See [local artifact testing](docs/local-release-testing.md) to build and validate without publishing.
 
 The owner waived the uninterrupted 72-hour fixture soak on 2026-10-05; it has not passed. See the [release checklist](docs/release-checklist.md) for scope and exceptions. Neither a stable version, a `--production` flag, nor a passing fixture test is production certification.
 
@@ -94,7 +95,7 @@ docker build --target gateway -f deploy/docker/Dockerfile -t circuit-gateway:loc
 docker build --target boundary -f deploy/docker/Dockerfile -t circuit-boundary:local .
 ```
 
-Requires Go 1.26.7 or later, Docker with Linux containers, Docker Compose v2 supporting `--wait`, and an agent image containing your app and dependencies.
+Requires Go 1.26.9 or later, Docker with Linux containers, Docker Compose v2 supporting `--wait`, and an agent image containing your app and dependencies.
 
 Generate the configuration, scoped credentials, and local TLS files:
 
@@ -125,7 +126,7 @@ bin/circuit agent run --dir "$HOME/.circuit-operator" --image YOUR_AGENT_IMAGE \
 
 Replace the image, workspace, and command with your app's values. Use the same setup directory throughout: `--out` creates it; `--dir` selects it. The runner supplies the gateway URL, agent token, and public CA, and mounts the reviewed workspace read-only.
 
-**All network access must go through Circuit**, including model calls. The isolated runner permits only gateway TCP/8443. Model access must be a declared route/tool; Circuit does not automatically intercept an existing model SDK. On current source after v0.2.0, an explicit gateway `ALLOW` rule can authorize REST POST requests, including inference, automatically. Unmatched writes default to approval. See [model access](docs/isolated-agents.md#model-access) for autonomous inference options and cost-accounting limits.
+**All network access must go through Circuit**, including model calls. The isolated runner permits only gateway TCP/8443. Model access must be a declared route/tool; Circuit does not automatically intercept an existing model SDK. In v0.3.0, an explicit gateway `ALLOW` rule can authorize REST POST requests, including inference, automatically. Unmatched writes default to approval. See [model access](docs/isolated-agents.md#model-access) for autonomous inference options and cost-accounting limits.
 
 ### Choose A Client
 

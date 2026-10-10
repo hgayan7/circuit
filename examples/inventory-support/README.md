@@ -7,7 +7,7 @@ multiple replacements for the same order.
 
 ## Run it
 
-From the repository root, with Go 1.26.7+ and Python 3 installed:
+From the repository root, with Go 1.26.9+ and Python 3 installed:
 
 ```sh
 python3 examples/inventory-support/demo.py

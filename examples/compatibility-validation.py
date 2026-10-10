@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rehearse rc.2 upgrade/rollback with one owner and unchanged fixture configuration."""
+"""Rehearse previous-release upgrade/rollback with one owner and unchanged fixture configuration."""
 import argparse
 import http.server
 import json

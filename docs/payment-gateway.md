@@ -12,7 +12,7 @@ This adapter is **simulation only**. It does not call Stripe, banks, or other pa
 
 ---
 
-On current source after v0.2.0, explicit matching gateway `ALLOW` rules can override payment approval defaults. Matching `REQUIRE_APPROVAL` and `DENY` rules take precedence; maximum transaction amounts and executor restrictions remain enforced. See [gateway policy](gateway-policy.md).
+In v0.3.0, explicit matching gateway `ALLOW` rules can override payment approval defaults. Matching `REQUIRE_APPROVAL` and `DENY` rules take precedence; maximum transaction amounts and executor restrictions remain enforced. See [gateway policy](gateway-policy.md).
 
 ## Configuration
 

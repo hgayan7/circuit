@@ -158,7 +158,7 @@ jobs:
         run: python3 examples/sdk-validation.py --python /tmp/circuit-sdk-venv/bin/python
       - name: Install packed artifacts in clean consumer environments
         run: |
-          go build -ldflags '-X main.version=0.2.0-local' -o /tmp/circuit-candidate ./cmd/circuit
+          go build -ldflags '-X main.version=0.3.0-local' -o /tmp/circuit-candidate ./cmd/circuit
           sh scripts/package-sdks.sh .circuit/release-sdk
           python3 examples/release-validation.py --artifacts .circuit/release-sdk --binary /tmp/circuit-candidate
       - name: Rehearse previous-release upgrade and rollback
@@ -166,13 +166,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for attempt in 1 2 3; do
-            gh release download v0.2.0-rc.2 --pattern circuit_0.2.0-rc.2_linux_amd64.tar.gz --pattern checksums.txt --dir /tmp/circuit-previous --clobber && break
+            gh release download v0.2.0 --pattern circuit_0.2.0_linux_amd64.tar.gz --pattern checksums.txt --dir /tmp/circuit-previous --clobber && break
             [ "$attempt" -lt 3 ] || exit 1
             sleep 5
           done
           cd /tmp/circuit-previous
           sha256sum --ignore-missing -c checksums.txt
-          tar -xzf circuit_0.2.0-rc.2_linux_amd64.tar.gz
+          tar -xzf circuit_0.2.0_linux_amd64.tar.gz
           cd "$GITHUB_WORKSPACE"
           python3 examples/compatibility-validation.py --previous /tmp/circuit-previous/circuit --candidate /tmp/circuit-candidate
 

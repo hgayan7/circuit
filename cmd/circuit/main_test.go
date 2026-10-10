@@ -31,7 +31,7 @@ func TestVersionCommand(t *testing.T) {
 
 	err := rootCmd.Execute()
 	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "circuit v0.1.0")
+	assert.Contains(t, buf.String(), "circuit v"+version)
 }
 
 func TestCheckCommand_ValidFile(t *testing.T) {
