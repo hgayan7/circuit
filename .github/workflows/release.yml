@@ -54,7 +54,6 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: unused-no-external-publication
       - name: Verify and test exact downloadable artifacts before publication
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

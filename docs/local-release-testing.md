@@ -42,7 +42,7 @@ The isolation fixture follows `setup -> up -> agent run` and checks real bypass 
 ## Explicit Exceptions
 
 - On 2026-10-05, the owner requested skipping the uninterrupted 72-hour soak. It is **waived for this local qualification, not completed or passed**. Short checks do not establish multi-day reliability.
-- npm/PyPI, container-registry, Homebrew, and other external publication are explicitly excluded. SDKs can be installed from local archives or validated release assets in this repository.
+- npm/PyPI, container-registry, and other publication destinations are excluded. The owner additionally authorized hgayan7/homebrew-circuit on 2026-10-10; its hourly updater verifies exact-commit CI, release validation, and archive checksums before changing the formula. SDKs can be installed from local archives or validated release assets in this repository.
 - Independent security review remains deferred. Automated checks are not independent certification.
 - A temporary clean consumer environment on this machine is not a separate clean machine. CI repeats clean installs on an ephemeral Linux runner; release publication additionally downloads and tests exact draft artifacts before making the repository release public.
 - No real email is sent by these fixtures. Any live test email may be sent only to `hgayan7@gmail.com`; unclear destinations require owner confirmation.

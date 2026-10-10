@@ -18,6 +18,17 @@ https://github.com/user-attachments/assets/fb2ec505-0782-4ce7-bae7-3df1291683c1
 
 The 3D scenes explain the boundary; the recorded interface results are from the local simulation below. Docker isolation requires configuration; installing the SDK alone does not provide isolation.
 
+## Install With Homebrew
+
+```sh
+brew install hgayan7/circuit/circuit
+# Existing installations:
+brew update
+brew upgrade circuit
+```
+
+The [tap](https://github.com/hgayan7/homebrew-circuit) updates hourly after stable releases pass CI and artifact validation. GitHub scheduling may delay an update. Linux/macOS amd64/arm64 binaries are verified against release checksums.
+
 ## Try The Demo
 
 Watch an agent propose a GitHub file change, wait for your approval, and continue to a separately approved merge. The review interface shows the requested payload, your decision, and the execution history.
@@ -55,7 +66,7 @@ The **[v0.3.0 release](https://github.com/hgayan7/circuit/releases/tag/v0.3.0)**
 | Earlier `v0.2.0` | Guided setup, action gateway, review UI, agent-only MCP connector, isolated gateway-only agent deployment, GitHub and governed MCP/REST/plugin production targets, and generated TypeScript/Python/Go clients. |
 | Earlier prerelease `v0.2.0-rc.2` | GitHub production-oriented profile, guided setup, action gateway, review UI, and agent-only MCP connector. Does not include the isolation and generated-client additions in v0.2.0. |
 
-The release workflow verifies exact downloadable binary and SDK archives before publication. Gateway v0.3.0 retains the OpenAPI 1.0.0 contract and compatible SDK 0.2.0 archives. See the [v0.3.0 notes](docs/releases/v0.3.0.md), especially the changed `ALLOW` semantics. Use the matching source tag for Docker builds and rehearsal scripts; changes on `main` may be newer than the release. No npm/PyPI, Homebrew, or container-registry publishing is performed. See [local artifact testing](docs/local-release-testing.md) to build and validate without publishing.
+The release workflow verifies exact downloadable binary and SDK archives before publication. Gateway v0.3.0 retains the OpenAPI 1.0.0 contract and compatible SDK 0.2.0 archives. See the [v0.3.0 notes](docs/releases/v0.3.0.md), especially the changed `ALLOW` semantics. Use the matching source tag for Docker builds and rehearsal scripts; changes on `main` may be newer than the release. No npm/PyPI or container-registry publishing is performed. The [Homebrew tap](https://github.com/hgayan7/homebrew-circuit) tracks validated stable releases automatically. See [local artifact testing](docs/local-release-testing.md) to build and validate without publishing.
 
 The owner waived the uninterrupted 72-hour fixture soak on 2026-10-05; it has not passed. See the [release checklist](docs/release-checklist.md) for scope and exceptions. Neither a stable version, a `--production` flag, nor a passing fixture test is production certification.
 

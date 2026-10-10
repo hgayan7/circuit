@@ -4,7 +4,7 @@ Circuit is a self-hosted action gateway with CLI administration, REST/MCP integr
 
 ## Install A Matching Version
 
-Use [repository releases](https://github.com/hgayan7/circuit/releases) for validated binaries and SDK archives. The v0.2.0 scope includes isolated deployment and generated clients; rc.2 does not. Download the archive for Linux/macOS and amd64/arm64, compare its SHA-256 with `checksums.txt`, and extract it. No external registry or Homebrew publishing is performed. Native Windows gateway execution is not supported.
+Use [repository releases](https://github.com/hgayan7/circuit/releases) for validated binaries and SDK archives. The v0.2.0 scope includes isolated deployment and generated clients; rc.2 does not. Download the archive for Linux/macOS and amd64/arm64, compare its SHA-256 with `checksums.txt`, and extract it. No external registry publishing is performed. The [Homebrew tap](https://github.com/hgayan7/homebrew-circuit) tracks validated stable releases. Native Windows gateway execution is not supported.
 
 For the sample agent, Docker builds, and rehearsal scripts, use a source checkout. Requires Go 1.26.9 or later; the sample Python agent requires Python 3.
 

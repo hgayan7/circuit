@@ -62,7 +62,9 @@ release:
 
     Linux/macOS amd64/arm64 binaries, deployment templates, an OpenAPI contract,
     and installable Python/TypeScript/Go SDK archives are included in this repository.
-    No npm/PyPI, Homebrew, or container-registry publication is performed.
+    No npm/PyPI or container-registry publication is performed.
+    Install with `brew install hgayan7/circuit/circuit`; the separate Homebrew tap
+    updates only after exact-commit CI and release-artifact validation succeed.
     For Docker builds and rehearsal scripts, use the source checkout for this tag.
     Supply your own protected credentials; no production secrets are bundled.
 
@@ -82,15 +84,3 @@ changelog:
       - "^docs:"
       - "^test:"
       - "^chore:"
-
-homebrew_casks:
-  - name: circuit
-    skip_upload: true
-    repository:
-      owner: hgayan7
-      name: homebrew-circuit
-      branch: main
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://circuitproxy.com"
-    binaries:
-      - circuit
